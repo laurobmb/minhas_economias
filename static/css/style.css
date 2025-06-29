@@ -1,0 +1,533 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f0f4f8;
+    color: #334155;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+}
+.container {
+    background-color: #ffffff;
+    border-radius: 16px; /* Aumentado para mais arredondamento */
+    box-shadow: 0 15px 30px -5px rgba(0, 0, 0, 0.15), 0 6px 12px -2px rgba(0, 0, 0, 0.08); /* Sombra mais suave e proeminente */
+    padding: 40px; /* Aumentado o padding */
+    width: 100%;
+    max-width: 1000px; /* Aumentado o max-width */
+    overflow: hidden; /* Garante que os cantos arredondados sejam respeitados */
+}
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px; /* Aumentado o espaçamento */
+}
+.header h1 {
+    font-size: 2.5rem; /* Aumentado o tamanho da fonte */
+    font-weight: 800; /* Mais negrito */
+    color: #1e293b;
+}
+.api-link {
+    padding: 12px 25px; /* Aumentado o padding */
+    background-color: #4c8bf5; /* Tom de azul ligeiramente diferente */
+    color: white;
+    border-radius: 10px; /* Mais arredondado */
+    text-decoration: none;
+    font-weight: 600;
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Adicionado transição para transform */
+}
+.api-link:hover {
+    background-color: #3a75e0;
+    transform: translateY(-2px); /* Efeito de levantar */
+}
+
+/* Estilo do Formulário de Filtro */
+.filter-form {
+    display: flex;
+    flex-wrap: wrap; /* Permite que os itens quebrem linha */
+    gap: 15px; /* Espaçamento entre os itens do formulário */
+    margin-bottom: 30px;
+    background-color: #fcfdfe;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    align-items: flex-end; /* Alinha os itens pela base */
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1; /* Permite que os grupos ocupem espaço disponível */
+    min-width: 150px; /* Garante um tamanho mínimo para responsividade */
+}
+
+/* Garante que os campos de data no mesmo grupo tenham largura similar */
+.form-group.date-range-group {
+    flex: 1; /* Permite que ocupem espaço semelhante aos outros campos */
+    min-width: 160px; /* Ajuste o min-width se necessário para acomodar o input de data */
+}
+
+
+.label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+.select-input,
+.date-input,
+.text-input { /* Adicionado text-input aqui */
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #334155;
+    background-color: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    width: 100%; /* Garante que o input ocupe a largura total do grupo */
+}
+
+.select-input:focus,
+.date-input:focus,
+.text-input:focus { /* Adicionado text-input aqui */
+    outline: none;
+    border-color: #4c8bf5;
+    box-shadow: 0 0 0 3px rgba(76, 139, 245, 0.2);
+}
+
+/* Estilo específico para custom dropdown (categorias e contas) */
+.custom-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.select-selected {
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none; /* Não permite selecionar o texto */
+    position: relative;
+    padding-right: 30px; /* Espaço para o ícone de seta */
+}
+
+/* Seta para baixo */
+.select-selected:after {
+    position: absolute;
+    content: "";
+    top: 14px;
+    right: 10px;
+    width: 0;
+    height: 0;
+    border: 6px solid transparent;
+    border-color: #334155 transparent transparent transparent;
+}
+
+/* Seta para cima quando o dropdown está aberto */
+.select-selected.select-arrow-active:after {
+    border-color: transparent transparent #334155 transparent;
+    top: 7px;
+}
+
+.select-items {
+    position: absolute;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-top: none;
+    z-index: 99;
+    top: 100%; /* Posiciona abaixo do select-selected */
+    left: 0;
+    right: 0;
+    max-height: 200px; /* Altura máxima para rolagem */
+    overflow-y: auto;
+    border-radius: 0 0 8px 8px; /* Arredonda apenas os cantos inferiores */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.select-hide {
+    display: none;
+}
+
+.select-item-label {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex; /* Para alinhar checkbox e texto */
+    align-items: center;
+    gap: 8px; /* Espaçamento entre checkbox e texto */
+    transition: background-color 0.2s ease;
+}
+
+.select-item-label:hover {
+    background-color: #f0f4f8; /* Cor de hover para itens */
+}
+
+/* Renomeado de .category-checkbox para .custom-checkbox para ser genérico */
+.custom-checkbox {
+    /* Estilos básicos para o checkbox, o navegador cuida da aparência principal */
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Novo: para ocultar o rádio button real e manter o clique no label */
+.hidden-radio-input {
+    /* Oculta o rádio button nativo, o label ao redor é o clicável */
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* Novo: estilo para a aparência do rádio button dentro do custom dropdown, se necessário customizar */
+/* Pode-se adicionar estilos para .select-item-label input[type="radio"] se quiser um customizado visível */
+
+
+.filter-button,
+.clear-button {
+    padding: 12px 25px; /* Padrão do api-link */
+    border: none;
+    border-radius: 10px; /* Padrão do api-link */
+    font-weight: 600; /* Padrão do api-link */
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Padrão do api-link */
+    white-space: nowrap;
+}
+
+.filter-button {
+    background-color: #4c8bf5; /* Azul primário */
+    color: white;
+}
+
+.filter-button:hover {
+    background-color: #3a75e0; /* Azul mais escuro ao hover */
+    transform: translateY(-2px); /* Efeito de levantar */
+}
+
+.clear-button {
+    background-color: #ef4444; /* Vermelho para "Limpar Filtros" */
+    color: white;
+}
+
+.clear-button:hover {
+    background-color: #dc2626; /* Vermelho mais escuro ao hover */
+    transform: translateY(-2px); /* Efeito de levantar */
+}
+
+/* Nova seção para Entradas e Saídas */
+.summary-buttons-container {
+    display: flex;
+    justify-content: flex-end; /* Alinha os botões à direita */
+    gap: 15px; /* Espaçamento entre os botões */
+    margin-top: -15px; /* Move para cima para alinhar melhor com os filtros */
+    margin-bottom: 30px; /* Espaçamento abaixo */
+    padding: 0 20px; /* Alinha com o padding do formulário */
+}
+
+.summary-button-item {
+    padding: 12px 25px;
+    border-radius: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Espaçamento entre o label e o valor */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Sombra sutil */
+    transition: transform 0.2s ease;
+}
+
+.summary-button-item:hover {
+    transform: translateY(-2px); /* Efeito de levantar */
+}
+
+.summary-button-item span:first-child {
+    font-size: 0.95rem; /* Tamanho da fonte para o label (Entradas/Saídas) */
+    color: #475569;
+}
+
+.summary-button-item .value {
+    font-size: 1.1rem; /* Tamanho da fonte para o valor */
+    font-weight: 700;
+}
+
+.summary-button-item.income {
+    background-color: #d1fae5; /* Verde claro para entradas */
+    color: #065f46; /* Verde escuro para texto */
+}
+
+.summary-button-item.expense {
+    background-color: #fee2e2; /* Vermelho claro para saídas */
+    color: #991b1b; /* Vermelho escuro para texto */
+}
+
+/* Estilo da tabela principal */
+.table-container {
+    border-radius: 12px;
+    overflow-x: auto;
+    box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e2e8f0;
+    margin-top: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: #ffffff;
+}
+
+th, td {
+    text-align: left;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+    background-color: #f8fafc;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+}
+
+table thead tr:first-child th:first-child {
+    border-top-left-radius: 12px;
+}
+table thead tr:first-child th:last-child {
+    border-top-right-radius: 12px;
+}
+
+.table-row-item {
+    transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.table-row-item:hover {
+    background-color: #f1f6fc;
+    transform: scale(1.005);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
+    z-index: 1;
+}
+
+td.text-right, th.text-right {
+    text-align: right;
+    padding-right: 25px;
+}
+
+table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px;
+    font-style: italic;
+    color: #64748b;
+    font-size: 1.1rem;
+    background-color: #fefefe;
+    border-radius: 12px;
+    margin-top: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Tabela de Soma Total */
+.total-summary-container {
+    margin-top: 30px;
+    background-color: #e6f0ff;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #cce0ff;
+    padding: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.total-summary-table {
+    width: auto;
+    max-width: 350px;
+    min-width: 250px;
+    border-collapse: collapse;
+    background-color: transparent;
+}
+
+.total-summary-table td {
+    border-bottom: none;
+    padding: 0;
+}
+
+.total-label {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 1.2rem;
+    padding-right: 15px;
+    text-align: left;
+}
+
+.total-value {
+    font-weight: 800;
+    color: #22c55e;
+    font-size: 1.3rem;
+    text-align: right;
+    min-width: 120px;
+}
+
+.total-value.negative {
+    color: #ef4444;
+}
+
+/* Nova Seção: Adicionar Movimentação */
+.add-movement-section {
+    margin-top: 30px;
+    background-color: #f8fcfb; /* Cor de fundo suave */
+    border-radius: 12px;
+    box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e0ffe0; /* Borda verde clara */
+    padding: 30px;
+}
+
+.add-movement-section h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.add-movement-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.add-movement-form .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px; /* Espaçamento entre os campos na linha */
+}
+
+.add-movement-form .form-group {
+    flex: 1; /* Permite que os campos ocupem o espaço disponível */
+    min-width: 180px; /* Largura mínima para os campos */
+}
+
+.add-movement-form .form-group.checkbox-group {
+    flex-direction: row; /* Para alinhar label e checkbox horizontalmente */
+    align-items: center;
+    gap: 10px; /* Espaçamento entre label e checkbox */
+    min-width: unset; /* Reset min-width para checkbox */
+    justify-content: flex-start; /* Alinha à esquerda */
+}
+
+/* Estilos para o novo grupo de rádio */
+/* Removido o .radio-group específico, pois agora é .custom-select-container */
+
+.add-movement-form .radio-options {
+    /* Manter para compatibilidade se o DOM ainda tem isso, mas não será usado */
+    display: none; /* Ou redefinir se for necessário para outros elementos */
+}
+
+.add-movement-form .radio-label {
+    /* Pode ser mantido se quiser um estilo específico para labels dentro do custom select */
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+}
+
+.add-movement-form .radio-input {
+    /* Este rádio input agora está .hidden-radio-input e é manipulado pelo JS */
+    width: 16px; /* Tamanho do rádio */
+    height: 16px;
+    cursor: pointer;
+}
+
+
+.add-movement-form .label-checkbox {
+    margin-bottom: 0; /* Remove margin-bottom padrão para alinhamento */
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+.add-movement-form .checkbox-input {
+    width: 20px; /* Tamanho maior para o checkbox */
+    height: 20px;
+    min-width: unset; /* Não restringir a largura */
+}
+
+.add-movement-form .text-input {
+    min-width: unset; /* Garante que o text-input não tenha min-width excessivo */
+}
+
+.add-button {
+    padding: 14px 30px;
+    background-color: #22c55e; /* Verde para adicionar */
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    align-self: flex-end; /* Alinha o botão à direita */
+    margin-top: 10px; /* Espaçamento acima do botão */
+}
+
+.add-button:hover {
+    background-color: #16a34a;
+    transform: translateY(-2px);
+}
+
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .filter-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-group {
+        width: 100%;
+        min-width: unset;
+    }
+    .filter-button,
+    .clear-button {
+        width: 100%;
+    }
+    .summary-buttons-container {
+        flex-direction: column; /* Empilha os botões em telas menores */
+        align-items: stretch; /* Estica os botões para preencher a largura */
+        padding: 0; /* Remove padding lateral */
+    }
+    .summary-button-item {
+        width: 100%; /* Ocupa a largura total */
+        justify-content: space-between; /* Espaço entre label e valor */
+    }
+    .total-summary-container {
+        justify-content: center;
+        padding: 15px;
+    }
+    .total-summary-table {
+        width: 100%;
+        max-width: unset;
+    }
+
+    /* Responsividade para o formulário de adição */
+    .add-movement-form .form-row {
+        flex-direction: column;
+    }
+    .add-movement-form .form-group {
+        width: 100%;
+        min-width: unset;
+    }
+    .add-movement-form .radio-options { /* Agora desnecessário para o "Tipo" */
+        flex-direction: column;
+    }
+    .add-button {
+        width: 100%;
+        align-self: center; /* Centraliza o botão em telas pequenas */
+    }
+}

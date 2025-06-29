@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Titulo }}</title>
+    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container rounded-xl">
+        <div class="header">
+            <h1 class="text-gray-900">Extratos Financeiros</h1>
+            <a href="/api/movimentacoes" id="apiLink" class="api-link rounded-lg">Ver JSON da API</a>
+        </div>
+
+        <!-- Nova Posição: Adicionar Nova Movimentação (movido para cima) -->
+        <div class="add-movement-section rounded-xl">
+            <h2>Adicionar Nova Movimentação</h2>
+            <form action="/movimentacoes" method="POST" class="add-movement-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="new_data_ocorrencia" class="label">Data Ocorrência:</label>
+                        <input type="date" name="data_ocorrencia" id="new_data_ocorrencia" value="{{ .CurrentDate }}" class="date-input rounded-md" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_descricao" class="label">Descrição:</label>
+                        <input type="text" name="descricao" id="new_descricao" class="text-input rounded-md" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_valor" class="label">Valor:</label>
+                        <input type="text" name="valor" id="new_valor" class="text-input rounded-md">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="label">Tipo:</label>
+                        <div class="custom-select-container">
+                            <div class="select-selected rounded-md" id="tipo-movimentacao-display">
+                                Despesa
+                            </div>
+                            <div class="select-items select-hide" id="tipo-movimentacao-options">
+                                <label class="select-item-label">
+                                    <input type="radio" name="tipo_movimentacao" value="receita" id="tipo_receita" class="hidden-radio-input"> Receita
+                                </label>
+                                <label class="select-item-label">
+                                    <input type="radio" name="tipo_movimentacao" value="despesa" id="tipo_despesa" class="hidden-radio-input" checked> Despesa
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_categoria" class="label">Categoria:</label>
+                        <input type="text" name="categoria" id="new_categoria" class="text-input rounded-md" placeholder="Ex: Alimentação" list="category-suggestions">
+                        <datalist id="category-suggestions"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_conta" class="label">Conta:</label>
+                        <input type="text" name="conta" id="new_conta" class="text-input rounded-md" placeholder="Ex: Banco X" required list="account-suggestions">
+                        <datalist id="account-suggestions"></datalist>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label for="new_consolidado" class="label-checkbox">Consolidado:</label>
+                        <input type="checkbox" name="consolidado" id="new_consolidado" class="checkbox-input rounded-md">
+                    </div>
+                </div>
+                <button type="submit" class="add-button rounded-md">Adicionar Movimentação</button>
+            </form>
+        </div>
+        <!-- Fim da Seção: Adicionar Nova Movimentação -->
+
+
+        <form action="/" method="GET" class="filter-form" id="filterForm">
+            <div class="form-group">
+                <label for="category" class="label">Categoria:</label>
+                <div class="custom-select-container">
+                    <div class="select-selected rounded-md" id="category-select-display">
+                        Todas as Categorias
+                    </div>
+                    <div class="select-items select-hide" id="category-select-options">
+                        {{- range $category := .Categories -}}
+                            <label class="select-item-label">
+                                <input type="checkbox" name="category" value="{{ $category }}" class="custom-checkbox"
+                                    {{- range $.SelectedCategories -}}
+                                        {{- if eq . $category -}}checked{{- end -}}
+                                    {{- end -}}
+                                >
+                                {{ $category }}
+                            </label>
+                        {{- end -}}
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="account" class="label">Conta:</label>
+                <div class="custom-select-container">
+                    <div class="select-selected rounded-md" id="account-select-display">
+                        Todas as Contas
+                    </div>
+                    <div class="select-items select-hide" id="account-select-options">
+                        {{- range $account := .Accounts -}}
+                            <label class="select-item-label">
+                                <input type="checkbox" name="account" value="{{ $account }}" class="custom-checkbox"
+                                    {{- range $.SelectedAccounts -}}
+                                        {{- if eq . $account -}}checked{{- end -}}
+                                    {{- end -}}
+                                >
+                                {{ $account }}
+                            </label>
+                        {{- end -}}
+                    </div>
+                </div>
+            </div>
+            <div class="form-group date-range-group">
+                <label for="start_date" class="label">Data Início:</label>
+                <input type="date" name="start_date" id="start_date" value="{{ .SelectedStartDate }}" class="date-input rounded-md">
+            </div>
+            <div class="form-group date-range-group">
+                <label for="end_date" class="label">Data Fim:</label>
+                <input type="date" name="end_date" id="end_date" value="{{ .SelectedEndDate }}" class="date-input rounded-md">
+            </div>
+            <div class="form-group">
+                <label for="consolidated_filter" class="label">Consolidado:</label>
+                <select name="consolidated_filter" id="consolidated_filter" class="select-input rounded-md">
+                    {{ range .ConsolidatedOptions }}
+                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidated }}selected{{ end }}>
+                            {{ .Label }}
+                        </option>
+                    {{ end }}
+                </select>
+            </div>
+            <button type="submit" class="filter-button rounded-md">Filtrar</button>
+            <button type="button" class="clear-button rounded-md" onclick="window.location.href='/'">Limpar Filtros</button>
+        </form>
+
+        <div class="summary-buttons-container">
+            <div class="summary-button-item income">
+                <span>Entradas:</span>
+                <span class="value">R$ {{ printf "%.2f" .TotalEntradas }}</span>
+            </div>
+            <div class="summary-button-item expense">
+                <span>Saídas:</span>
+                <span class="value">R$ {{ printf "%.2f" .TotalSaidas }}</span>
+            </div>
+        </div>
+
+
+        {{ if .Movimentacoes }}
+        <div class="table-container">
+            <table class="rounded-lg overflow-hidden">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Data</th>
+                        <th>Descrição</th>
+                        <th class="text-right">Valor</th>
+                        <th>Categoria</th>
+                        <th>Conta</th>
+                        <th>Consolidado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Movimentacoes }}
+                    <tr class="table-row-item">
+                        <td>{{ .ID }}</td>
+                        <td>{{ .DataOcorrencia }}</td>
+                        <td>{{ .Descricao }}</td>
+                        <td class="text-right">R$ {{ printf "%.2f" .Valor }}</td>
+                        <td>{{ .Categoria }}</td>
+                        <td>{{ .Conta }}</td>
+                        <td>
+                            {{ if .Consolidado }}
+                                Sim
+                            {{ else }}
+                                Não
+                            {{ end }}
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="total-summary-container">
+            <table class="total-summary-table rounded-lg overflow-hidden">
+                <tbody>
+                    <tr>
+                        <td class="total-label">Total Consolidado:</td>
+                        <td class="total-value text-right {{ if lt .TotalValor 0.0 }}negative{{ end }}">R$ {{ printf "%.2f" .TotalValor }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        {{ else }}
+        <p class="no-data">Nenhum extrato encontrado com os filtros aplicados.</p>
+        {{ end }}
+    </div>
+
+    <script>
+        // Função para atualizar o link "Ver JSON da API" com os filtros atuais
+        function updateApiLink() {
+            const apiLink = document.getElementById('apiLink');
+            const form = document.getElementById('filterForm');
+            if (!apiLink || !form) {
+                console.warn('Elementos API link ou formulário não encontrados.');
+                return;
+            }
+
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+
+            // Adiciona todos os campos do formulário aos parâmetros da URL
+            for (const [key, value] of formData.entries()) {
+                if (value) { // Adiciona apenas se o valor não estiver vazio
+                    params.append(key, value);
+                }
+            }
+
+            apiLink.href = '/api/movimentacoes?' + params.toString();
+        }
+
+        // Script para o custom dropdowns com checkboxes e rádio
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterForm = document.getElementById('filterForm');
+            if (filterForm) {
+                updateApiLink(); // Inicializa o link da API
+
+                // Adiciona listeners para inputs de data e o select de consolidado
+                filterForm.querySelectorAll('input[type="date"], #consolidated_filter').forEach(input => {
+                    input.addEventListener('change', updateApiLink);
+                });
+
+                // Função genérica para configurar dropdowns com checkboxes (multi-select)
+                function setupMultiSelectDropdown(displayId, optionsId, checkboxClass, selectedValues) {
+                    const selectDisplay = document.getElementById(displayId);
+                    const selectOptions = document.getElementById(optionsId);
+                    const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
+
+                    function updateDisplay() {
+                        const currentSelectedValues = Array.from(checkboxes)
+                            .filter(cb => cb.checked)
+                            .map(cb => cb.value);
+
+                        if (currentSelectedValues.length === 0) {
+                            selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
+                        } else if (currentSelectedValues.length === 1) {
+                            selectDisplay.textContent = currentSelectedValues[0];
+                        } else {
+                            selectDisplay.textContent = currentSelectedValues.length + " selecionadas";
+                        }
+                        updateApiLink(); // Atualiza o link da API
+                    }
+
+                    // Inicializa o texto de exibição ao carregar a página
+                    updateDisplay();
+
+                    // Toggle visibility of options when display is clicked
+                    selectDisplay.addEventListener('click', (event) => {
+                        event.stopPropagation(); // Impede que o clique se propague para o documento
+                        selectOptions.classList.toggle('select-hide');
+                        selectDisplay.classList.toggle('select-arrow-active');
+                    });
+
+                    // Close the dropdown if clicked outside
+                    document.addEventListener('click', (event) => {
+                        if (!selectDisplay.contains(event.target) && !selectOptions.contains(event.target)) {
+                            selectOptions.classList.add('select-hide');
+                            selectDisplay.classList.remove('select-arrow-active');
+                        }
+                    });
+
+                    // Handle checkbox changes
+                    checkboxes.forEach(checkbox => {
+                        checkbox.addEventListener('change', updateDisplay);
+                    });
+                }
+
+                // Configura o dropdown de Categorias
+                setupMultiSelectDropdown(
+                    'category-select-display',
+                    'category-select-options',
+                    'custom-checkbox',
+                    {{ .SelectedCategories | jsonify }}
+                );
+
+                // Configura o dropdown de Contas
+                setupMultiSelectDropdown(
+                    'account-select-display',
+                    'account-select-options',
+                    'custom-checkbox',
+                    {{ .SelectedAccounts | jsonify }}
+                );
+            }
+
+            // --- Script para o formulário de Adicionar Movimentação ---
+            const addMovementForm = document.querySelector('.add-movement-form');
+            const valorInput = document.getElementById('new_valor');
+            const tipoReceitaRadio = document.getElementById('tipo_receita');
+            const tipoDespesaRadio = document.getElementById('tipo_despesa');
+            const tipoMovimentacaoDisplay = document.getElementById('tipo-movimentacao-display');
+            const tipoMovimentacaoOptions = document.getElementById('tipo-movimentacao-options');
+
+
+            // Função para ajustar o sinal do valor
+            function adjustValorSign() {
+                let rawValue = valorInput.value.trim();
+
+                // Se o campo estiver vazio ou for apenas um sinal, não faz nada
+                if (rawValue === '' || rawValue === '-' || rawValue === '+') {
+                    return;
+                }
+
+                // Remove pontos de milhar e substitui vírgula por ponto para parsing (formato brasileiro)
+                let parsedString = rawValue.replace(/\./g, ''); // Remove pontos de milhar
+                parsedString = parsedString.replace(',', '.');   // Troca vírgula decimal por ponto
+
+                let currentValue = parseFloat(parsedString);
+
+                // Se não for um número válido, não faz nada e pode avisar o usuário
+                if (isNaN(currentValue)) {
+                    console.warn("Valor inválido digitado no campo de valor: ", rawValue);
+                    // Opcional: valorInput.value = ''; // Limpar campo se inválido
+                    return;
+                }
+
+                let newValue = currentValue;
+
+                if (tipoDespesaRadio.checked) {
+                    if (newValue > 0) {
+                        newValue = -newValue;
+                    }
+                } else if (tipoReceitaRadio.checked) {
+                    if (newValue < 0) {
+                        newValue = Math.abs(newValue);
+                    }
+                }
+                
+                // Formata para duas casas decimais e substitui ponto por vírgula para exibição (formato brasileiro)
+                valorInput.value = newValue.toFixed(2).replace('.', ',');
+            }
+
+            // Função para atualizar o texto de exibição do dropdown Tipo
+            function updateTipoMovimentacaoDisplay() {
+                if (tipoDespesaRadio.checked) {
+                    tipoMovimentacaoDisplay.textContent = "Despesa";
+                } else if (tipoReceitaRadio.checked) {
+                    tipoMovimentacaoDisplay.textContent = "Receita";
+                }
+            }
+
+            // Lógica para o dropdown personalizado de Tipo de Movimentação
+            if (tipoMovimentacaoDisplay && tipoMovimentacaoOptions) {
+                // Ao clicar no display, alterna a visibilidade das opções
+                tipoMovimentacaoDisplay.addEventListener('click', (event) => {
+                    event.stopPropagation(); // Impede que o clique se propague
+                    tipoMovimentacaoOptions.classList.toggle('select-hide');
+                    tipoMovimentacaoDisplay.classList.toggle('select-arrow-active');
+                });
+
+                // Ao clicar fora, fecha o dropdown
+                document.addEventListener('click', (event) => {
+                    if (!tipoMovimentacaoDisplay.contains(event.target) && !tipoMovimentacaoOptions.contains(event.target)) {
+                        tipoMovimentacaoOptions.classList.add('select-hide');
+                        tipoMovimentacaoDisplay.classList.remove('select-arrow-active');
+                    }
+                });
+
+                // Quando uma opção de rádio é clicada
+                tipoReceitaRadio.addEventListener('change', () => {
+                    adjustValorSign();
+                    updateTipoMovimentacaoDisplay();
+                    tipoMovimentacaoOptions.classList.add('select-hide'); // Fecha o dropdown
+                    tipoMovimentacaoDisplay.classList.remove('select-arrow-active');
+                });
+                tipoDespesaRadio.addEventListener('change', () => {
+                    adjustValorSign();
+                    updateTipoMovimentacaoDisplay();
+                    tipoMovimentacaoOptions.classList.add('select-hide'); // Fecha o dropdown
+                    tipoMovimentacaoDisplay.classList.remove('select-arrow-active');
+                });
+            }
+
+            // Adiciona listeners para o campo de valor
+            if (valorInput) {
+                // Ajusta o sinal apenas quando o campo perde o foco
+                valorInput.addEventListener('change', adjustValorSign); 
+            }
+
+            // Define "Despesa" como padrão ao carregar a página e ajusta o sinal
+            if (tipoDespesaRadio) {
+                tipoDespesaRadio.checked = true;
+                updateTipoMovimentacaoDisplay(); // Atualiza o texto de exibição
+                adjustValorSign(); // Garante que o valor esteja negativo se já houver um (útil em recargas de página)
+            }
+
+
+            // --- Autopreenchimento para Categoria e Conta (no formulário de adição) ---
+            const categorySuggestionsDatalist = document.getElementById('category-suggestions');
+            const accountSuggestionsDatalist = document.getElementById('account-suggestions');
+
+            const categoriesFromGo = {{ .Categories | jsonify }};
+            const accountsFromGo = {{ .Accounts | jsonify }};
+
+            function populateDatalist(datalistElement, dataArray) {
+                datalistElement.innerHTML = ''; // Limpa opções existentes
+                dataArray.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    datalistElement.appendChild(option);
+                });
+            }
+
+            if (categorySuggestionsDatalist && categoriesFromGo) {
+                populateDatalist(categorySuggestionsDatalist, categoriesFromGo);
+            }
+            if (accountSuggestionsDatalist && accountsFromGo) {
+                populateDatalist(accountSuggestionsDatalist, accountsFromGo);
+            }
+        });
+    </script>
+</body>
+</html>
