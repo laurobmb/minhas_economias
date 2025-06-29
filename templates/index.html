@@ -15,10 +15,11 @@
             <a href="/api/movimentacoes" id="apiLink" class="api-link rounded-lg">Ver JSON da API</a>
         </div>
 
-        <!-- Nova Posição: Adicionar Nova Movimentação (movido para cima) -->
+        <!-- Seção: Adicionar Nova Movimentação / Editar Movimentação -->
         <div class="add-movement-section rounded-xl">
-            <h2>Adicionar Nova Movimentação</h2>
-            <form action="/movimentacoes" method="POST" class="add-movement-form">
+            <h2 id="add-edit-form-title">Adicionar Nova Movimentação</h2>
+            <form action="/movimentacoes" method="POST" class="add-movement-form" id="add-edit-form">
+                <input type="hidden" name="id" id="movement-id-input"> <!-- Campo oculto para o ID (usado na edição) -->
                 <div class="form-row">
                     <div class="form-group">
                         <label for="new_data_ocorrencia" class="label">Data Ocorrência:</label>
@@ -65,10 +66,13 @@
                         <input type="checkbox" name="consolidado" id="new_consolidado" class="checkbox-input rounded-md">
                     </div>
                 </div>
-                <button type="submit" class="add-button rounded-md">Adicionar Movimentação</button>
+                <div class="form-actions">
+                    <button type="submit" class="add-button rounded-md" id="submit-movement-button">Adicionar Movimentação</button>
+                    <button type="button" class="cancel-button rounded-md select-hide" id="cancel-edit-button">Cancelar Edição</button>
+                </div>
             </form>
         </div>
-        <!-- Fim da Seção: Adicionar Nova Movimentação -->
+        <!-- Fim da Seção: Adicionar Nova Movimentação / Editar Movimentação -->
 
 
         <form action="/" method="GET" class="filter-form" id="filterForm">
@@ -158,11 +162,19 @@
                         <th>Categoria</th>
                         <th>Conta</th>
                         <th>Consolidado</th>
+                        <th>Ações</th> <!-- Nova Coluna para Ações -->
                     </tr>
                 </thead>
                 <tbody>
                     {{ range .Movimentacoes }}
-                    <tr class="table-row-item">
+                    <tr class="table-row-item" data-id="{{ .ID }}"
+                        data-data="{{ .DataOcorrencia }}"
+                        data-descricao="{{ .Descricao }}"
+                        data-valor="{{ printf "%.2f" .Valor }}"
+                        data-categoria="{{ .Categoria }}"
+                        data-conta="{{ .Conta }}"
+                        data-consolidado="{{ .Consolidado }}"
+                        data-tipo="{{ if lt .Valor 0.0 }}despesa{{ else }}receita{{ end }}">
                         <td>{{ .ID }}</td>
                         <td>{{ .DataOcorrencia }}</td>
                         <td>{{ .Descricao }}</td>
@@ -175,6 +187,10 @@
                             {{ else }}
                                 Não
                             {{ end }}
+                        </td>
+                        <td class="action-buttons-cell">
+                            <button class="edit-button rounded-md" data-id="{{ .ID }}">Editar</button>
+                            <button class="delete-button rounded-md" data-id="{{ .ID }}">Excluir</button>
                         </td>
                     </tr>
                     {{ end }}
@@ -202,13 +218,13 @@
         // Função para atualizar o link "Ver JSON da API" com os filtros atuais
         function updateApiLink() {
             const apiLink = document.getElementById('apiLink');
-            const form = document.getElementById('filterForm');
-            if (!apiLink || !form) {
-                console.warn('Elementos API link ou formulário não encontrados.');
+            const filterForm = document.getElementById('filterForm');
+            if (!apiLink || !filterForm) {
+                console.warn('Elementos API link ou formulário de filtro não encontrados.');
                 return;
             }
 
-            const formData = new FormData(form);
+            const formData = new FormData(filterForm);
             const params = new URLSearchParams();
 
             // Adiciona todos os campos do formulário aos parâmetros da URL
@@ -294,9 +310,19 @@
                 );
             }
 
-            // --- Script para o formulário de Adicionar Movimentação ---
-            const addMovementForm = document.querySelector('.add-movement-form');
-            const valorInput = document.getElementById('new_valor');
+            // --- Script para o formulário de Adicionar/Editar Movimentação ---
+            const addEditForm = document.getElementById('add-edit-form');
+            const addEditFormTitle = document.getElementById('add-edit-form-title');
+            const movementIdInput = document.getElementById('movement-id-input');
+            const newValorInput = document.getElementById('new_valor');
+            const newDescricaoInput = document.getElementById('new_descricao');
+            const newDataOcorrenciaInput = document.getElementById('new_data_ocorrencia');
+            const newCategoriaInput = document.getElementById('new_categoria');
+            const newContaInput = document.getElementById('new_conta');
+            const newConsolidadoCheckbox = document.getElementById('new_consolidado');
+            const submitMovementButton = document.getElementById('submit-movement-button');
+            const cancelEditButton = document.getElementById('cancel-edit-button');
+
             const tipoReceitaRadio = document.getElementById('tipo_receita');
             const tipoDespesaRadio = document.getElementById('tipo_despesa');
             const tipoMovimentacaoDisplay = document.getElementById('tipo-movimentacao-display');
@@ -305,7 +331,7 @@
 
             // Função para ajustar o sinal do valor
             function adjustValorSign() {
-                let rawValue = valorInput.value.trim();
+                let rawValue = newValorInput.value.trim();
 
                 // Se o campo estiver vazio ou for apenas um sinal, não faz nada
                 if (rawValue === '' || rawValue === '-' || rawValue === '+') {
@@ -321,7 +347,6 @@
                 // Se não for um número válido, não faz nada e pode avisar o usuário
                 if (isNaN(currentValue)) {
                     console.warn("Valor inválido digitado no campo de valor: ", rawValue);
-                    // Opcional: valorInput.value = ''; // Limpar campo se inválido
                     return;
                 }
 
@@ -338,7 +363,7 @@
                 }
                 
                 // Formata para duas casas decimais e substitui ponto por vírgula para exibição (formato brasileiro)
-                valorInput.value = newValue.toFixed(2).replace('.', ',');
+                newValorInput.value = newValue.toFixed(2).replace('.', ',');
             }
 
             // Função para atualizar o texto de exibição do dropdown Tipo
@@ -352,14 +377,12 @@
 
             // Lógica para o dropdown personalizado de Tipo de Movimentação
             if (tipoMovimentacaoDisplay && tipoMovimentacaoOptions) {
-                // Ao clicar no display, alterna a visibilidade das opções
                 tipoMovimentacaoDisplay.addEventListener('click', (event) => {
-                    event.stopPropagation(); // Impede que o clique se propague
+                    event.stopPropagation();
                     tipoMovimentacaoOptions.classList.toggle('select-hide');
                     tipoMovimentacaoDisplay.classList.toggle('select-arrow-active');
                 });
 
-                // Ao clicar fora, fecha o dropdown
                 document.addEventListener('click', (event) => {
                     if (!tipoMovimentacaoDisplay.contains(event.target) && !tipoMovimentacaoOptions.contains(event.target)) {
                         tipoMovimentacaoOptions.classList.add('select-hide');
@@ -367,34 +390,31 @@
                     }
                 });
 
-                // Quando uma opção de rádio é clicada
                 tipoReceitaRadio.addEventListener('change', () => {
                     adjustValorSign();
                     updateTipoMovimentacaoDisplay();
-                    tipoMovimentacaoOptions.classList.add('select-hide'); // Fecha o dropdown
+                    tipoMovimentacaoOptions.classList.add('select-hide');
                     tipoMovimentacaoDisplay.classList.remove('select-arrow-active');
                 });
                 tipoDespesaRadio.addEventListener('change', () => {
                     adjustValorSign();
                     updateTipoMovimentacaoDisplay();
-                    tipoMovimentacaoOptions.classList.add('select-hide'); // Fecha o dropdown
+                    tipoMovimentacaoOptions.classList.add('select-hide');
                     tipoMovimentacaoDisplay.classList.remove('select-arrow-active');
                 });
             }
 
             // Adiciona listeners para o campo de valor
-            if (valorInput) {
-                // Ajusta o sinal apenas quando o campo perde o foco
-                valorInput.addEventListener('change', adjustValorSign); 
+            if (newValorInput) {
+                newValorInput.addEventListener('change', adjustValorSign); 
             }
 
             // Define "Despesa" como padrão ao carregar a página e ajusta o sinal
             if (tipoDespesaRadio) {
                 tipoDespesaRadio.checked = true;
-                updateTipoMovimentacaoDisplay(); // Atualiza o texto de exibição
-                adjustValorSign(); // Garante que o valor esteja negativo se já houver um (útil em recargas de página)
+                updateTipoMovimentacaoDisplay();
+                adjustValorSign();
             }
-
 
             // --- Autopreenchimento para Categoria e Conta (no formulário de adição) ---
             const categorySuggestionsDatalist = document.getElementById('category-suggestions');
@@ -404,7 +424,7 @@
             const accountsFromGo = {{ .Accounts | jsonify }};
 
             function populateDatalist(datalistElement, dataArray) {
-                datalistElement.innerHTML = ''; // Limpa opções existentes
+                datalistElement.innerHTML = '';
                 dataArray.forEach(item => {
                     const option = document.createElement('option');
                     option.value = item;
@@ -418,6 +438,102 @@
             if (accountSuggestionsDatalist && accountsFromGo) {
                 populateDatalist(accountSuggestionsDatalist, accountsFromGo);
             }
+
+            // --- Funções de Edição e Exclusão ---
+
+            // Função para resetar o formulário para o modo de adição
+            function resetAddEditForm() {
+                addEditForm.reset(); // Limpa todos os campos do formulário
+                addEditFormTitle.textContent = "Adicionar Nova Movimentação";
+                submitMovementButton.textContent = "Adicionar Movimentação";
+                addEditForm.action = "/movimentacoes"; // Volta para a rota de adição
+                addEditForm.method = "POST"; // Volta para o método POST
+                movementIdInput.value = ""; // Limpa o ID oculto
+                cancelEditButton.classList.add('select-hide'); // Esconde o botão de cancelar
+                
+                // Reinicia os padrões
+                tipoDespesaRadio.checked = true;
+                updateTipoMovimentacaoDisplay();
+                newConsolidadoCheckbox.checked = false; // "Não consolidado" por padrão
+                newDataOcorrenciaInput.value = "{{ .CurrentDate }}"; // Data atual
+                adjustValorSign(); // Ajusta o valor se houver algo (para 0 ou negativo)
+            }
+
+            // Listener para o botão "Cancelar Edição"
+            if (cancelEditButton) {
+                cancelEditButton.addEventListener('click', resetAddEditForm);
+            }
+
+            // Event Listener para os botões de Excluir
+            document.querySelectorAll('.delete-button').forEach(button => {
+                button.addEventListener('click', async (event) => {
+                    const id = event.target.dataset.id;
+                    if (confirm(`Tem certeza que deseja excluir a movimentação ${id}?`)) { // Usando confirm() para simplificar
+                        try {
+                            const response = await fetch(`/movimentacoes/${id}`, {
+                                method: 'DELETE',
+                            });
+
+                            if (response.ok) {
+                                alert('Movimentação excluída com sucesso!');
+                                window.location.reload(); // Recarrega a página para atualizar a tabela
+                            } else {
+                                const errorData = await response.json();
+                                alert(`Erro ao excluir movimentação: ${errorData.error || response.statusText}`);
+                            }
+                        } catch (error) {
+                            console.error('Erro na requisição DELETE:', error);
+                            alert('Erro na comunicação com o servidor.');
+                        }
+                    }
+                });
+            });
+
+            // Event Listener para os botões de Editar
+            document.querySelectorAll('.edit-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const row = event.target.closest('tr'); // Pega a linha da tabela pai
+                    const id = row.dataset.id;
+                    const dataOcorrencia = row.dataset.data;
+                    const descricao = row.dataset.descricao;
+                    let valor = row.dataset.valor; // Já vem formatado com .00 ou ,00
+                    const categoria = row.dataset.categoria;
+                    const conta = row.dataset.conta;
+                    const consolidado = row.dataset.consolidado === 'true'; // Converte para booleano
+                    const tipo = row.dataset.tipo; // 'receita' ou 'despesa'
+
+                    // Preenche o formulário
+                    movementIdInput.value = id;
+                    newDataOcorrenciaInput.value = dataOcorrencia;
+                    newDescricaoInput.value = descricao;
+                    newValorInput.value = valor; // Valor já vem formatado do Go com duas casas
+                    newCategoriaInput.value = categoria;
+                    newContaInput.value = conta;
+                    newConsolidadoCheckbox.checked = consolidado;
+
+                    // Define o tipo de movimentação
+                    if (tipo === 'receita') {
+                        tipoReceitaRadio.checked = true;
+                    } else {
+                        tipoDespesaRadio.checked = true;
+                    }
+                    updateTipoMovimentacaoDisplay(); // Atualiza o display do dropdown de tipo
+
+                    // Ajusta o sinal do valor no campo (se necessário, baseado no tipo selecionado)
+                    adjustValorSign();
+
+                    // Altera o título e o botão de envio do formulário
+                    addEditFormTitle.textContent = `Editar Movimentação (ID: ${id})`;
+                    submitMovementButton.textContent = "Salvar Alterações";
+                    addEditForm.action = `/movimentacoes/update/${id}`; // Rota de atualização
+                    addEditForm.method = "POST"; // Usamos POST para Gin, e tratamos o método PUT no backend
+
+                    cancelEditButton.classList.remove('select-hide'); // Mostra o botão de cancelar
+
+                    // Opcional: Rolagem suave para o formulário de edição
+                    addEditForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
         });
     </script>
 </body>

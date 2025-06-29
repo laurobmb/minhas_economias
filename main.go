@@ -157,7 +157,6 @@ func getMovimentacoes(c *gin.Context) {
 	}
 
 	// Buscar categorias distintas para o filtro
-	// NOTA: Com o campo categoria agora sendo preenchível, esta lista pode não ser exaustiva
 	categoryRows, err := db.Query(fmt.Sprintf("SELECT DISTINCT categoria FROM %s ORDER BY categoria ASC", tableName))
 	if err != nil {
 		log.Printf("AVISO: Erro ao buscar categorias distintas: %v", err)
@@ -184,7 +183,6 @@ func getMovimentacoes(c *gin.Context) {
 	}
 
 	// Buscar contas distintas para o filtro
-	// NOTA: Com o campo conta agora sendo preenchível, esta lista pode não ser exaustiva
 	accountRows, err := db.Query(fmt.Sprintf("SELECT DISTINCT conta FROM %s ORDER BY conta ASC", tableName))
 	if err != nil {
 		log.Printf("AVISO: Erro ao buscar contas distintas: %v", err)
@@ -264,8 +262,6 @@ func addMovimentacao(c *gin.Context) {
 	conta := c.PostForm("conta")
 	consolidadoStr := c.PostForm("consolidado") // Checkbox retorna "on" se marcado
 
-	// --- Novas Lógicas de Validação e Padronização ---
-
 	// Categoria: Se vazio, "Sem Categoria"
 	if strings.TrimSpace(categoria) == "" {
 		categoria = "Sem Categoria"
@@ -316,6 +312,88 @@ func addMovimentacao(c *gin.Context) {
 
 	// Redirecionar de volta para a página principal após a adição bem-sucedida
 	c.Redirect(http.StatusFound, "/")
+}
+
+// deleteMovimentacao lida com a exclusão de uma movimentação
+func deleteMovimentacao(c *gin.Context) {
+    idParam := c.Param("id")
+    id, err := strconv.Atoi(idParam)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido."})
+        return
+    }
+
+    _, err = db.Exec(fmt.Sprintf("DELETE FROM %s WHERE id = ?", tableName), id)
+    if err != nil {
+        log.Printf("Erro ao deletar movimentação com ID %d: %v", id, err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao deletar a movimentação."})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Movimentação deletada com sucesso!"})
+}
+
+// updateMovimentacao lida com a atualização de uma movimentação
+func updateMovimentacao(c *gin.Context) {
+    idParam := c.Param("id")
+    id, err := strconv.Atoi(idParam)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido."})
+        return
+    }
+
+    // Parsear os dados do formulário
+    dataOcorrencia := c.PostForm("data_ocorrencia")
+    descricao := c.PostForm("descricao")
+    valorStr := c.PostForm("valor")
+    categoria := c.PostForm("categoria")
+    conta := c.PostForm("conta")
+    consolidadoStr := c.PostForm("consolidado")
+
+    // Validação e padronização (similar a addMovimentacao)
+    if strings.TrimSpace(categoria) == "" {
+        categoria = "Sem Categoria"
+    }
+    if strings.TrimSpace(conta) == "" {
+        log.Println("ERRO: Campo 'Conta' é obrigatório na atualização.")
+        c.JSON(http.StatusBadRequest, gin.H{"error": "O campo 'Conta' é obrigatório."})
+        return
+    }
+
+    var valor float64
+    if strings.TrimSpace(valorStr) == "" {
+        valor = 0.0
+    } else {
+        valorParseable := strings.Replace(valorStr, ",", ".", -1)
+        parsedValor, err := strconv.ParseFloat(valorParseable, 64)
+        if err != nil {
+            log.Printf("Erro ao converter Valor '%s' na atualização: %v", valorStr, err)
+            c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido: formato numérico incorreto."})
+            return
+        }
+        valor = parsedValor
+    }
+
+    consolidado := (consolidadoStr == "on")
+
+    // Atualizar no banco de dados
+    stmt, err := db.Prepare(fmt.Sprintf(
+        `UPDATE %s SET data_ocorrencia = ?, descricao = ?, valor = ?, categoria = ?, conta = ?, consolidado = ? WHERE id = ?`, tableName))
+    if err != nil {
+        log.Printf("Erro ao preparar instrução SQL para atualização: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno do servidor."})
+        return
+    }
+    defer stmt.Close()
+
+    _, err = stmt.Exec(dataOcorrencia, descricao, valor, categoria, conta, consolidado, id)
+    if err != nil {
+        log.Printf("Erro ao atualizar movimentação com ID %d: %v", id, err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao atualizar dados: %v", err.Error())})
+        return
+    }
+
+    c.Redirect(http.StatusFound, "/") // Redireciona para a página principal
 }
 
 
@@ -383,7 +461,9 @@ func main() {
 
 	r.GET("/", getMovimentacoes)
 	r.GET("/api/movimentacoes", getMovimentacoes)
-	r.POST("/movimentacoes", addMovimentacao) // Nova rota para adicionar movimentação
+	r.POST("/movimentacoes", addMovimentacao)      // Rota para adicionar movimentação
+	r.DELETE("/movimentacoes/:id", deleteMovimentacao) // Rota para deletar movimentação
+	r.POST("/movimentacoes/update/:id", updateMovimentacao) // Rota para atualizar (usando POST com método PUT simulado)
 
 	log.Println("Servidor Gin iniciado na porta :8080")
 	err = r.Run(":8080")

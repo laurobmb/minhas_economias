@@ -48,7 +48,7 @@ body {
     display: flex;
     flex-wrap: wrap; /* Permite que os itens quebrem linha */
     gap: 15px; /* Espaçamento entre os itens do formulário */
-    margin-bottom: 30px;
+    margin-bottom: 30px; /* Espaçamento abaixo do formulário de filtro */
     background-color: #fcfdfe;
     padding: 20px;
     border-radius: 12px;
@@ -181,9 +181,6 @@ body {
     height: 0;
 }
 
-/* Novo: estilo para a aparência do rádio button dentro do custom dropdown, se necessário customizar */
-/* Pode-se adicionar estilos para .select-item-label input[type="radio"] se quiser um customizado visível */
-
 
 .filter-button,
 .clear-button {
@@ -221,7 +218,7 @@ body {
     display: flex;
     justify-content: flex-end; /* Alinha os botões à direita */
     gap: 15px; /* Espaçamento entre os botões */
-    margin-top: -15px; /* Move para cima para alinhar melhor com os filtros */
+    margin-top: 30px; /* Ajustado para espaçamento abaixo do filtro */
     margin-bottom: 30px; /* Espaçamento abaixo */
     padding: 0 20px; /* Alinha com o padding do formulário */
 }
@@ -380,7 +377,7 @@ table tbody tr:last-child td {
 
 /* Nova Seção: Adicionar Movimentação */
 .add-movement-section {
-    margin-top: 30px;
+    margin-top: 30px; /* Ajustado para espaçar do header */
     background-color: #f8fcfb; /* Cor de fundo suave */
     border-radius: 12px;
     box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08);
@@ -464,22 +461,81 @@ table tbody tr:last-child td {
     min-width: unset; /* Garante que o text-input não tenha min-width excessivo */
 }
 
-.add-button {
+/* Botões de Ação do Formulário (Adicionar/Salvar/Cancelar) */
+.form-actions {
+    display: flex;
+    justify-content: flex-end; /* Alinha os botões à direita */
+    gap: 15px; /* Espaçamento entre os botões */
+    margin-top: 10px;
+}
+
+.add-button,
+.cancel-button {
     padding: 14px 30px;
-    background-color: #22c55e; /* Verde para adicionar */
-    color: white;
     border: none;
     border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.3s ease, transform 0.2s ease;
-    align-self: flex-end; /* Alinha o botão à direita */
-    margin-top: 10px; /* Espaçamento acima do botão */
+    white-space: nowrap;
+}
+
+.add-button {
+    background-color: #22c55e; /* Verde para adicionar */
+    color: white;
 }
 
 .add-button:hover {
     background-color: #16a34a;
     transform: translateY(-2px);
+}
+
+.cancel-button {
+    background-color: #64748b; /* Cinza para cancelar */
+    color: white;
+}
+
+.cancel-button:hover {
+    background-color: #475569;
+    transform: translateY(-2px);
+}
+
+
+/* Estilos para os Botões de Ação na Tabela (Editar/Excluir) */
+.action-buttons-cell {
+    white-space: nowrap; /* Impede que os botões quebrem linha */
+    text-align: center; /* Centraliza os botões na célula */
+}
+
+.edit-button,
+.delete-button {
+    padding: 8px 15px; /* Menor padding para botões na tabela */
+    border: none;
+    border-radius: 8px; /* Menor arredondamento */
+    font-weight: 500; /* Menor peso da fonte */
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    margin: 0 5px; /* Espaçamento entre os botões */
+}
+
+.edit-button {
+    background-color: #ffc107; /* Amarelo para editar */
+    color: #333;
+}
+
+.edit-button:hover {
+    background-color: #e0a800;
+    transform: translateY(-1px);
+}
+
+.delete-button {
+    background-color: #dc3545; /* Vermelho para excluir */
+    color: white;
+}
+
+.delete-button:hover {
+    background-color: #c82333;
+    transform: translateY(-1px);
 }
 
 
@@ -526,8 +582,23 @@ table tbody tr:last-child td {
     .add-movement-form .radio-options { /* Agora desnecessário para o "Tipo" */
         flex-direction: column;
     }
-    .add-button {
+    .add-button,
+    .cancel-button {
         width: 100%;
-        align-self: center; /* Centraliza o botão em telas pequenas */
+        align-self: center; /* Centraliza os botões em telas pequenas */
+    }
+    .form-actions {
+        flex-direction: column; /* Empilha os botões de ação do formulário */
+        align-items: center;
+    }
+    .action-buttons-cell {
+        display: flex; /* Transforma em flex para centralizar */
+        justify-content: center;
+        gap: 5px; /* Espaçamento entre botões */
+    }
+    .edit-button,
+    .delete-button {
+        margin: 0; /* Remove margem extra */
+        width: 48%; /* Ajusta largura para caber dois */
     }
 }
