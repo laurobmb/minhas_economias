@@ -16,3 +16,4 @@ csv/cartao_de_credito
 extratos.db
 go.mod
 go.sum
+backup/
