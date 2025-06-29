@@ -11,8 +11,10 @@
 <body>
     <div class="container rounded-xl">
         <div class="header">
-            <h1 class="text-gray-900">Extratos Financeiros</h1>
-            <a href="/api/movimentacoes" id="apiLink" class="api-link rounded-lg">Ver JSON da API</a>
+            <!-- Imagem e título agora são elementos irmãos do link -->
+            <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
+            <h1 class="header-title text-gray-900">Minhas Economias</h1>
+            <a href="/api/movimentacoes" id="apiLink" class="api-link rounded-lg">API</a>
         </div>
 
         <!-- Seção: Adicionar Nova Movimentação / Editar Movimentação -->
@@ -128,7 +130,7 @@
                 <label for="consolidated_filter" class="label">Consolidado:</label>
                 <select name="consolidated_filter" id="consolidated_filter" class="select-input rounded-md">
                     {{ range .ConsolidatedOptions }}
-                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidated }}selected{{ end }}>
+                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidado }}selected{{ end }}>
                             {{ .Label }}
                         </option>
                     {{ end }}

@@ -6,6 +6,8 @@ Este projeto oferece um sistema para gestão de movimentações financeiras pess
 
 Minhas Economias é uma ferramenta desenvolvida em Go, utilizando o framework Gin para a aplicação web e SQLite como banco de dados. O objetivo é fornecer uma maneira eficiente e organizada de acompanhar suas finanças, com foco em simplicidade e usabilidade.
 
+![Minhas Economias 1](photos/view_app_1.png)
+
 ## Funcionalidades
 
 ### Aplicação Web

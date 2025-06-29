@@ -20,15 +20,27 @@ body {
 }
 .header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: space-between; /* Espaça os itens: Imagem+Título à esquerda, Botão à direita */
+    align-items: center; /* Alinha verticalmente no centro */
     margin-bottom: 30px; /* Aumentado o espaçamento */
+    gap: 15px; /* Espaçamento entre os principais elementos do header */
 }
-.header h1 {
+
+/* Novo estilo para o logo no cabeçalho */
+.header-logo {
+    height: 40px; /* Reduzido o tamanho da imagem */
+    width: auto;
+    margin-right: 10px; /* Espaçamento entre o logo e o título */
+    flex-shrink: 0; /* Impede que a imagem encolha */
+}
+
+.header-title { /* Renomeado de .header h1 para .header-title */
     font-size: 2.5rem; /* Aumentado o tamanho da fonte */
     font-weight: 800; /* Mais negrito */
     color: #1e293b;
+    flex-grow: 1; /* Permite que o título ocupe o espaço restante */
 }
+
 .api-link {
     padding: 12px 25px; /* Aumentado o padding */
     background-color: #4c8bf5; /* Tom de azul ligeiramente diferente */
@@ -37,6 +49,7 @@ body {
     text-decoration: none;
     font-weight: 600;
     transition: background-color 0.3s ease, transform 0.2s ease; /* Adicionado transição para transform */
+    flex-shrink: 0; /* Impede que o botão encolha */
 }
 .api-link:hover {
     background-color: #3a75e0;
@@ -199,7 +212,7 @@ body {
 }
 
 .filter-button:hover {
-    background-color: #3a75e0; /* Azul mais escuro ao hover */
+    background-color: #3a75e0;
     transform: translateY(-2px); /* Efeito de levantar */
 }
 
@@ -209,7 +222,7 @@ body {
 }
 
 .clear-button:hover {
-    background-color: #dc2626; /* Vermelho mais escuro ao hover */
+    background-color: #dc2626;
     transform: translateY(-2px); /* Efeito de levantar */
 }
 
