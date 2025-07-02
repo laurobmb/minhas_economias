@@ -11,15 +11,12 @@ import (
 
 	"github.com/shakinm/xlsReader/xls"
 	"github.com/xuri/excelize/v2"
-
-	// --- NOVOS PACOTES PARA CORREÇÃO DE ACENTOS ---
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
 )
 
 const csvDelimiter = ';'
 
-// --- NOVA FUNÇÃO AUXILIAR ---
 // Esta função converte uma string da codificação Windows-1252 para UTF-8.
 func toUTF8(input string) string {
 	// Cria um "tradutor" que sabe como decodificar Windows-1252
