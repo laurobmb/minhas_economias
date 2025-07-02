@@ -14,7 +14,10 @@
             <!-- Imagem e título agora são elementos irmãos do link -->
             <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
             <h1 class="header-title text-gray-900">Minhas Economias</h1>
+            <!-- Botão API -->
             <a href="/api/movimentacoes" id="apiLink" class="api-link rounded-lg">API</a>
+            <!-- NOVO: Botão Relatório -->
+            <a href="/relatorio" class="api-link rounded-lg">Relatório</a>
         </div>
 
         <!-- Seção: Adicionar Nova Movimentação / Editar Movimentação -->
@@ -140,29 +143,25 @@
             <button type="button" class="clear-button rounded-md" onclick="window.location.href='/'">Limpar Filtros</button>
         </form>
 
-        <!-- NOVO WRAPPER: Agrupa os botões de filtro de valor e os displays de resumo -->
-        <div class="filter-value-summary-group">
-            <div class="value-filter-buttons-container">
-                <button type="button" class="value-filter-button income-filter {{ if eq .SelectedValueFilter "income" }}active{{ end }}" data-value-filter="income">
-                    Filtrar Entradas
-                </button>
-                <button type="button" class="value-filter-button expense-filter {{ if eq .SelectedValueFilter "expense" }}active{{ end }}" data-value-filter="expense">
-                    Filtrar Saídas
-                </button>
-                <button type="button" class="value-filter-button all-values-filter {{ if eq .SelectedValueFilter "" }}active{{ end }}" data-value-filter="">
-                    Todos os Valores
-                </button>
+        <!-- NOVO WRAPPER SIMPLIFICADO: Agrupa botões de filtro de valor e displays de resumo na mesma linha -->
+        <div class="filter-summary-controls">
+            <button type="button" class="value-filter-button income-filter {{ if eq .SelectedValueFilter "income" }}active{{ end }}" data-value-filter="income">
+                Filtrar Entradas
+            </button>
+            <button type="button" class="value-filter-button expense-filter {{ if eq .SelectedValueFilter "expense" }}active{{ end }}" data-value-filter="expense">
+                Filtrar Saídas
+            </button>
+            <button type="button" class="value-filter-button all-values-filter {{ if eq .SelectedValueFilter "" }}active{{ end }}" data-value-filter="">
+                Todos os Valores
+            </button>
+            
+            <div class="summary-button-item income">
+                <span>Entradas:</span>
+                <span class="value">R$ {{ printf "%.2f" .TotalEntradas }}</span>
             </div>
-
-            <div class="summary-buttons-container">
-                <div class="summary-button-item income">
-                    <span>Entradas:</span>
-                    <span class="value">R$ {{ printf "%.2f" .TotalEntradas }}</span>
-                </div>
-                <div class="summary-button-item expense">
-                    <span>Saídas:</span>
-                    <span class="value">R$ {{ printf "%.2f" .TotalSaidas }}</span>
-                </div>
+            <div class="summary-button-item expense">
+                <span>Saídas:</span>
+                <span class="value">R$ {{ printf "%.2f" .TotalSaidas }}</span>
             </div>
         </div>
         <!-- FIM DO NOVO WRAPPER -->
@@ -358,7 +357,7 @@
                     if (valueFilter) {
                         currentParams.set('value_filter', valueFilter);
                     } else {
-                        currentParams.delete('value_filter'); // Remove se for "Todos"
+                        currentParams.delete('value_filter'); // Remova se for "Todos"
                     }
 
                     // Redireciona para a URL com os novos filtros

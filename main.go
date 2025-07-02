@@ -88,6 +88,8 @@ func main() {
 	r.POST("/movimentacoes", handlers.AddMovimentacao)
 	r.DELETE("/movimentacoes/:id", handlers.DeleteMovimentacao)
 	r.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao) 
+	r.GET("/relatorio", handlers.GetRelatorio)
+	r.GET("/relatorio/transactions", handlers.GetTransactionsByCategory) // Nova rota para transações por categoria
 
 	log.Println("Servidor Gin iniciado na porta :8080")
 	err = r.Run(":8080")

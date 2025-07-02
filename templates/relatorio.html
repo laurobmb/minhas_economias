@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Titulo }}</title>
+    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Incluir Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container rounded-xl">
+        <div class="header">
+            <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
+            <h1 class="header-title text-gray-900">Relatório de Despesas</h1>
+            <a href="/" class="api-link rounded-lg">Voltar para Extratos</a>
+        </div>
+
+        <form action="/relatorio" method="GET" class="filter-form" id="reportFilterForm">
+            <div class="form-group">
+                <label for="category" class="label">Categoria:</label>
+                <div class="custom-select-container">
+                    <div class="select-selected rounded-md" id="category-select-display">
+                        Todas as Categorias
+                    </div>
+                    <div class="select-items select-hide" id="category-select-options">
+                        {{- range $category := .Categories -}}
+                            <label class="select-item-label">
+                                <input type="checkbox" name="category" value="{{ $category }}" class="custom-checkbox"
+                                    {{- range $.SelectedCategories -}}
+                                        {{- if eq . $category -}}checked{{- end -}}
+                                    {{- end -}}
+                                >
+                                {{ $category }}
+                            </label>
+                        {{- end -}}
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="account" class="label">Conta:</label>
+                <div class="custom-select-container">
+                    <div class="select-selected rounded-md" id="account-select-display">
+                        Todas as Contas
+                    </div>
+                    <div class="select-items select-hide" id="account-select-options">
+                        {{- range $account := .Accounts -}}
+                            <label class="select-item-label">
+                                <input type="checkbox" name="account" value="{{ $account }}" class="custom-checkbox"
+                                    {{- range $.SelectedAccounts -}}
+                                        {{- if eq . $account -}}checked{{- end -}}
+                                    {{- end -}}
+                                >
+                                {{ $account }}
+                            </label>
+                        {{- end -}}
+                    </div>
+                </div>
+            </div>
+            <div class="form-group date-range-group">
+                <label for="start_date" class="label">Data Início:</label>
+                <input type="date" name="start_date" id="start_date" value="{{ .SelectedStartDate }}" class="date-input rounded-md">
+            </div>
+            <div class="form-group date-range-group">
+                <label for="end_date" class="label">Data Fim:</label>
+                <input type="date" name="end_date" id="end_date" value="{{ .SelectedEndDate }}" class="date-input rounded-md">
+            </div>
+            <div class="form-group">
+                <label for="consolidated_filter" class="label">Consolidado:</label>
+                <select name="consolidated_filter" id="consolidated_filter" class="select-input rounded-md">
+                    {{ range .ConsolidatedOptions }}
+                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidado }}selected{{ end }}>
+                            {{ .Label }}
+                        </option>
+                    {{ end }}
+                </select>
+            </div>
+            <button type="submit" class="filter-button rounded-md">Filtrar Relatório</button>
+            <button type="button" class="clear-button rounded-md" onclick="window.location.href='/relatorio'">Limpar Filtros</button>
+        </form>
+
+        <div class="chart-container">
+            {{ if .ReportData }}
+                <canvas id="expensesPieChart"></canvas>
+            {{ else }}
+                <p class="no-data">Nenhum dado de despesa encontrado para os filtros selecionados.</p>
+            {{ end }}
+        </div>
+
+        <!-- NOVO: Seção para exibir transações detalhadas por categoria -->
+        <div id="category-transactions-section" class="table-container select-hide">
+            <h3>Transações da Categoria: <span id="selected-category-name"></span></h3>
+            <table class="rounded-lg overflow-hidden">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Data</th>
+                        <th>Descrição</th>
+                        <th class="text-right">Valor</th>
+                        <th>Conta</th>
+                        <th>Consolidado</th>
+                    </tr>
+                </thead>
+                <tbody id="category-transactions-tbody">
+                    <!-- Transações serão inseridas aqui via JS -->
+                </tbody>
+            </table>
+            <p id="no-transactions-message" class="no-data select-hide">Nenhuma transação encontrada para esta categoria com os filtros aplicados.</p>
+        </div>
+        <!-- FIM NOVO: Seção para exibir transações detalhadas -->
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const reportFilterForm = document.getElementById('reportFilterForm');
+            const categoryTransactionsSection = document.getElementById('category-transactions-section');
+            const selectedCategoryNameSpan = document.getElementById('selected-category-name');
+            const categoryTransactionsTbody = document.getElementById('category-transactions-tbody');
+            const noTransactionsMessage = document.getElementById('no-transactions-message');
+
+            // Elementos dos filtros personalizados
+            const categoryCheckboxes = document.querySelectorAll('#category-select-options .custom-checkbox');
+            const accountCheckboxes = document.querySelectorAll('#account-select-options .custom-checkbox');
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+            const consolidatedFilterSelect = document.getElementById('consolidated_filter');
+
+
+            if (reportFilterForm) {
+                // Função genérica para configurar dropdowns com checkboxes (multi-select)
+                function setupMultiSelectDropdown(displayId, optionsId, checkboxClass, selectedValues) {
+                    const selectDisplay = document.getElementById(displayId);
+                    const selectOptions = document.getElementById(optionsId);
+                    const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
+
+                    function updateDisplay() {
+                        const currentSelectedValues = Array.from(checkboxes)
+                            .filter(cb => cb.checked)
+                            .map(cb => cb.value);
+
+                        if (currentSelectedValues.length === 0) {
+                            selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
+                        } else if (currentSelectedValues.length === 1) {
+                            selectDisplay.textContent = currentSelectedValues[0];
+                        } else {
+                            selectDisplay.textContent = currentSelectedValues.length + " selecionadas";
+                        }
+                    }
+
+                    updateDisplay(); // Inicializa o texto de exibição
+                    selectDisplay.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        selectOptions.classList.toggle('select-hide');
+                        selectDisplay.classList.toggle('select-arrow-active');
+                    });
+                    document.addEventListener('click', (event) => {
+                        if (!selectDisplay.contains(event.target) && !selectOptions.contains(event.target)) {
+                            selectOptions.classList.add('select-hide');
+                            selectDisplay.classList.remove('select-arrow-active');
+                        }
+                    });
+                    checkboxes.forEach(checkbox => {
+                        checkbox.addEventListener('change', updateDisplay);
+                    });
+                }
+
+                setupMultiSelectDropdown(
+                    'category-select-display',
+                    'category-select-options',
+                    'custom-checkbox',
+                    {{ .SelectedCategories | jsonify }}
+                );
+
+                setupMultiSelectDropdown(
+                    'account-select-display',
+                    'account-select-options',
+                    'custom-checkbox',
+                    {{ .SelectedAccounts | jsonify }}
+                );
+            }
+
+            // --- Lógica do Gráfico de Pizza ---
+            const ctx = document.getElementById('expensesPieChart');
+            const reportData = {{ .ReportData | jsonify }}; // Dados do relatório passados do Go
+
+            if (ctx && reportData && reportData.length > 0) {
+                const labels = reportData.map(item => item.categoria);
+                // Os valores de despesa são negativos, usamos Math.abs para o gráfico
+                const data = reportData.map(item => Math.abs(item.total)); 
+
+                // Gerar cores dinamicamente
+                const backgroundColors = data.map((value, index) => {
+                    const hue = (index * 137.508) % 360; // Número mágico para cores distintas
+                    return `hsl(${hue}, 70%, 60%)`;
+                });
+                const borderColors = backgroundColors.map(color => {
+                    // Um pouco mais escuro para a borda
+                    return color.replace('60%)', '50%)'); 
+                });
+
+
+                const expensesPieChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: backgroundColors,
+                            borderColor: borderColors,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false, // Permite controlar o tamanho do canvas com CSS
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Despesas por Categoria',
+                                font: {
+                                    size: 18
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            label += 'R$ ' + context.parsed.toFixed(2).replace('.', ',');
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        // NOVO: Adiciona o evento de clique no gráfico
+                        onClick: async (event, elements) => {
+                            if (elements.length > 0) {
+                                const firstElement = elements[0];
+                                const categoryName = expensesPieChart.data.labels[firstElement.index]; // Nome da categoria clicada
+                                
+                                selectedCategoryNameSpan.textContent = categoryName; // Atualiza o nome da categoria
+
+                                // Coleta os filtros atuais manualmente
+                                const params = new URLSearchParams();
+
+                                // Adiciona categorias selecionadas (todos os checkboxes marcados, exceto a clicada)
+                                Array.from(categoryCheckboxes).forEach(cb => {
+                                    if (cb.checked && cb.value !== categoryName) { // Não inclui a categoria clicada aqui, ela será adicionada separadamente
+                                        params.append('category', cb.value);
+                                    }
+                                });
+                                // Adiciona a categoria clicada explicitamente
+                                params.append('category', categoryName);
+
+                                // Adiciona contas selecionadas
+                                Array.from(accountCheckboxes).forEach(cb => {
+                                    if (cb.checked) {
+                                        params.append('account', cb.value);
+                                    }
+                                });
+
+                                // Adiciona filtros de data
+                                if (startDateInput.value) {
+                                    params.set('start_date', startDateInput.value);
+                                }
+                                if (endDateInput.value) {
+                                    params.set('end_date', endDateInput.value);
+                                }
+
+                                // Adiciona filtro de consolidado
+                                if (consolidatedFilterSelect.value) {
+                                    params.set('consolidated_filter', consolidatedFilterSelect.value);
+                                }
+
+
+                                const apiUrl = `/relatorio/transactions?${params.toString()}`;
+                                console.log('Fetching transactions from:', apiUrl); // Debug: ver a URL da requisição
+
+                                try {
+                                    const response = await fetch(apiUrl);
+                                    if (!response.ok) {
+                                        throw new Error(`HTTP error! status: ${response.status}`);
+                                    }
+                                    const transactions = await response.json();
+                                    console.log('Transactions received:', transactions); // Debug: ver os dados recebidos
+                                    
+                                    categoryTransactionsTbody.innerHTML = ''; // Limpa a tabela
+                                    if (transactions.length > 0) {
+                                        transactions.forEach(tx => {
+                                            const row = document.createElement('tr');
+                                            row.classList.add('table-row-item'); // Para alternância de cores
+
+                                            const valorFormatado = tx.valor.toFixed(2).replace('.', ',');
+                                            const consolidadoTexto = tx.consolidado ? 'Sim' : 'Não';
+
+                                            row.innerHTML = `
+                                                <td>${tx.id}</td>
+                                                <td>${tx.data_ocorrencia}</td>
+                                                <td>${tx.descricao}</td>
+                                                <td class="text-right">R$ ${valorFormatado}</td>
+                                                <td>${tx.conta}</td>
+                                                <td>${consolidadoTexto}</td>
+                                            `;
+                                            categoryTransactionsTbody.appendChild(row);
+                                        });
+                                        categoryTransactionsSection.classList.remove('select-hide');
+                                        noTransactionsMessage.classList.add('select-hide');
+                                    } else {
+                                        categoryTransactionsSection.classList.remove('select-hide');
+                                        noTransactionsMessage.classList.remove('select-hide');
+                                    }
+
+                                } catch (error) {
+                                    console.error('Erro ao buscar transações da categoria:', error);
+                                    categoryTransactionsTbody.innerHTML = '';
+                                    selectedCategoryNameSpan.textContent = categoryName + " (Erro ao carregar)";
+                                    categoryTransactionsSection.classList.remove('select-hide');
+                                    noTransactionsMessage.classList.remove('select-hide');
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

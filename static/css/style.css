@@ -226,28 +226,15 @@ body {
     transform: translateY(-2px); /* Efeito de levantar */
 }
 
-/* NOVO: Wrapper para os botões de filtro de valor e displays de resumo */
-.filter-value-summary-group {
+/* NOVO: Contêiner unificado para botões de filtro de valor e displays de resumo */
+.filter-summary-controls {
     display: flex;
-    flex-wrap: wrap; /* Permite que os itens quebrem linha */
-    justify-content: flex-end; /* Alinha o conteúdo à direita */
+    flex-wrap: wrap; /* Permite que os itens quebrem linha em telas menores */
+    justify-content: flex-end; /* Alinha todo o conteúdo à direita */
     align-items: center; /* Alinha verticalmente no centro */
-    gap: 15px; /* Espaçamento entre os dois contêineres internos */
+    gap: 15px; /* Espaçamento entre todos os itens (botões e displays) */
     margin-bottom: 30px; /* Espaço abaixo deste grupo */
     padding: 0 20px; /* Alinha com o padding do formulário de filtro */
-}
-
-/* Ajustes para os contêineres internos dentro do novo wrapper */
-.value-filter-buttons-container {
-    margin-top: 0; /* Remove margem negativa anterior */
-    margin-bottom: 0; /* Remove margem negativa anterior */
-    /* Ele já tem display: flex e justify-content: flex-end */
-}
-
-.summary-buttons-container {
-    margin-top: 0; /* Remove margem negativa anterior */
-    margin-bottom: 0; /* Remove margem negativa anterior */
-    /* Ele já tem display: flex e justify-content: flex-end */
 }
 
 .value-filter-button {
@@ -308,15 +295,7 @@ body {
 }
 
 
-/* Nova seção para Entradas e Saídas */
-.summary-buttons-container {
-    display: flex;
-    justify-content: flex-end; /* Alinha os botões à direita */
-    gap: 15px; /* Espaçamento entre os botões */
-    /* Removido margin-top e margin-bottom aqui, pois o wrapper pai gerencia */
-    padding: 0; /* Removido padding lateral, pois o wrapper pai gerencia */
-}
-
+/* Nova seção para Entradas e Saídas (agora parte de .filter-summary-controls) */
 .summary-button-item {
     padding: 12px 25px;
     border-radius: 10px;
@@ -652,15 +631,23 @@ table tbody tr:last-child td {
     .clear-button {
         width: 100%;
     }
-    .summary-buttons-container {
-        flex-direction: column; /* Empilha os botões em telas menores */
-        align-items: stretch; /* Estica os botões para preencher a largura */
-        padding: 0; /* Remove padding lateral */
+    /* NOVO: Responsividade para o grupo de botões de filtro/resumo */
+    .filter-summary-controls {
+        flex-direction: column; /* Empilha em telas menores */
+        align-items: stretch; /* Estica para preencher a largura */
+        padding: 0; /* Remove padding lateral para telas pequenas */
+    }
+    /* Garante que os itens individuais dentro do grupo ocupem a largura total */
+    .value-filter-button,
+    .summary-button-item {
+        width: 100%;
+        justify-content: center; /* Centraliza o conteúdo dos botões/itens */
     }
     .summary-button-item {
-        width: 100%; /* Ocupa a largura total */
-        justify-content: space-between; /* Espaço entre label e valor */
+        justify-content: space-between; /* Mantém espaço entre label e valor */
     }
+    /* FIM NOVO: Responsividade para o grupo de botões de filtro/resumo */
+
     .total-summary-container {
         justify-content: center;
         padding: 15px;
@@ -700,4 +687,78 @@ table tbody tr:last-child td {
         margin: 0; /* Remove margem extra */
         width: 48%; /* Ajusta largura para caber dois */
     }
+}
+
+/* Estilos para o contêiner do gráfico */
+.chart-container {
+    position: relative; /* Necessário para maintainAspectRatio: false */
+    width: 80%; /* Ajuste a largura conforme necessário */
+    max-width: 600px; /* Largura máxima para o gráfico */
+    height: 400px; /* Altura fixa para o gráfico */
+    margin: 30px auto; /* Centraliza o gráfico e adiciona margem */
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e2e8f0;
+}
+
+/* Responsividade para o gráfico */
+@media (max-width: 768px) {
+    .chart-container {
+        width: 95%; /* Ocupa mais largura em telas menores */
+        height: 300px; /* Altura ajustada para telas menores */
+        margin: 20px auto;
+    }
+}
+
+/* Estilos para a nova tabela de transações detalhadas */
+#category-transactions-section {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f8fcfb;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e0ffe0;
+}
+
+#category-transactions-section h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+#category-transactions-section table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0; /* Remove margem superior extra */
+}
+
+#category-transactions-section th,
+#category-transactions-section td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+#category-transactions-section th {
+    background-color: #f0f4f8;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+#category-transactions-section .table-row-item:nth-child(even) {
+    background-color: #f8fafc; /* Alternância de cor para a tabela de detalhes */
+}
+
+#category-transactions-section .table-row-item:hover {
+    background-color: #e6e9ed; /* Cor de hover para a tabela de detalhes */
+}
+
+#category-transactions-section .text-right {
+    text-align: right;
 }

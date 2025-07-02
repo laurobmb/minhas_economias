@@ -353,3 +353,242 @@ func UpdateMovimentacao(c *gin.Context) {
 
     c.Redirect(http.StatusFound, "/")
 }
+
+// RelatorioCategoria representa o total de despesas por categoria para o relatório.
+type RelatorioCategoria struct {
+	Categoria string  `json:"categoria"`
+	Total     float64 `json:"total"`
+}
+
+// GetRelatorio busca e agrega despesas por categoria para o relatório.
+func GetRelatorio(c *gin.Context) {
+	db := database.GetDB() // Obtém a conexão do banco de dados
+
+	// Obter parâmetros de filtro da URL (idênticos aos da página principal)
+	selectedCategories := c.QueryArray("category")
+	selectedStartDate := c.Query("start_date")
+	selectedEndDate := c.Query("end_date")
+	selectedConsolidado := c.Query("consolidated_filter")
+	selectedAccounts := c.QueryArray("account")
+
+	// Se não houver filtros de data na URL, define para o mês corrente
+	if selectedStartDate == "" && selectedEndDate == "" {
+		now := time.Now()
+		firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		selectedStartDate = firstOfMonth.Format("2006-01-02")
+		lastOfMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location())
+		selectedEndDate = lastOfMonth.Format("2006-01-02")
+	}
+
+	// Construir a consulta SQL para despesas por categoria
+	query := fmt.Sprintf("SELECT categoria, SUM(valor) FROM %s WHERE valor < 0", database.TableName)
+	var args []interface{}
+	var whereClauses []string // Cláusulas WHERE adicionais para filtros
+
+	if len(selectedCategories) > 0 && selectedCategories[0] != "" {
+		placeholders := make([]string, len(selectedCategories))
+		for i := range selectedCategories {
+			placeholders[i] = "?"
+			args = append(args, selectedCategories[i])
+		}
+		whereClauses = append(whereClauses, fmt.Sprintf("categoria IN (%s)", strings.Join(placeholders, ",")))
+	}
+	if len(selectedAccounts) > 0 && selectedAccounts[0] != "" {
+		placeholders := make([]string, len(selectedAccounts))
+		for i := range selectedAccounts {
+			placeholders[i] = "?"
+			args = append(args, selectedAccounts[i])
+		}
+		whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", strings.Join(placeholders, ",")))
+	}
+	if selectedStartDate != "" {
+		whereClauses = append(whereClauses, "data_ocorrencia >= ?")
+		args = append(args, selectedStartDate)
+	}
+	if selectedEndDate != "" {
+		whereClauses = append(whereClauses, "data_ocorrencia <= ?")
+		args = append(args, selectedEndDate)
+	}
+	if selectedConsolidado != "" {
+		if selectedConsolidado == "true" {
+			whereClauses = append(whereClauses, "consolidado = 1")
+		} else if selectedConsolidado == "false" {
+			whereClauses = append(whereClauses, "consolidado = 0")
+		}
+	}
+
+	// Adicionar cláusulas WHERE à query principal
+	if len(whereClauses) > 0 {
+		query += " AND " + strings.Join(whereClauses, " AND ") // Usa AND porque já temos "WHERE valor < 0"
+	}
+
+	query += " GROUP BY categoria ORDER BY SUM(valor) ASC" // Ordena do menor (mais negativo) para o maior
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao buscar dados para relatório: %v", err)})
+		return
+	}
+	defer rows.Close()
+
+	var relatorioData []RelatorioCategoria
+	for rows.Next() {
+		var rc RelatorioCategoria
+		err := rows.Scan(&rc.Categoria, &rc.Total)
+		if err != nil {
+			log.Printf("Erro ao escanear linha do relatório: %v", err)
+			continue
+		}
+		relatorioData = append(relatorioData, rc)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro na iteração das linhas do relatório: %v", err)})
+		return
+	}
+
+	// Buscar categorias distintas (para o filtro da página de relatório)
+	categoryRows, err := db.Query(fmt.Sprintf("SELECT DISTINCT categoria FROM %s ORDER BY categoria ASC", database.TableName))
+	var categories []string
+	if err == nil { // Apenas processa se não houver erro na query
+		defer categoryRows.Close()
+		for categoryRows.Next() {
+			var cat string
+			if err := categoryRows.Scan(&cat); err != nil {
+				log.Printf("AVISO: Erro ao escanear categoria distinta para relatório: %v", err)
+				continue
+			}
+			categories = append(categories, cat)
+		}
+	} else {
+		log.Printf("AVISO: Erro ao buscar categorias distintas para relatório: %v", err)
+	}
+
+	// Buscar contas distintas (para o filtro da página de relatório)
+	accountRows, err := db.Query(fmt.Sprintf("SELECT DISTINCT conta FROM %s ORDER BY conta ASC", database.TableName))
+	var accounts []string
+	if err == nil { // Apenas processa se não houver erro na query
+		defer accountRows.Close()
+		for accountRows.Next() {
+			var acc string
+			if err := accountRows.Scan(&acc); err != nil {
+				log.Printf("AVISO: Erro ao escanear conta distinta para relatório: %v", err)
+				continue
+			}
+			accounts = append(accounts, acc)
+		}
+	} else {
+		log.Printf("AVISO: Erro ao buscar contas distintas para relatório: %v", err)
+	}
+
+	consolidatedOptions := []struct {
+		Value string
+		Label string
+	}{
+		{"", "Todos"},
+		{"true", "Sim"},
+		{"false", "Não"},
+	}
+
+	currentDate := time.Now().Format("2006-01-02")
+
+	// Renderiza a página de relatório
+	c.HTML(http.StatusOK, "relatorio.html", gin.H{
+		"Titulo":               "Relatório de Despesas por Categoria",
+		"ReportData":           relatorioData, // Dados agregados para o gráfico
+		"SelectedCategories":   selectedCategories,
+		"SelectedStartDate":    selectedStartDate,
+		"SelectedEndDate":      selectedEndDate,
+		"SelectedConsolidated": selectedConsolidado,
+		"SelectedAccounts":     selectedAccounts,
+		"Categories":           categories,
+		"Accounts":             accounts,
+		"ConsolidatedOptions":  consolidatedOptions,
+		"CurrentDate":          currentDate,
+	})
+}
+
+// GetTransactionsByCategory busca transações individuais para uma categoria e filtros dados.
+func GetTransactionsByCategory(c *gin.Context) {
+	db := database.GetDB()
+
+	category := c.Query("category") // Categoria específica clicada
+	selectedStartDate := c.Query("start_date")
+	selectedEndDate := c.Query("end_date")
+	selectedConsolidado := c.Query("consolidated_filter")
+	selectedAccounts := c.QueryArray("account")
+
+	// Se não houver filtros de data na URL, define para o mês corrente (padrão da página de relatório)
+	if selectedStartDate == "" && selectedEndDate == "" {
+		now := time.Now()
+		firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		selectedStartDate = firstOfMonth.Format("2006-01-02")
+		lastOfMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location())
+		selectedEndDate = lastOfMonth.Format("2006-01-02")
+	}
+
+	// Construir a consulta SQL para transações individuais da categoria e que são despesas
+	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s WHERE categoria = ? AND valor < 0", database.TableName)
+	var args []interface{}
+	args = append(args, category) // A categoria é sempre o primeiro argumento
+
+	var whereClauses []string // Cláusulas WHERE adicionais para outros filtros
+
+	if len(selectedAccounts) > 0 && selectedAccounts[0] != "" {
+		placeholders := make([]string, len(selectedAccounts))
+		for i := range selectedAccounts {
+			placeholders[i] = "?"
+			args = append(args, selectedAccounts[i])
+		}
+		whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", strings.Join(placeholders, ",")))
+	}
+	if selectedStartDate != "" {
+		whereClauses = append(whereClauses, "data_ocorrencia >= ?")
+		args = append(args, selectedStartDate)
+	}
+	if selectedEndDate != "" {
+		whereClauses = append(whereClauses, "data_ocorrencia <= ?")
+		args = append(args, selectedEndDate)
+	}
+	if selectedConsolidado != "" {
+		if selectedConsolidado == "true" {
+			whereClauses = append(whereClauses, "consolidado = 1")
+		} else if selectedConsolidado == "false" {
+			whereClauses = append(whereClauses, "consolidado = 0")
+		}
+	}
+
+	// Adicionar cláusulas WHERE à query principal
+	if len(whereClauses) > 0 {
+		query += " AND " + strings.Join(whereClauses, " AND ")
+	}
+
+	query += " ORDER BY data_ocorrencia DESC"
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao buscar transações por categoria: %v", err)})
+		return
+	}
+	defer rows.Close()
+
+	var transactions []models.Movimentacao
+	for rows.Next() {
+		var mov models.Movimentacao
+		err := rows.Scan(&mov.ID, &mov.DataOcorrencia, &mov.Descricao, &mov.Valor, &mov.Categoria, &mov.Conta, &mov.Consolidado)
+		if err != nil {
+			log.Printf("Erro ao escanear linha da transação por categoria: %v", err)
+			continue
+		}
+		transactions = append(transactions, mov)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro na iteração das transações por categoria: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, transactions) // Retorna as transações em JSON
+}
