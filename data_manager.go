@@ -85,7 +85,7 @@ func main() {
 			"csv/Extrato_20220101_20221231.csv",
 			"csv/Extrato_20230101_20231231.csv",
 			"csv/Extrato_20240101_20241231.csv",
-			"csv/Extrato_20250101_20250630.csv",
+			"csv/Extrato_20250101_20251231.csv",
 		}
 
 		for _, filename := range csvFiles {
