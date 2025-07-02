@@ -2,7 +2,7 @@
 
 Este projeto oferece um sistema para gestão de movimentações financeiras pessoais, permitindo a importação e exportação de dados via linha de comando, e a visualização, filtragem, adição, edição e exclusão de registros através de uma interface web moderna.
 
-![Minhas Economias 1](photos/view_app_1.png)
+![Minhas Economias 1](photos/view_app_2.png)
 
 ## Descrição
 
