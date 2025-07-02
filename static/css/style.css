@@ -226,14 +226,95 @@ body {
     transform: translateY(-2px); /* Efeito de levantar */
 }
 
+/* NOVO: Wrapper para os botões de filtro de valor e displays de resumo */
+.filter-value-summary-group {
+    display: flex;
+    flex-wrap: wrap; /* Permite que os itens quebrem linha */
+    justify-content: flex-end; /* Alinha o conteúdo à direita */
+    align-items: center; /* Alinha verticalmente no centro */
+    gap: 15px; /* Espaçamento entre os dois contêineres internos */
+    margin-bottom: 30px; /* Espaço abaixo deste grupo */
+    padding: 0 20px; /* Alinha com o padding do formulário de filtro */
+}
+
+/* Ajustes para os contêineres internos dentro do novo wrapper */
+.value-filter-buttons-container {
+    margin-top: 0; /* Remove margem negativa anterior */
+    margin-bottom: 0; /* Remove margem negativa anterior */
+    /* Ele já tem display: flex e justify-content: flex-end */
+}
+
+.summary-buttons-container {
+    margin-top: 0; /* Remove margem negativa anterior */
+    margin-bottom: 0; /* Remove margem negativa anterior */
+    /* Ele já tem display: flex e justify-content: flex-end */
+}
+
+.value-filter-button {
+    padding: 12px 25px; /* Mesmos paddings dos outros botões */
+    border: none; /* Remove a borda padrão */
+    border-radius: 10px; /* Mesmos cantos arredondados */
+    font-weight: 600; /* Mesma espessura da fonte */
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease; /* Transições suaves */
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Sombra sutil */
+}
+
+.value-filter-button:hover {
+    transform: translateY(-2px); /* Efeito de levantar */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Sombra mais pronunciada no hover */
+}
+
+/* Estilos específicos para cada tipo de filtro de valor */
+.value-filter-button.income-filter {
+    background-color: #d1fae5; /* Verde claro para entradas */
+    color: #065f46; /* Texto verde escuro */
+}
+.value-filter-button.income-filter.active {
+    background-color: #10b981; /* Verde mais escuro quando ativo */
+    color: white;
+}
+.value-filter-button.income-filter:hover {
+    background-color: #059669; /* Verde mais escuro no hover */
+    color: white;
+}
+
+
+.value-filter-button.expense-filter {
+    background-color: #fee2e2; /* Vermelho claro para saídas */
+    color: #991b1b; /* Texto vermelho escuro */
+}
+.value-filter-button.expense-filter.active {
+    background-color: #ef4444; /* Vermelho mais escuro quando ativo */
+    color: white;
+}
+.value-filter-button.expense-filter:hover {
+    background-color: #dc2626; /* Vermelho mais escuro no hover */
+    color: white;
+}
+
+.value-filter-button.all-values-filter {
+    background-color: #e0f2fe; /* Azul muito claro para "Todos" */
+    color: #1e40af; /* Texto azul escuro */
+}
+.value-filter-button.all-values-filter.active {
+    background-color: #3b82f6; /* Azul padrão quando ativo */
+    color: white;
+}
+.value-filter-button.all-values-filter:hover {
+    background-color: #2563eb; /* Azul mais escuro no hover */
+    color: white;
+}
+
+
 /* Nova seção para Entradas e Saídas */
 .summary-buttons-container {
     display: flex;
     justify-content: flex-end; /* Alinha os botões à direita */
     gap: 15px; /* Espaçamento entre os botões */
-    margin-top: 30px; /* Ajustado para espaçamento abaixo do filtro */
-    margin-bottom: 30px; /* Espaçamento abaixo */
-    padding: 0 20px; /* Alinha com o padding do formulário */
+    /* Removido margin-top e margin-bottom aqui, pois o wrapper pai gerencia */
+    padding: 0; /* Removido padding lateral, pois o wrapper pai gerencia */
 }
 
 .summary-button-item {
@@ -314,8 +395,13 @@ table thead tr:first-child th:last-child {
     transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
+/* Alternância de cores nas linhas da tabela */
+.table-row-item:nth-child(even) { /* Seleciona linhas pares */
+    background-color: #e9ecef; /* Um cinza claro mais pronunciado */
+}
+
 .table-row-item:hover {
-    background-color: #f1f6fc;
+    background-color: #dee2e6; /* Um tom de cinza mais escuro para o hover, para se destacar em ambas as cores de linha */
     transform: scale(1.005);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
     position: relative;

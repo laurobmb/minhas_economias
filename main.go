@@ -28,7 +28,7 @@ func main() {
 	var err error
 
 	// Inicializa o banco de dados
-	// Ignora o primeiro valor de retorno (*sql.DB) com o blank identifier '_'
+	// Certifique-se de que "extratos.db" existe ou será criado pelo seu script de importação
 	_, err = database.InitDB("extratos.db") 
 	if err != nil {
 		log.Fatalf("Erro ao inicializar o banco de dados: %v", err)

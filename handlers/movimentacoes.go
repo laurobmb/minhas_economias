@@ -26,6 +26,7 @@ func GetMovimentacoes(c *gin.Context) {
 	selectedEndDate := c.Query("end_date")
 	selectedConsolidado := c.Query("consolidated_filter")
 	selectedAccounts := c.QueryArray("account")
+	selectedValueFilter := c.Query("value_filter") // Novo: "income", "expense", ou ""
 
 	// Se não houver filtros de data na URL, define para o mês corrente
 	if selectedStartDate == "" && selectedEndDate == "" {
@@ -71,6 +72,14 @@ func GetMovimentacoes(c *gin.Context) {
 			whereClauses = append(whereClauses, "consolidado = 1")
 		} else if selectedConsolidado == "false" {
 			whereClauses = append(whereClauses, "consolidado = 0")
+		}
+	}
+	// Novo: Filtro por tipo de valor (entradas/saídas)
+	if selectedValueFilter != "" {
+		if selectedValueFilter == "income" {
+			whereClauses = append(whereClauses, "valor >= 0")
+		} else if selectedValueFilter == "expense" {
+			whereClauses = append(whereClauses, "valor < 0")
 		}
 	}
 
@@ -194,6 +203,7 @@ func GetMovimentacoes(c *gin.Context) {
 			"SelectedEndDate":      selectedEndDate,
 			"SelectedConsolidated": selectedConsolidado,
 			"SelectedAccounts":     selectedAccounts,
+			"SelectedValueFilter":  selectedValueFilter, // Novo: passa o filtro de valor selecionado
 			"Categories":           categories,
 			"Accounts":             accounts,
 			"ConsolidatedOptions":  consolidatedOptions,
