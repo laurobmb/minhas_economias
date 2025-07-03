@@ -7,7 +7,6 @@
     <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/css/style.css">
-    <!-- Incluir Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -15,9 +14,13 @@
         <div class="header">
             <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
             <h1 class="header-title text-gray-900">Relatório de Despesas</h1>
-            <a href="/" class="api-link rounded-lg">Voltar para Extratos</a>
+        
+            <div class="flex items-center gap-4">
+                <a href="/" class="api-link rounded-lg">Voltar</a>
+                <button id="save-pdf-button" class="api-link rounded-lg" style="background-color: #22c55e; border-color: #16a34a;">Salvar em PDF</button>
+            </div>
         </div>
-
+        
         <form action="/relatorio" method="GET" class="filter-form" id="reportFilterForm">
             <div class="form-group">
                 <label for="category" class="label">Categoria:</label>
@@ -89,7 +92,6 @@
             {{ end }}
         </div>
 
-        <!-- NOVO: Seção para exibir transações detalhadas por categoria -->
         <div id="category-transactions-section" class="table-container select-hide">
             <h3>Transações da Categoria: <span id="selected-category-name"></span></h3>
             <table class="rounded-lg overflow-hidden">
@@ -104,36 +106,40 @@
                     </tr>
                 </thead>
                 <tbody id="category-transactions-tbody">
-                    <!-- Transações serão inseridas aqui via JS -->
-                </tbody>
+                    </tbody>
             </table>
             <p id="no-transactions-message" class="no-data select-hide">Nenhuma transação encontrada para esta categoria com os filtros aplicados.</p>
         </div>
-        <!-- FIM NOVO: Seção para exibir transações detalhadas -->
 
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- 1. SELEÇÃO DOS ELEMENTOS DO DOM ---
             const reportFilterForm = document.getElementById('reportFilterForm');
             const categoryTransactionsSection = document.getElementById('category-transactions-section');
             const selectedCategoryNameSpan = document.getElementById('selected-category-name');
             const categoryTransactionsTbody = document.getElementById('category-transactions-tbody');
             const noTransactionsMessage = document.getElementById('no-transactions-message');
-
-            // Elementos dos filtros personalizados
+            const savePdfButton = document.getElementById('save-pdf-button');
+            const ctx = document.getElementById('expensesPieChart');
+            
+            // Elementos dos filtros
             const categoryCheckboxes = document.querySelectorAll('#category-select-options .custom-checkbox');
             const accountCheckboxes = document.querySelectorAll('#account-select-options .custom-checkbox');
             const startDateInput = document.getElementById('start_date');
             const endDateInput = document.getElementById('end_date');
             const consolidatedFilterSelect = document.getElementById('consolidated_filter');
 
+            // Variável para armazenar a instância do gráfico para ser acessada por múltiplas funções
+            let expensesPieChartInstance;
 
+            // --- 2. SETUP DOS FILTROS (DROPDOWNS) ---
             if (reportFilterForm) {
-                // Função genérica para configurar dropdowns com checkboxes (multi-select)
-                function setupMultiSelectDropdown(displayId, optionsId, checkboxClass, selectedValues) {
+                function setupMultiSelectDropdown(displayId, optionsId, checkboxClass) {
                     const selectDisplay = document.getElementById(displayId);
                     const selectOptions = document.getElementById(optionsId);
+                    if (!selectDisplay || !selectOptions) return; // Proteção
                     const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
 
                     function updateDisplay() {
@@ -146,11 +152,11 @@
                         } else if (currentSelectedValues.length === 1) {
                             selectDisplay.textContent = currentSelectedValues[0];
                         } else {
-                            selectDisplay.textContent = currentSelectedValues.length + " selecionadas";
+                            selectDisplay.textContent = `${currentSelectedValues.length} selecionadas`;
                         }
                     }
 
-                    updateDisplay(); // Inicializa o texto de exibição
+                    updateDisplay();
                     selectDisplay.addEventListener('click', (event) => {
                         event.stopPropagation();
                         selectOptions.classList.toggle('select-hide');
@@ -166,169 +172,132 @@
                         checkbox.addEventListener('change', updateDisplay);
                     });
                 }
-
-                setupMultiSelectDropdown(
-                    'category-select-display',
-                    'category-select-options',
-                    'custom-checkbox',
-                    {{ .SelectedCategories | jsonify }}
-                );
-
-                setupMultiSelectDropdown(
-                    'account-select-display',
-                    'account-select-options',
-                    'custom-checkbox',
-                    {{ .SelectedAccounts | jsonify }}
-                );
+                setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox');
+                setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox');
             }
 
-            // --- Lógica do Gráfico de Pizza ---
-            const ctx = document.getElementById('expensesPieChart');
-            const reportData = {{ .ReportData | jsonify }}; // Dados do relatório passados do Go
+            // --- 3. LÓGICA DO GRÁFICO DE PIZZA (CHART.JS) ---
+            const reportData = {{ .ReportData | jsonify }};
 
             if (ctx && reportData && reportData.length > 0) {
                 const labels = reportData.map(item => item.categoria);
-                // Os valores de despesa são negativos, usamos Math.abs para o gráfico
-                const data = reportData.map(item => Math.abs(item.total)); 
+                const data = reportData.map(item => Math.abs(item.total));
 
-                // Gerar cores dinamicamente
-                const backgroundColors = data.map((value, index) => {
-                    const hue = (index * 137.508) % 360; // Número mágico para cores distintas
+                const backgroundColors = data.map((_, index) => {
+                    const hue = (index * 137.508) % 360;
                     return `hsl(${hue}, 70%, 60%)`;
                 });
-                const borderColors = backgroundColors.map(color => {
-                    // Um pouco mais escuro para a borda
-                    return color.replace('60%)', '50%)'); 
-                });
+                const borderColors = backgroundColors.map(color => color.replace('60%)', '50%)'));
 
-
-                const expensesPieChart = new Chart(ctx, {
+                // Atribui a nova instância do gráfico à variável externa
+                expensesPieChartInstance = new Chart(ctx, {
                     type: 'pie',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            data: data,
-                            backgroundColor: backgroundColors,
-                            borderColor: borderColors,
-                            borderWidth: 1
-                        }]
-                    },
+                    data: { labels, datasets: [{ data, backgroundColor: backgroundColors, borderColor: borderColors, borderWidth: 1 }] },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false, // Permite controlar o tamanho do canvas com CSS
+                        maintainAspectRatio: false,
                         plugins: {
-                            legend: {
-                                position: 'top',
-                            },
-                            title: {
-                                display: true,
-                                text: 'Despesas por Categoria',
-                                font: {
-                                    size: 18
-                                }
-                            },
+                            legend: { position: 'top' },
+                            title: { display: true, text: 'Despesas por Categoria', font: { size: 18 } },
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
                                         let label = context.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed !== null) {
-                                            label += 'R$ ' + context.parsed.toFixed(2).replace('.', ',');
-                                        }
+                                        if (label) label += ': ';
+                                        if (context.parsed !== null) label += 'R$ ' + context.parsed.toFixed(2).replace('.', ',');
                                         return label;
                                     }
                                 }
                             }
                         },
-                        // NOVO: Adiciona o evento de clique no gráfico
                         onClick: async (event, elements) => {
                             if (elements.length > 0) {
-                                const firstElement = elements[0];
-                                const categoryName = expensesPieChart.data.labels[firstElement.index]; // Nome da categoria clicada
+                                const categoryName = labels[elements[0].index];
+                                selectedCategoryNameSpan.textContent = categoryName;
+
+                                const params = new URLSearchParams(new FormData(reportFilterForm));
+                                const apiUrl = `/relatorio/transactions?${params.toString()}&category=${encodeURIComponent(categoryName)}`;
                                 
-                                selectedCategoryNameSpan.textContent = categoryName; // Atualiza o nome da categoria
-
-                                // Coleta os filtros atuais manualmente
-                                const params = new URLSearchParams();
-
-                                // Adiciona categorias selecionadas (todos os checkboxes marcados, exceto a clicada)
-                                Array.from(categoryCheckboxes).forEach(cb => {
-                                    if (cb.checked && cb.value !== categoryName) { // Não inclui a categoria clicada aqui, ela será adicionada separadamente
-                                        params.append('category', cb.value);
-                                    }
-                                });
-                                // Adiciona a categoria clicada explicitamente
-                                params.append('category', categoryName);
-
-                                // Adiciona contas selecionadas
-                                Array.from(accountCheckboxes).forEach(cb => {
-                                    if (cb.checked) {
-                                        params.append('account', cb.value);
-                                    }
-                                });
-
-                                // Adiciona filtros de data
-                                if (startDateInput.value) {
-                                    params.set('start_date', startDateInput.value);
-                                }
-                                if (endDateInput.value) {
-                                    params.set('end_date', endDateInput.value);
-                                }
-
-                                // Adiciona filtro de consolidado
-                                if (consolidatedFilterSelect.value) {
-                                    params.set('consolidated_filter', consolidatedFilterSelect.value);
-                                }
-
-
-                                const apiUrl = `/relatorio/transactions?${params.toString()}`;
-                                console.log('Fetching transactions from:', apiUrl); // Debug: ver a URL da requisição
-
                                 try {
                                     const response = await fetch(apiUrl);
-                                    if (!response.ok) {
-                                        throw new Error(`HTTP error! status: ${response.status}`);
-                                    }
-                                    const transactions = await response.json();
-                                    console.log('Transactions received:', transactions); // Debug: ver os dados recebidos
+                                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                                     
-                                    categoryTransactionsTbody.innerHTML = ''; // Limpa a tabela
+                                    const transactions = await response.json();
+                                    categoryTransactionsTbody.innerHTML = '';
                                     if (transactions.length > 0) {
                                         transactions.forEach(tx => {
                                             const row = document.createElement('tr');
-                                            row.classList.add('table-row-item'); // Para alternância de cores
-
-                                            const valorFormatado = tx.valor.toFixed(2).replace('.', ',');
-                                            const consolidadoTexto = tx.consolidado ? 'Sim' : 'Não';
-
-                                            row.innerHTML = `
-                                                <td>${tx.id}</td>
-                                                <td>${tx.data_ocorrencia}</td>
-                                                <td>${tx.descricao}</td>
-                                                <td class="text-right">R$ ${valorFormatado}</td>
-                                                <td>${tx.conta}</td>
-                                                <td>${consolidadoTexto}</td>
-                                            `;
+                                            row.innerHTML = `<td>${tx.id}</td><td>${tx.data_ocorrencia}</td><td>${tx.descricao}</td><td class="text-right">R$ ${tx.valor.toFixed(2).replace('.',',')}</td><td>${tx.conta}</td><td>${tx.consolidado ? 'Sim' : 'Não'}</td>`;
                                             categoryTransactionsTbody.appendChild(row);
                                         });
-                                        categoryTransactionsSection.classList.remove('select-hide');
                                         noTransactionsMessage.classList.add('select-hide');
                                     } else {
-                                        categoryTransactionsSection.classList.remove('select-hide');
                                         noTransactionsMessage.classList.remove('select-hide');
                                     }
-
+                                    categoryTransactionsSection.classList.remove('select-hide');
                                 } catch (error) {
                                     console.error('Erro ao buscar transações da categoria:', error);
-                                    categoryTransactionsTbody.innerHTML = '';
-                                    selectedCategoryNameSpan.textContent = categoryName + " (Erro ao carregar)";
-                                    categoryTransactionsSection.classList.remove('select-hide');
+                                    noTransactionsMessage.textContent = 'Erro ao carregar transações.';
                                     noTransactionsMessage.classList.remove('select-hide');
                                 }
                             }
                         }
+                    }
+                });
+            }
+
+            // --- 4. LÓGICA DO BOTÃO "SALVAR EM PDF" ---
+            if (savePdfButton) {
+                savePdfButton.addEventListener('click', async () => {
+                    if (!expensesPieChartInstance) {
+                        alert("Não há gráfico para salvar.");
+                        return;
+                    }
+
+                    savePdfButton.textContent = 'Gerando...';
+                    savePdfButton.disabled = true;
+
+                    try {
+                        const chartImageBase64 = expensesPieChartInstance.toBase64Image();
+                        const selectedCategories = Array.from(categoryCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+                        const selectedAccounts = Array.from(accountCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+
+                        const payload = {
+                            start_date: startDateInput.value,
+                            end_date: endDateInput.value,
+                            categories: selectedCategories,
+                            accounts: selectedAccounts,
+                            consolidated_filter: consolidatedFilterSelect.value,
+                            chartImageBase64: chartImageBase64
+                        };
+
+                        const response = await fetch('/relatorio/pdf', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                        });
+
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = url;
+                            a.download = `Relatorio-MinhasEconomias-${new Date().toISOString().slice(0,10)}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            a.remove();
+                        } else {
+                            const errorData = await response.json();
+                            alert(`Erro ao gerar o PDF: ${errorData.error}`);
+                        }
+                    } catch (error) {
+                        console.error('Erro na requisição para gerar o PDF:', error);
+                        alert('Ocorreu um erro de comunicação ao tentar gerar o PDF.');
+                    } finally {
+                        savePdfButton.textContent = 'Salvar em PDF';
+                        savePdfButton.disabled = false;
                     }
                 });
             }

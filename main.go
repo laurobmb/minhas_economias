@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/json"
 	"html/template"
 	"log"
 	"os"
@@ -11,7 +12,6 @@ import (
 	// O nome do módulo que você usou em 'go mod init'
 	"minhas_economias/database" // Importe o pacote database
 	"minhas_economias/handlers" // Importe o pacote handlers
-	"encoding/json"              // Mantenha para a função jsonify
 )
 
 // jsonify é uma função auxiliar para converter um valor para JSON.
@@ -29,7 +29,7 @@ func main() {
 
 	// Inicializa o banco de dados
 	// Certifique-se de que "extratos.db" existe ou será criado pelo seu script de importação
-	_, err = database.InitDB("extratos.db") 
+	_, err = database.InitDB("extratos.db")
 	if err != nil {
 		log.Fatalf("Erro ao inicializar o banco de dados: %v", err)
 	}
@@ -87,9 +87,10 @@ func main() {
 	r.GET("/api/movimentacoes", handlers.GetMovimentacoes)
 	r.POST("/movimentacoes", handlers.AddMovimentacao)
 	r.DELETE("/movimentacoes/:id", handlers.DeleteMovimentacao)
-	r.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao) 
+	r.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao)
 	r.GET("/relatorio", handlers.GetRelatorio)
-	r.GET("/relatorio/transactions", handlers.GetTransactionsByCategory) // Nova rota para transações por categoria
+	r.GET("/relatorio/transactions", handlers.GetTransactionsByCategory)
+	r.POST("/relatorio/pdf", handlers.DownloadRelatorioPDF) // <-- ROTA ADICIONADA AQUI
 
 	log.Println("Servidor Gin iniciado na porta :8080")
 	err = r.Run(":8080")
