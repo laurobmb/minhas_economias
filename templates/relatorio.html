@@ -14,7 +14,6 @@
         <div class="header">
             <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
             <h1 class="header-title text-gray-900">Relatório de Despesas</h1>
-        
             <div class="flex items-center gap-4">
                 <a href="/" class="api-link rounded-lg">Voltar</a>
                 <button id="save-pdf-button" class="api-link rounded-lg" style="background-color: #22c55e; border-color: #16a34a;">Salvar em PDF</button>
@@ -25,64 +24,61 @@
             <div class="form-group">
                 <label for="category" class="label">Categoria:</label>
                 <div class="custom-select-container">
-                    <div class="select-selected rounded-md" id="category-select-display">
-                        Todas as Categorias
-                    </div>
+                    <div class="select-selected rounded-md" id="category-select-display">Todas as Categorias</div>
                     <div class="select-items select-hide" id="category-select-options">
                         {{- range $category := .Categories -}}
                             <label class="select-item-label">
                                 <input type="checkbox" name="category" value="{{ $category }}" class="custom-checkbox"
-                                    {{- range $.SelectedCategories -}}
-                                        {{- if eq . $category -}}checked{{- end -}}
-                                    {{- end -}}
-                                >
-                                {{ $category }}
+                                    {{- range $.SelectedCategories -}}{{- if eq . $category -}}checked{{- end -}}{{- end -}}> {{ $category }}
                             </label>
                         {{- end -}}
                     </div>
                 </div>
+            </div>
+
+            <div class="form-group">
+                <label for="search_descricao" class="label">Buscar por Descrição:</label>
+                <input type="text" name="search_descricao" id="search_descricao" value="{{ .SearchDescricao }}" class="text-input rounded-md" placeholder="Ex: aluguel, mercado...">
             </div>
             <div class="form-group">
                 <label for="account" class="label">Conta:</label>
                 <div class="custom-select-container">
-                    <div class="select-selected rounded-md" id="account-select-display">
-                        Todas as Contas
-                    </div>
+                    <div class="select-selected rounded-md" id="account-select-display">Todas as Contas</div>
                     <div class="select-items select-hide" id="account-select-options">
                         {{- range $account := .Accounts -}}
                             <label class="select-item-label">
                                 <input type="checkbox" name="account" value="{{ $account }}" class="custom-checkbox"
-                                    {{- range $.SelectedAccounts -}}
-                                        {{- if eq . $account -}}checked{{- end -}}
-                                    {{- end -}}
-                                >
-                                {{ $account }}
+                                    {{- range $.SelectedAccounts -}}{{- if eq . $account -}}checked{{- end -}}{{- end -}}> {{ $account }}
                             </label>
                         {{- end -}}
                     </div>
                 </div>
             </div>
+            
             <div class="form-group date-range-group">
                 <label for="start_date" class="label">Data Início:</label>
                 <input type="date" name="start_date" id="start_date" value="{{ .SelectedStartDate }}" class="date-input rounded-md">
             </div>
+            
             <div class="form-group date-range-group">
                 <label for="end_date" class="label">Data Fim:</label>
                 <input type="date" name="end_date" id="end_date" value="{{ .SelectedEndDate }}" class="date-input rounded-md">
             </div>
+            
             <div class="form-group">
                 <label for="consolidated_filter" class="label">Consolidado:</label>
                 <select name="consolidated_filter" id="consolidated_filter" class="select-input rounded-md">
                     {{ range .ConsolidatedOptions }}
-                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidado }}selected{{ end }}>
-                            {{ .Label }}
-                        </option>
+                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidado }}selected{{ end }}>{{ .Label }}</option>
                     {{ end }}
                 </select>
             </div>
-            <button type="submit" class="filter-button rounded-md">Filtrar Relatório</button>
-            <button type="button" class="clear-button rounded-md" onclick="window.location.href='/relatorio'">Limpar Filtros</button>
-        </form>
+
+            <div class="filter-actions">
+                <button type="submit" class="filter-button rounded-md">Filtrar Relatório</button>
+                <button type="button" class="clear-button rounded-md" onclick="window.location.href='/relatorio'">Limpar Filtros</button>
+            </div>
+            </form>
 
         <div class="chart-container">
             {{ if .ReportData }}
@@ -97,25 +93,17 @@
             <table class="rounded-lg overflow-hidden">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Data</th>
-                        <th>Descrição</th>
-                        <th class="text-right">Valor</th>
-                        <th>Conta</th>
-                        <th>Consolidado</th>
+                        <th>ID</th><th>Data</th><th>Descrição</th><th class="text-right">Valor</th><th>Conta</th><th>Consolidado</th>
                     </tr>
                 </thead>
-                <tbody id="category-transactions-tbody">
-                    </tbody>
+                <tbody id="category-transactions-tbody"></tbody>
             </table>
             <p id="no-transactions-message" class="no-data select-hide">Nenhuma transação encontrada para esta categoria com os filtros aplicados.</p>
         </div>
-
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- 1. SELEÇÃO DOS ELEMENTOS DO DOM ---
             const reportFilterForm = document.getElementById('reportFilterForm');
             const categoryTransactionsSection = document.getElementById('category-transactions-section');
             const selectedCategoryNameSpan = document.getElementById('selected-category-name');
@@ -124,119 +112,91 @@
             const savePdfButton = document.getElementById('save-pdf-button');
             const ctx = document.getElementById('expensesPieChart');
             
-            // Elementos dos filtros
+            // ALTERAÇÃO: Selecionar o novo campo de busca
+            const searchDescricaoInput = document.getElementById('search_descricao');
+            
             const categoryCheckboxes = document.querySelectorAll('#category-select-options .custom-checkbox');
             const accountCheckboxes = document.querySelectorAll('#account-select-options .custom-checkbox');
             const startDateInput = document.getElementById('start_date');
             const endDateInput = document.getElementById('end_date');
             const consolidatedFilterSelect = document.getElementById('consolidated_filter');
 
-            // Variável para armazenar a instância do gráfico para ser acessada por múltiplas funções
             let expensesPieChartInstance;
 
-            // --- 2. SETUP DOS FILTROS (DROPDOWNS) ---
-            if (reportFilterForm) {
-                function setupMultiSelectDropdown(displayId, optionsId, checkboxClass) {
-                    const selectDisplay = document.getElementById(displayId);
-                    const selectOptions = document.getElementById(optionsId);
-                    if (!selectDisplay || !selectOptions) return; // Proteção
-                    const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
-
-                    function updateDisplay() {
-                        const currentSelectedValues = Array.from(checkboxes)
-                            .filter(cb => cb.checked)
-                            .map(cb => cb.value);
-
-                        if (currentSelectedValues.length === 0) {
-                            selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
-                        } else if (currentSelectedValues.length === 1) {
-                            selectDisplay.textContent = currentSelectedValues[0];
-                        } else {
-                            selectDisplay.textContent = `${currentSelectedValues.length} selecionadas`;
-                        }
+            function setupMultiSelectDropdown(displayId, optionsId, checkboxClass) {
+                const selectDisplay = document.getElementById(displayId);
+                const selectOptions = document.getElementById(optionsId);
+                if (!selectDisplay || !selectOptions) return;
+                const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
+                function updateDisplay() {
+                    const currentSelectedValues = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+                    if (currentSelectedValues.length === 0) {
+                        selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
+                    } else if (currentSelectedValues.length === 1) {
+                        selectDisplay.textContent = currentSelectedValues[0];
+                    } else {
+                        selectDisplay.textContent = `${currentSelectedValues.length} selecionadas`;
                     }
-
-                    updateDisplay();
-                    selectDisplay.addEventListener('click', (event) => {
-                        event.stopPropagation();
-                        selectOptions.classList.toggle('select-hide');
-                        selectDisplay.classList.toggle('select-arrow-active');
-                    });
-                    document.addEventListener('click', (event) => {
-                        if (!selectDisplay.contains(event.target) && !selectOptions.contains(event.target)) {
-                            selectOptions.classList.add('select-hide');
-                            selectDisplay.classList.remove('select-arrow-active');
-                        }
-                    });
-                    checkboxes.forEach(checkbox => {
-                        checkbox.addEventListener('change', updateDisplay);
-                    });
                 }
-                setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox');
-                setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox');
+                updateDisplay();
+                selectDisplay.addEventListener('click', e => { e.stopPropagation(); selectOptions.classList.toggle('select-hide'); });
+                document.addEventListener('click', () => selectOptions.classList.add('select-hide'));
+                checkboxes.forEach(checkbox => checkbox.addEventListener('change', updateDisplay));
             }
 
-            // --- 3. LÓGICA DO GRÁFICO DE PIZZA (CHART.JS) ---
+            setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox');
+            setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox');
+
             const reportData = {{ .ReportData | jsonify }};
 
             if (ctx && reportData && reportData.length > 0) {
                 const labels = reportData.map(item => item.categoria);
                 const data = reportData.map(item => Math.abs(item.total));
+                const backgroundColors = data.map((_, index) => `hsl(${(index * 137.508) % 360}, 70%, 60%)`);
 
-                const backgroundColors = data.map((_, index) => {
-                    const hue = (index * 137.508) % 360;
-                    return `hsl(${hue}, 70%, 60%)`;
-                });
-                const borderColors = backgroundColors.map(color => color.replace('60%)', '50%)'));
-
-                // Atribui a nova instância do gráfico à variável externa
                 expensesPieChartInstance = new Chart(ctx, {
                     type: 'pie',
-                    data: { labels, datasets: [{ data, backgroundColor: backgroundColors, borderColor: borderColors, borderWidth: 1 }] },
+                    data: { labels, datasets: [{ data, backgroundColor: backgroundColors, borderWidth: 1 }] },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
                             legend: { position: 'top' },
                             title: { display: true, text: 'Despesas por Categoria', font: { size: 18 } },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.label || '';
-                                        if (label) label += ': ';
-                                        if (context.parsed !== null) label += 'R$ ' + context.parsed.toFixed(2).replace('.', ',');
-                                        return label;
-                                    }
-                                }
-                            }
+                            tooltip: { callbacks: { label: c => `${c.label || ''}: R$ ${c.parsed.toFixed(2).replace('.', ',')}` } }
                         },
+                        // ALTERAÇÃO: Lógica de clique corrigida para enviar todos os filtros
                         onClick: async (event, elements) => {
                             if (elements.length > 0) {
                                 const categoryName = labels[elements[0].index];
                                 selectedCategoryNameSpan.textContent = categoryName;
 
                                 const params = new URLSearchParams(new FormData(reportFilterForm));
-                                const apiUrl = `/relatorio/transactions?${params.toString()}&category=${encodeURIComponent(categoryName)}`;
+                                params.set('category', categoryName); 
                                 
+                                const apiUrl = `/relatorio/transactions?${params.toString()}`;
+
                                 try {
                                     const response = await fetch(apiUrl);
                                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                                    
                                     const transactions = await response.json();
+                                    
                                     categoryTransactionsTbody.innerHTML = '';
                                     if (transactions.length > 0) {
                                         transactions.forEach(tx => {
                                             const row = document.createElement('tr');
-                                            row.innerHTML = `<td>${tx.id}</td><td>${tx.data_ocorrencia}</td><td>${tx.descricao}</td><td class="text-right">R$ ${tx.valor.toFixed(2).replace('.',',')}</td><td>${tx.conta}</td><td>${tx.consolidado ? 'Sim' : 'Não'}</td>`;
+                                            const valorFormatado = tx.valor.toFixed(2).replace('.', ',');
+                                            const consolidadoTexto = tx.consolidado ? 'Sim' : 'Não';
+                                            row.innerHTML = `<td>${tx.id}</td><td>${tx.data_ocorrencia}</td><td>${tx.descricao}</td><td class="text-right">R$ ${valorFormatado}</td><td>${tx.conta}</td><td>${consolidadoTexto}</td>`;
                                             categoryTransactionsTbody.appendChild(row);
                                         });
                                         noTransactionsMessage.classList.add('select-hide');
                                     } else {
+                                        noTransactionsMessage.textContent = 'Nenhuma transação encontrada para esta categoria com os filtros aplicados.';
                                         noTransactionsMessage.classList.remove('select-hide');
                                     }
                                     categoryTransactionsSection.classList.remove('select-hide');
                                 } catch (error) {
-                                    console.error('Erro ao buscar transações da categoria:', error);
                                     noTransactionsMessage.textContent = 'Erro ao carregar transações.';
                                     noTransactionsMessage.classList.remove('select-hide');
                                 }
@@ -245,30 +205,23 @@
                     }
                 });
             }
-
-            // --- 4. LÓGICA DO BOTÃO "SALVAR EM PDF" ---
+            
             if (savePdfButton) {
                 savePdfButton.addEventListener('click', async () => {
-                    if (!expensesPieChartInstance) {
-                        alert("Não há gráfico para salvar.");
-                        return;
-                    }
-
+                    if (!expensesPieChartInstance) { alert("Não há gráfico para salvar."); return; }
                     savePdfButton.textContent = 'Gerando...';
                     savePdfButton.disabled = true;
 
                     try {
-                        const chartImageBase64 = expensesPieChartInstance.toBase64Image();
-                        const selectedCategories = Array.from(categoryCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
-                        const selectedAccounts = Array.from(accountCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
-
+                        // ALTERAÇÃO: Adicionar o campo de busca ao payload do PDF
                         const payload = {
+                            search_descricao: searchDescricaoInput.value,
                             start_date: startDateInput.value,
                             end_date: endDateInput.value,
-                            categories: selectedCategories,
-                            accounts: selectedAccounts,
+                            categories: Array.from(categoryCheckboxes).filter(cb => cb.checked).map(cb => cb.value),
+                            accounts: Array.from(accountCheckboxes).filter(cb => cb.checked).map(cb => cb.value),
                             consolidated_filter: consolidatedFilterSelect.value,
-                            chartImageBase64: chartImageBase64
+                            chartImageBase64: expensesPieChartInstance.toBase64Image()
                         };
 
                         const response = await fetch('/relatorio/pdf', {
@@ -281,7 +234,6 @@
                             const blob = await response.blob();
                             const url = window.URL.createObjectURL(blob);
                             const a = document.createElement('a');
-                            a.style.display = 'none';
                             a.href = url;
                             a.download = `Relatorio-MinhasEconomias-${new Date().toISOString().slice(0,10)}.pdf`;
                             document.body.appendChild(a);
@@ -290,11 +242,10 @@
                             a.remove();
                         } else {
                             const errorData = await response.json();
-                            alert(`Erro ao gerar o PDF: ${errorData.error}`);
+                            alert(`Erro ao gerar PDF: ${errorData.error}`);
                         }
                     } catch (error) {
-                        console.error('Erro na requisição para gerar o PDF:', error);
-                        alert('Ocorreu um erro de comunicação ao tentar gerar o PDF.');
+                        alert('Erro de comunicação ao gerar o PDF.');
                     } finally {
                         savePdfButton.textContent = 'Salvar em PDF';
                         savePdfButton.disabled = false;

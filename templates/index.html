@@ -11,20 +11,16 @@
 <body>
     <div class="container rounded-xl">
         <div class="header">
-            <!-- Imagem e título agora são elementos irmãos do link -->
             <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
             <h1 class="header-title text-gray-900">Minhas Economias</h1>
-            <!-- Botão API -->
             <a href="/api/movimentacoes" id="apiLink" class="api-link rounded-lg">API</a>
-            <!-- NOVO: Botão Relatório -->
             <a href="/relatorio" class="api-link rounded-lg">Relatório</a>
         </div>
 
-        <!-- Seção: Adicionar Nova Movimentação / Editar Movimentação -->
         <div class="add-movement-section rounded-xl">
             <h2 id="add-edit-form-title">Adicionar Nova Movimentação</h2>
             <form action="/movimentacoes" method="POST" class="add-movement-form" id="add-edit-form">
-                <input type="hidden" name="id" id="movement-id-input"> <!-- Campo oculto para o ID (usado na edição) -->
+                <input type="hidden" name="id" id="movement-id-input">
                 <div class="form-row">
                     <div class="form-group">
                         <label for="new_data_ocorrencia" class="label">Data Ocorrência:</label>
@@ -43,9 +39,7 @@
                     <div class="form-group">
                         <label class="label">Tipo:</label>
                         <div class="custom-select-container">
-                            <div class="select-selected rounded-md" id="tipo-movimentacao-display">
-                                Despesa
-                            </div>
+                            <div class="select-selected rounded-md" id="tipo-movimentacao-display">Despesa</div>
                             <div class="select-items select-hide" id="tipo-movimentacao-options">
                                 <label class="select-item-label">
                                     <input type="radio" name="tipo_movimentacao" value="receita" id="tipo_receita" class="hidden-radio-input"> Receita
@@ -77,44 +71,37 @@
                 </div>
             </form>
         </div>
-        <!-- Fim da Seção: Adicionar Nova Movimentação / Editar Movimentação -->
-
 
         <form action="/" method="GET" class="filter-form" id="filterForm">
             <div class="form-group">
                 <label for="category" class="label">Categoria:</label>
                 <div class="custom-select-container">
-                    <div class="select-selected rounded-md" id="category-select-display">
-                        Todas as Categorias
-                    </div>
+                    <div class="select-selected rounded-md" id="category-select-display">Todas as Categorias</div>
                     <div class="select-items select-hide" id="category-select-options">
                         {{- range $category := .Categories -}}
                             <label class="select-item-label">
                                 <input type="checkbox" name="category" value="{{ $category }}" class="custom-checkbox"
-                                    {{- range $.SelectedCategories -}}
-                                        {{- if eq . $category -}}checked{{- end -}}
-                                    {{- end -}}
-                                >
+                                    {{- range $.SelectedCategories -}}{{- if eq . $category -}}checked{{- end -}}{{- end -}}>
                                 {{ $category }}
                             </label>
                         {{- end -}}
                     </div>
                 </div>
             </div>
+
+            <div class="form-group">
+                <label for="search_descricao" class="label">Buscar por Descrição:</label>
+                <input type="text" name="search_descricao" id="search_descricao" value="{{ .SearchDescricao }}" class="text-input rounded-md" placeholder="Ex: aluguel, mercado...">
+            </div>
             <div class="form-group">
                 <label for="account" class="label">Conta:</label>
                 <div class="custom-select-container">
-                    <div class="select-selected rounded-md" id="account-select-display">
-                        Todas as Contas
-                    </div>
+                    <div class="select-selected rounded-md" id="account-select-display">Todas as Contas</div>
                     <div class="select-items select-hide" id="account-select-options">
                         {{- range $account := .Accounts -}}
                             <label class="select-item-label">
                                 <input type="checkbox" name="account" value="{{ $account }}" class="custom-checkbox"
-                                    {{- range $.SelectedAccounts -}}
-                                        {{- if eq . $account -}}checked{{- end -}}
-                                    {{- end -}}
-                                >
+                                    {{- range $.SelectedAccounts -}}{{- if eq . $account -}}checked{{- end -}}{{- end -}}>
                                 {{ $account }}
                             </label>
                         {{- end -}}
@@ -133,78 +120,37 @@
                 <label for="consolidated_filter" class="label">Consolidado:</label>
                 <select name="consolidated_filter" id="consolidated_filter" class="select-input rounded-md">
                     {{ range .ConsolidatedOptions }}
-                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidado }}selected{{ end }}>
-                            {{ .Label }}
-                        </option>
+                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidado }}selected{{ end }}>{{ .Label }}</option>
                     {{ end }}
                 </select>
             </div>
-            <button type="submit" class="filter-button rounded-md">Filtrar</button>
-            <button type="button" class="clear-button rounded-md" onclick="window.location.href='/'">Limpar Filtros</button>
-        </form>
 
-        <!-- NOVO WRAPPER SIMPLIFICADO: Agrupa botões de filtro de valor e displays de resumo na mesma linha -->
+            <div class="filter-actions">
+                <button type="submit" class="filter-button rounded-md">Filtrar</button>
+                <button type="button" class="clear-button rounded-md" onclick="window.location.href='/'">Limpar Filtros</button>
+            </div>
+            </form>
+
         <div class="filter-summary-controls">
-            <button type="button" class="value-filter-button income-filter {{ if eq .SelectedValueFilter "income" }}active{{ end }}" data-value-filter="income">
-                Filtrar Entradas
-            </button>
-            <button type="button" class="value-filter-button expense-filter {{ if eq .SelectedValueFilter "expense" }}active{{ end }}" data-value-filter="expense">
-                Filtrar Saídas
-            </button>
-            <button type="button" class="value-filter-button all-values-filter {{ if eq .SelectedValueFilter "" }}active{{ end }}" data-value-filter="">
-                Todos os Valores
-            </button>
-            
-            <div class="summary-button-item income">
-                <span>Entradas:</span>
-                <span class="value">R$ {{ printf "%.2f" .TotalEntradas }}</span>
-            </div>
-            <div class="summary-button-item expense">
-                <span>Saídas:</span>
-                <span class="value">R$ {{ printf "%.2f" .TotalSaidas }}</span>
-            </div>
+            <button type="button" class="value-filter-button income-filter {{ if eq .SelectedValueFilter "income" }}active{{ end }}" data-value-filter="income">Filtrar Entradas</button>
+            <button type="button" class="value-filter-button expense-filter {{ if eq .SelectedValueFilter "expense" }}active{{ end }}" data-value-filter="expense">Filtrar Saídas</button>
+            <button type="button" class="value-filter-button all-values-filter {{ if eq .SelectedValueFilter "" }}active{{ end }}" data-value-filter="">Todos os Valores</button>
+            <div class="summary-button-item income"><span>Entradas:</span><span class="value">R$ {{ printf "%.2f" .TotalEntradas }}</span></div>
+            <div class="summary-button-item expense"><span>Saídas:</span><span class="value">R$ {{ printf "%.2f" .TotalSaidas }}</span></div>
         </div>
-        <!-- FIM DO NOVO WRAPPER -->
-
 
         {{ if .Movimentacoes }}
         <div class="table-container">
             <table class="rounded-lg overflow-hidden">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        <th>Data</th>
-                        <th>Descrição</th>
-                        <th class="text-right">Valor</th>
-                        <th>Categoria</th>
-                        <th>Conta</th>
-                        <th>Consolidado</th>
-                        <th>Ações</th> <!-- Nova Coluna para Ações -->
+                        <th>ID</th><th>Data</th><th>Descrição</th><th class="text-right">Valor</th><th>Categoria</th><th>Conta</th><th>Consolidado</th><th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     {{ range .Movimentacoes }}
-                    <tr class="table-row-item" data-id="{{ .ID }}"
-                        data-data="{{ .DataOcorrencia }}"
-                        data-descricao="{{ .Descricao }}"
-                        data-valor="{{ printf "%.2f" .Valor }}"
-                        data-categoria="{{ .Categoria }}"
-                        data-conta="{{ .Conta }}"
-                        data-consolidado="{{ .Consolidado }}"
-                        data-tipo="{{ if lt .Valor 0.0 }}despesa{{ else }}receita{{ end }}">
-                        <td>{{ .ID }}</td>
-                        <td>{{ .DataOcorrencia }}</td>
-                        <td>{{ .Descricao }}</td>
-                        <td class="text-right">R$ {{ printf "%.2f" .Valor }}</td>
-                        <td>{{ .Categoria }}</td>
-                        <td>{{ .Conta }}</td>
-                        <td>
-                            {{ if .Consolidado }}
-                                Sim
-                            {{ else }}
-                                Não
-                            {{ end }}
-                        </td>
+                    <tr class="table-row-item" data-id="{{ .ID }}" data-data="{{ .DataOcorrencia }}" data-descricao="{{ .Descricao }}" data-valor="{{ printf "%.2f" .Valor }}" data-categoria="{{ .Categoria }}" data-conta="{{ .Conta }}" data-consolidado="{{ .Consolidado }}" data-tipo="{{ if lt .Valor 0.0 }}despesa{{ else }}receita{{ end }}">
+                        <td>{{ .ID }}</td><td>{{ .DataOcorrencia }}</td><td>{{ .Descricao }}</td><td class="text-right">R$ {{ printf "%.2f" .Valor }}</td><td>{{ .Categoria }}</td><td>{{ .Conta }}</td><td>{{ if .Consolidado }}Sim{{ else }}Não{{ end }}</td>
                         <td class="action-buttons-cell">
                             <button class="edit-button rounded-md" data-id="{{ .ID }}">Editar</button>
                             <button class="delete-button rounded-md" data-id="{{ .ID }}">Excluir</button>
@@ -214,7 +160,6 @@
                 </tbody>
             </table>
         </div>
-
         <div class="total-summary-container">
             <table class="total-summary-table rounded-lg overflow-hidden">
                 <tbody>
@@ -225,261 +170,122 @@
                 </tbody>
             </table>
         </div>
-
         {{ else }}
         <p class="no-data">Nenhum extrato encontrado com os filtros aplicados.</p>
         {{ end }}
     </div>
 
     <script>
-        // Função para atualizar o link "Ver JSON da API" com os filtros atuais
-        function updateApiLink() {
-            const apiLink = document.getElementById('apiLink');
-            const filterForm = document.getElementById('filterForm');
-            if (!apiLink || !filterForm) {
-                console.warn('Elementos API link ou formulário de filtro não encontrados.');
-                return;
-            }
-
-            const formData = new FormData(filterForm);
-            const params = new URLSearchParams();
-
-            // Adiciona todos os campos do formulário aos parâmetros da URL
-            for (const [key, value] of formData.entries()) {
-                if (value) { // Adiciona apenas se o valor não estiver vazio
-                    params.append(key, value);
-                }
-            }
-
-            // Adiciona o filtro de valor dos botões
-            const activeValueFilterButton = document.querySelector('.value-filter-button.active');
-            if (activeValueFilterButton && activeValueFilterButton.dataset.valueFilter) {
-                params.set('value_filter', activeValueFilterButton.dataset.valueFilter);
-            } else {
-                params.delete('value_filter'); // Garante que o parâmetro seja removido se nenhum estiver ativo
-            }
-
-
-            apiLink.href = '/api/movimentacoes?' + params.toString();
-        }
-
-        // Script para o custom dropdowns com checkboxes e rádio
         document.addEventListener('DOMContentLoaded', () => {
             const filterForm = document.getElementById('filterForm');
-            if (filterForm) {
-                updateApiLink(); // Inicializa o link da API
 
-                // Adiciona listeners para inputs de data e o select de consolidado
-                filterForm.querySelectorAll('input[type="date"], #consolidated_filter').forEach(input => {
-                    input.addEventListener('change', updateApiLink);
-                });
+            function updateApiLink() {
+                const apiLink = document.getElementById('apiLink');
+                if (!apiLink || !filterForm) return;
 
-                // Função genérica para configurar dropdowns com checkboxes (multi-select)
-                function setupMultiSelectDropdown(displayId, optionsId, checkboxClass, selectedValues) {
-                    const selectDisplay = document.getElementById(displayId);
-                    const selectOptions = document.getElementById(optionsId);
-                    const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
-
-                    function updateDisplay() {
-                        const currentSelectedValues = Array.from(checkboxes)
-                            .filter(cb => cb.checked)
-                            .map(cb => cb.value);
-
-                        if (currentSelectedValues.length === 0) {
-                            selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
-                        } else if (currentSelectedValues.length === 1) {
-                            selectDisplay.textContent = currentSelectedValues[0];
-                        } else {
-                            selectDisplay.textContent = currentSelectedValues.length + " selecionadas";
-                        }
-                        updateApiLink(); // Atualiza o link da API
-                    }
-
-                    // Inicializa o texto de exibição ao carregar a página
-                    updateDisplay();
-
-                    // Toggle visibility of options when display is clicked
-                    selectDisplay.addEventListener('click', (event) => {
-                        event.stopPropagation(); // Impede que o clique se propague para o documento
-                        selectOptions.classList.toggle('select-hide');
-                        selectDisplay.classList.toggle('select-arrow-active');
-                    });
-
-                    // Close the dropdown if clicked outside
-                    document.addEventListener('click', (event) => {
-                        if (!selectDisplay.contains(event.target) && !selectOptions.contains(event.target)) {
-                            selectOptions.classList.add('select-hide');
-                            selectDisplay.classList.remove('select-arrow-active');
-                        }
-                    });
-
-                    // Handle checkbox changes
-                    checkboxes.forEach(checkbox => {
-                        checkbox.addEventListener('change', updateDisplay);
-                    });
+                const formData = new FormData(filterForm);
+                const params = new URLSearchParams();
+                for (const [key, value] of formData.entries()) {
+                    if (value) params.append(key, value);
                 }
-
-                // Configura o dropdown de Categorias
-                setupMultiSelectDropdown(
-                    'category-select-display',
-                    'category-select-options',
-                    'custom-checkbox',
-                    {{ .SelectedCategories | jsonify }}
-                );
-
-                // Configura o dropdown de Contas
-                setupMultiSelectDropdown(
-                    'account-select-display',
-                    'account-select-options',
-                    'custom-checkbox',
-                    {{ .SelectedAccounts | jsonify }}
-                );
+                const activeValueFilterButton = document.querySelector('.value-filter-button.active');
+                if (activeValueFilterButton && activeValueFilterButton.dataset.valueFilter) {
+                    params.set('value_filter', activeValueFilterButton.dataset.valueFilter);
+                } else {
+                    params.delete('value_filter');
+                }
+                apiLink.href = '/api/movimentacoes?' + params.toString();
             }
 
-            // --- Script para os novos botões de filtro de valor ---
+            function setupMultiSelectDropdown(displayId, optionsId, checkboxClass) {
+                const selectDisplay = document.getElementById(displayId);
+                const selectOptions = document.getElementById(optionsId);
+                if (!selectDisplay || !selectOptions) return;
+                const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
+                function updateDisplay() {
+                    const currentSelectedValues = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+                    if (currentSelectedValues.length === 0) {
+                        selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
+                    } else if (currentSelectedValues.length === 1) {
+                        selectDisplay.textContent = currentSelectedValues[0];
+                    } else {
+                        selectDisplay.textContent = `${currentSelectedValues.length} selecionadas`;
+                    }
+                    updateApiLink();
+                }
+                updateDisplay();
+                selectDisplay.addEventListener('click', e => { e.stopPropagation(); selectOptions.classList.toggle('select-hide'); });
+                document.addEventListener('click', () => selectOptions.classList.add('select-hide'));
+                checkboxes.forEach(checkbox => checkbox.addEventListener('change', updateDisplay));
+            }
+            
+            if (filterForm) {
+                updateApiLink();
+                filterForm.querySelectorAll('input, select').forEach(input => {
+                    input.addEventListener('change', updateApiLink);
+                });
+                setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox');
+                setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox');
+            }
+
             document.querySelectorAll('.value-filter-button').forEach(button => {
-                button.addEventListener('click', (event) => {
-                    const clickedButton = event.target;
-                    const valueFilter = clickedButton.dataset.valueFilter; // "income", "expense", ou ""
-
-                    // Remove a classe 'active' de todos os botões de filtro de valor
-                    document.querySelectorAll('.value-filter-button').forEach(btn => {
-                        btn.classList.remove('active');
-                    });
-
-                    // Adiciona a classe 'active' ao botão clicado
-                    clickedButton.classList.add('active');
-
-                    // Cria um URLSearchParams a partir do formulário de filtro existente
+                button.addEventListener('click', () => {
+                    const valueFilter = button.dataset.valueFilter;
                     const currentParams = new URLSearchParams(new FormData(filterForm));
-                    
-                    // Define o novo parâmetro de filtro de valor
                     if (valueFilter) {
                         currentParams.set('value_filter', valueFilter);
                     } else {
-                        currentParams.delete('value_filter'); // Remova se for "Todos"
+                        currentParams.delete('value_filter');
                     }
-
-                    // Redireciona para a URL com os novos filtros
                     window.location.href = `/?${currentParams.toString()}`;
                 });
             });
 
-
-            // --- Script para o formulário de Adicionar/Editar Movimentação ---
             const addEditForm = document.getElementById('add-edit-form');
             const addEditFormTitle = document.getElementById('add-edit-form-title');
             const movementIdInput = document.getElementById('movement-id-input');
             const newValorInput = document.getElementById('new_valor');
-            const newDescricaoInput = document.getElementById('new_descricao');
             const newDataOcorrenciaInput = document.getElementById('new_data_ocorrencia');
+            const newDescricaoInput = document.getElementById('new_descricao');
             const newCategoriaInput = document.getElementById('new_categoria');
             const newContaInput = document.getElementById('new_conta');
             const newConsolidadoCheckbox = document.getElementById('new_consolidado');
             const submitMovementButton = document.getElementById('submit-movement-button');
             const cancelEditButton = document.getElementById('cancel-edit-button');
-
             const tipoReceitaRadio = document.getElementById('tipo_receita');
             const tipoDespesaRadio = document.getElementById('tipo_despesa');
             const tipoMovimentacaoDisplay = document.getElementById('tipo-movimentacao-display');
             const tipoMovimentacaoOptions = document.getElementById('tipo-movimentacao-options');
 
-
-            // Função para ajustar o sinal do valor
             function adjustValorSign() {
-                let rawValue = newValorInput.value.trim();
-
-                // Se o campo estiver vazio ou for apenas um sinal, não faz nada
-                if (rawValue === '' || rawValue === '-' || rawValue === '+') {
-                    return;
-                }
-
-                // Remove pontos de milhar e substitui vírgula por ponto para parsing (formato brasileiro)
-                let parsedString = rawValue.replace(/\./g, ''); // Remove pontos de milhar
-                parsedString = parsedString.replace(',', '.');   // Troca vírgula decimal por ponto
-
-                let currentValue = parseFloat(parsedString);
-
-                // Se não for um número válido, não faz nada e pode avisar o usuário
-                if (isNaN(currentValue)) {
-                    console.warn("Valor inválido digitado no campo de valor: ", rawValue);
-                    return;
-                }
-
-                let newValue = currentValue;
-
-                if (tipoDespesaRadio.checked) {
-                    if (newValue > 0) {
-                        newValue = -newValue;
-                    }
-                } else if (tipoReceitaRadio.checked) {
-                    if (newValue < 0) {
-                        newValue = Math.abs(newValue);
-                    }
-                }
-                
-                // Formata para duas casas decimais e substitui ponto por vírgula para exibição (formato brasileiro)
+                let rawValue = newValorInput.value.trim().replace(/\./g, '').replace(',', '.');
+                if (rawValue === '' || isNaN(rawValue)) return;
+                let currentValue = parseFloat(rawValue);
+                let newValue = tipoDespesaRadio.checked ? -Math.abs(currentValue) : Math.abs(currentValue);
                 newValorInput.value = newValue.toFixed(2).replace('.', ',');
             }
-
-            // Função para atualizar o texto de exibição do dropdown Tipo
+            
             function updateTipoMovimentacaoDisplay() {
-                if (tipoDespesaRadio.checked) {
-                    tipoMovimentacaoDisplay.textContent = "Despesa";
-                } else if (tipoReceitaRadio.checked) {
-                    tipoMovimentacaoDisplay.textContent = "Receita";
-                }
+                tipoMovimentacaoDisplay.textContent = tipoDespesaRadio.checked ? "Despesa" : "Receita";
             }
 
-            // Lógica para o dropdown personalizado de Tipo de Movimentação
-            if (tipoMovimentacaoDisplay && tipoMovimentacaoOptions) {
-                tipoMovimentacaoDisplay.addEventListener('click', (event) => {
-                    event.stopPropagation();
-                    tipoMovimentacaoOptions.classList.toggle('select-hide');
-                    tipoMovimentacaoDisplay.classList.toggle('select-arrow-active');
-                });
-
-                document.addEventListener('click', (event) => {
-                    if (!tipoMovimentacaoDisplay.contains(event.target) && !tipoMovimentacaoOptions.contains(event.target)) {
-                        tipoMovimentacaoOptions.classList.add('select-hide');
-                        tipoMovimentacaoDisplay.classList.remove('select-arrow-active');
-                    }
-                });
-
-                tipoReceitaRadio.addEventListener('change', () => {
+            if (tipoMovimentacaoDisplay) {
+                tipoMovimentacaoDisplay.addEventListener('click', e => { e.stopPropagation(); tipoMovimentacaoOptions.classList.toggle('select-hide'); });
+                document.addEventListener('click', () => tipoMovimentacaoOptions.classList.add('select-hide'));
+                [tipoReceitaRadio, tipoDespesaRadio].forEach(radio => radio.addEventListener('change', () => {
                     adjustValorSign();
                     updateTipoMovimentacaoDisplay();
                     tipoMovimentacaoOptions.classList.add('select-hide');
-                    tipoMovimentacaoDisplay.classList.remove('select-arrow-active');
-                });
-                tipoDespesaRadio.addEventListener('change', () => {
-                    adjustValorSign();
-                    updateTipoMovimentacaoDisplay();
-                    tipoMovimentacaoOptions.classList.add('select-hide');
-                    tipoMovimentacaoDisplay.classList.remove('select-arrow-active');
-                });
+                }));
             }
 
-            // Adiciona listeners para o campo de valor
-            if (newValorInput) {
-                newValorInput.addEventListener('change', adjustValorSign); 
-            }
-
-            // Define "Despesa" como padrão ao carregar a página e ajusta o sinal
-            if (tipoDespesaRadio) {
-                tipoDespesaRadio.checked = true;
-                updateTipoMovimentacaoDisplay();
-                adjustValorSign();
-            }
-
-            // --- Autopreenchimento para Categoria e Conta (no formulário de adição) ---
-            const categorySuggestionsDatalist = document.getElementById('category-suggestions');
-            const accountSuggestionsDatalist = document.getElementById('account-suggestions');
+            if(newValorInput) newValorInput.addEventListener('change', adjustValorSign);
+            if(tipoDespesaRadio) { tipoDespesaRadio.checked = true; updateTipoMovimentacaoDisplay(); }
 
             const categoriesFromGo = {{ .Categories | jsonify }};
             const accountsFromGo = {{ .Accounts | jsonify }};
-
             function populateDatalist(datalistElement, dataArray) {
+                if(!datalistElement || !dataArray) return;
                 datalistElement.innerHTML = '';
                 dataArray.forEach(item => {
                     const option = document.createElement('option');
@@ -487,106 +293,52 @@
                     datalistElement.appendChild(option);
                 });
             }
+            populateDatalist(document.getElementById('category-suggestions'), categoriesFromGo);
+            populateDatalist(document.getElementById('account-suggestions'), accountsFromGo);
 
-            if (categorySuggestionsDatalist && categoriesFromGo) {
-                populateDatalist(categorySuggestionsDatalist, categoriesFromGo);
-            }
-            if (accountSuggestionsDatalist && accountsFromGo) {
-                populateDatalist(accountSuggestionsDatalist, accountsFromGo);
-            }
-
-            // --- Funções de Edição e Exclusão ---
-
-            // Função para resetar o formulário para o modo de adição
             function resetAddEditForm() {
-                addEditForm.reset(); // Limpa todos os campos do formulário
+                addEditForm.reset();
                 addEditFormTitle.textContent = "Adicionar Nova Movimentação";
                 submitMovementButton.textContent = "Adicionar Movimentação";
-                addEditForm.action = "/movimentacoes"; // Volta para a rota de adição
-                addEditForm.method = "POST"; // Volta para o método POST
-                movementIdInput.value = ""; // Limpa o ID oculto
-                cancelEditButton.classList.add('select-hide'); // Esconde o botão de cancelar
-                
-                // Reinicia os padrões
+                addEditForm.action = "/movimentacoes";
+                movementIdInput.value = "";
+                cancelEditButton.classList.add('select-hide');
                 tipoDespesaRadio.checked = true;
                 updateTipoMovimentacaoDisplay();
-                newConsolidadoCheckbox.checked = false; // "Não consolidado" por padrão
-                newDataOcorrenciaInput.value = "{{ .CurrentDate }}"; // Data atual
-                adjustValorSign(); // Ajusta o valor se houver algo (para 0 ou negativo)
+                newDataOcorrenciaInput.value = "{{ .CurrentDate }}";
             }
 
-            // Listener para o botão "Cancelar Edição"
-            if (cancelEditButton) {
-                cancelEditButton.addEventListener('click', resetAddEditForm);
-            }
+            if(cancelEditButton) cancelEditButton.addEventListener('click', resetAddEditForm);
 
-            // Event Listener para os botões de Excluir
             document.querySelectorAll('.delete-button').forEach(button => {
                 button.addEventListener('click', async (event) => {
                     const id = event.target.dataset.id;
-                    if (confirm(`Tem certeza que deseja excluir a movimentação ${id}?`)) { // Usando confirm() para simplificar
+                    if (confirm(`Tem certeza que deseja excluir a movimentação ${id}?`)) {
                         try {
-                            const response = await fetch(`/movimentacoes/${id}`, {
-                                method: 'DELETE',
-                            });
-
-                            if (response.ok) {
-                                alert('Movimentação excluída com sucesso!');
-                                window.location.reload(); // Recarrega a página para atualizar a tabela
-                            } else {
-                                const errorData = await response.json();
-                                alert(`Erro ao excluir movimentação: ${errorData.error || response.statusText}`);
-                            }
-                        } catch (error) {
-                            console.error('Erro na requisição DELETE:', error);
-                            alert('Erro na comunicação com o servidor.');
-                        }
+                            const response = await fetch(`/movimentacoes/${id}`, { method: 'DELETE' });
+                            if (response.ok) { alert('Movimentação excluída!'); window.location.reload(); }
+                            else { const err = await response.json(); alert(`Erro: ${err.error}`); }
+                        } catch (error) { alert('Erro de comunicação.'); }
                     }
                 });
             });
 
-            // Event Listener para os botões de Editar
             document.querySelectorAll('.edit-button').forEach(button => {
                 button.addEventListener('click', (event) => {
-                    const row = event.target.closest('tr'); // Pega a linha da tabela pai
-                    const id = row.dataset.id;
-                    const dataOcorrencia = row.dataset.data;
-                    const descricao = row.dataset.descricao;
-                    let valor = row.dataset.valor; // Já vem formatado com .00 ou ,00
-                    const categoria = row.dataset.categoria;
-                    const conta = row.dataset.conta;
-                    const consolidado = row.dataset.consolidado === 'true'; // Converte para booleano
-                    const tipo = row.dataset.tipo; // 'receita' ou 'despesa'
-
-                    // Preenche o formulário
-                    movementIdInput.value = id;
-                    newDataOcorrenciaInput.value = dataOcorrencia;
-                    newDescricaoInput.value = descricao;
-                    newValorInput.value = valor; // Valor já vem formatado do Go com duas casas
-                    newCategoriaInput.value = categoria;
-                    newContaInput.value = conta;
-                    newConsolidadoCheckbox.checked = consolidado;
-
-                    // Define o tipo de movimentação
-                    if (tipo === 'receita') {
-                        tipoReceitaRadio.checked = true;
-                    } else {
-                        tipoDespesaRadio.checked = true;
-                    }
-                    updateTipoMovimentacaoDisplay(); // Atualiza o display do dropdown de tipo
-
-                    // Ajusta o sinal do valor no campo (se necessário, baseado no tipo selecionado)
-                    adjustValorSign();
-
-                    // Altera o título e o botão de envio do formulário
-                    addEditFormTitle.textContent = `Editar Movimentação (ID: ${id})`;
+                    const row = event.target.closest('tr');
+                    movementIdInput.value = row.dataset.id;
+                    newDataOcorrenciaInput.value = row.dataset.data;
+                    newDescricaoInput.value = row.dataset.descricao;
+                    newValorInput.value = parseFloat(row.dataset.valor).toFixed(2).replace('.',',');
+                    newCategoriaInput.value = row.dataset.categoria;
+                    newContaInput.value = row.dataset.conta;
+                    newConsolidadoCheckbox.checked = (row.dataset.consolidado === 'true');
+                    if(row.dataset.tipo === 'receita') tipoReceitaRadio.checked = true; else tipoDespesaRadio.checked = true;
+                    updateTipoMovimentacaoDisplay();
+                    addEditFormTitle.textContent = `Editar Movimentação (ID: ${row.dataset.id})`;
                     submitMovementButton.textContent = "Salvar Alterações";
-                    addEditForm.action = `/movimentacoes/update/${id}`; // Rota de atualização
-                    addEditForm.method = "POST"; // Usamos POST para Gin, e tratamos o método PUT no backend
-
-                    cancelEditButton.classList.remove('select-hide'); // Mostra o botão de cancelar
-
-                    // Opcional: Rolagem suave para o formulário de edição
+                    addEditForm.action = `/movimentacoes/update/${row.dataset.id}`;
+                    cancelEditButton.classList.remove('select-hide');
                     addEditForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 });
             });
