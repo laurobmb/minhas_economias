@@ -1,51 +1,35 @@
-// Este arquivo contém toda a lógica da página /relatorio
+// static/js/relatorio.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Pega os dados que foram passados pelo template Go
     const goData = window.reportPageData || {};
+    const reportFilterFormId = 'reportFilterForm';
+    const apiLinkId = 'apiLink';
+    const reportFilterForm = document.getElementById(reportFilterFormId);
 
-    const reportFilterForm = document.getElementById('reportFilterForm');
+    // --- LÓGICA ADICIONADA PARA ATUALIZAR O LINK DA API ---
+    if (reportFilterForm) {
+        const callback = () => updateApiLink(reportFilterFormId, apiLinkId);
+        setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox', callback);
+        setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox', callback);
+        
+        reportFilterForm.querySelectorAll('input, select').forEach(input => {
+            if (input.type !== 'checkbox') {
+                 input.addEventListener('change', callback);
+            }
+        });
+        
+        updateApiLink(reportFilterFormId, apiLinkId); // Chamada inicial
+    }
+    // --- FIM DA LÓGICA ADICIONADA ---
+
+    // Lógica existente do gráfico e PDF
     const categoryTransactionsSection = document.getElementById('category-transactions-section');
     const selectedCategoryNameSpan = document.getElementById('selected-category-name');
     const categoryTransactionsTbody = document.getElementById('category-transactions-tbody');
     const noTransactionsMessage = document.getElementById('no-transactions-message');
     const savePdfButton = document.getElementById('save-pdf-button');
     const ctx = document.getElementById('expensesPieChart');
-    
-    const searchDescricaoInput = document.getElementById('search_descricao');
-    
-    const categoryCheckboxes = document.querySelectorAll('#category-select-options .custom-checkbox');
-    const accountCheckboxes = document.querySelectorAll('#account-select-options .custom-checkbox');
-    const startDateInput = document.getElementById('start_date');
-    const endDateInput = document.getElementById('end_date');
-    const consolidatedFilterSelect = document.getElementById('consolidated_filter');
-
     let expensesPieChartInstance;
-
-    function setupMultiSelectDropdown(displayId, optionsId, checkboxClass) {
-        const selectDisplay = document.getElementById(displayId);
-        const selectOptions = document.getElementById(optionsId);
-        if (!selectDisplay || !selectOptions) return;
-        const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
-        function updateDisplay() {
-            const currentSelectedValues = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-            if (currentSelectedValues.length === 0) {
-                selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
-            } else if (currentSelectedValues.length === 1) {
-                selectDisplay.textContent = currentSelectedValues[0];
-            } else {
-                selectDisplay.textContent = `${currentSelectedValues.length} selecionadas`;
-            }
-        }
-        updateDisplay();
-        selectDisplay.addEventListener('click', e => { e.stopPropagation(); selectOptions.classList.toggle('select-hide'); });
-        document.addEventListener('click', () => selectOptions.classList.add('select-hide'));
-        checkboxes.forEach(checkbox => checkbox.addEventListener('change', updateDisplay));
-    }
-
-    setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox');
-    setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox');
-
     const reportData = goData.reportData || [];
 
     if (ctx && reportData && reportData.length > 0) {
@@ -68,12 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (elements.length > 0) {
                         const categoryName = labels[elements[0].index];
                         selectedCategoryNameSpan.textContent = categoryName;
-
                         const params = new URLSearchParams(new FormData(reportFilterForm));
                         params.set('category', categoryName); 
-                        
                         const apiUrl = `/relatorio/transactions?${params.toString()}`;
-
                         try {
                             const response = await fetch(apiUrl);
                             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -81,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             
                             categoryTransactionsTbody.innerHTML = '';
                             if (transactions.length > 0) {
+                                noTransactionsMessage.classList.add('select-hide');
                                 transactions.forEach(tx => {
                                     const row = document.createElement('tr');
                                     const valorFormatado = tx.valor.toFixed(2).replace('.', ',');
@@ -88,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                     row.innerHTML = `<td>${tx.id}</td><td>${tx.data_ocorrencia}</td><td>${tx.descricao}</td><td class="text-right">R$ ${valorFormatado}</td><td>${tx.conta}</td><td>${consolidadoTexto}</td>`;
                                     categoryTransactionsTbody.appendChild(row);
                                 });
-                                noTransactionsMessage.classList.add('select-hide');
                             } else {
                                 noTransactionsMessage.textContent = 'Nenhuma transação encontrada para esta categoria com os filtros aplicados.';
                                 noTransactionsMessage.classList.remove('select-hide');
@@ -109,24 +90,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!expensesPieChartInstance) { alert("Não há gráfico para salvar."); return; }
             savePdfButton.textContent = 'Gerando...';
             savePdfButton.disabled = true;
-
             try {
                 const payload = {
-                    search_descricao: searchDescricaoInput.value,
-                    start_date: startDateInput.value,
-                    end_date: endDateInput.value,
-                    categories: Array.from(categoryCheckboxes).filter(cb => cb.checked).map(cb => cb.value),
-                    accounts: Array.from(accountCheckboxes).filter(cb => cb.checked).map(cb => cb.value),
-                    consolidated_filter: consolidatedFilterSelect.value,
+                    search_descricao: reportFilterForm.search_descricao.value,
+                    start_date: reportFilterForm.start_date.value,
+                    end_date: reportFilterForm.end_date.value,
+                    categories: Array.from(reportFilterForm.querySelectorAll('input[name="category"]:checked')).map(cb => cb.value),
+                    accounts: Array.from(reportFilterForm.querySelectorAll('input[name="account"]:checked')).map(cb => cb.value),
+                    consolidated_filter: reportFilterForm.consolidated_filter.value,
                     chartImageBase64: expensesPieChartInstance.toBase64Image()
                 };
-
                 const response = await fetch('/relatorio/pdf', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
-
                 if (response.ok) {
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);

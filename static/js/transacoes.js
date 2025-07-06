@@ -1,80 +1,24 @@
+// static/js/transacoes.js
+
 document.addEventListener('DOMContentLoaded', () => {
     const goData = window.minhasEconomiasData || {};
+    const filterFormId = 'filterForm';
+    const apiLinkId = 'apiLink';
+    const filterForm = document.getElementById(filterFormId);
 
-    const filterForm = document.getElementById('filterForm');
-
-    // Validação em tempo real para o campo de VALOR
-    const newValorInput = document.getElementById('new_valor');
-    if (newValorInput) {
-        newValorInput.addEventListener('input', (event) => {
-            let value = event.target.value;
-            value = value.replace(/[^\d.,-]/g, '');
-            if ((value.match(/-/g) || []).length > 1) {
-                value = '-' + value.replace(/-/g, '');
-            }
-            if (value.lastIndexOf('-') > 0) {
-                 value = value.replace(/-/g, '');
-            }
-            event.target.value = value;
-        });
-    }
-
-    function updateApiLink() {
-        const apiLink = document.getElementById('apiLink');
-        if (!apiLink || !filterForm) return;
-        const formData = new FormData(filterForm);
-        const params = new URLSearchParams();
-        for (const [key, value] of formData.entries()) {
-            if (value) {
-                params.append(key, value);
-            }
-        }
-        const activeValueFilterButton = document.querySelector('.value-filter-button.active');
-        if (activeValueFilterButton && activeValueFilterButton.dataset.valueFilter) {
-            params.set('value_filter', activeValueFilterButton.dataset.valueFilter);
-        } else {
-            params.delete('value_filter');
-        }
-        const finalParams = new URLSearchParams();
-        for (const [key, value] of params.entries()) {
-            if (value) {
-               finalParams.append(key, value)
-            }
-        }
-        apiLink.href = '/api/movimentacoes?' + finalParams.toString();
-    }
-
-    function setupMultiSelectDropdown(displayId, optionsId, checkboxClass) {
-        const selectDisplay = document.getElementById(displayId);
-        const selectOptions = document.getElementById(optionsId);
-        if (!selectDisplay || !selectOptions) return;
-        const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
-        function updateDisplay() {
-            const currentSelectedValues = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-            if (currentSelectedValues.length === 0) {
-                selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
-            } else if (currentSelectedValues.length === 1) {
-                selectDisplay.textContent = currentSelectedValues[0];
-            } else {
-                selectDisplay.textContent = `${currentSelectedValues.length} selecionadas`;
-            }
-            updateApiLink();
-        }
-        updateDisplay();
-        selectDisplay.addEventListener('click', e => { e.stopPropagation(); selectOptions.classList.toggle('select-hide'); });
-        document.addEventListener('click', () => selectOptions.classList.add('select-hide'));
-        checkboxes.forEach(checkbox => checkbox.addEventListener('change', updateDisplay));
-    }
-    
+    // --- Configuração dos Listeners ---
     if (filterForm) {
-        setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox');
-        setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox');
+        const callback = () => updateApiLink(filterFormId, apiLinkId);
+        setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox', callback);
+        setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox', callback);
+        
         filterForm.querySelectorAll('input, select').forEach(input => {
             if (input.type !== 'checkbox') {
-                 input.addEventListener('change', updateApiLink);
+                 input.addEventListener('change', callback);
             }
         });
-        updateApiLink();
+        
+        updateApiLink(filterFormId, apiLinkId); // Chamada inicial
     }
 
     document.querySelectorAll('.value-filter-button').forEach(button => {
@@ -90,10 +34,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Lógica de Sanitização do Campo Valor ---
+    const newValorInput = document.getElementById('new_valor');
+    if (newValorInput) {
+        newValorInput.addEventListener('input', (event) => {
+            let value = event.target.value;
+            value = value.replace(/[^\d.,-]/g, '');
+            if ((value.match(/-/g) || []).length > 1) {
+                value = '-' + value.replace(/-/g, '');
+            }
+            if (value.lastIndexOf('-') > 0) {
+                 value = value.replace(/-/g, '');
+            }
+            event.target.value = value;
+        });
+    }
+
+    // --- Lógica do Formulário de Adicionar/Editar ---
     const addEditForm = document.getElementById('add-edit-form');
     const addEditFormTitle = document.getElementById('add-edit-form-title');
     const movementIdInput = document.getElementById('movement-id-input');
-    // const newValorInput já foi declarado acima
     const newDataOcorrenciaInput = document.getElementById('new_data_ocorrencia');
     const newDescricaoInput = document.getElementById('new_descricao');
     const newCategoriaInput = document.getElementById('new_categoria');
@@ -116,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function updateTipoMovimentacaoDisplay() {
+        if (!tipoMovimentacaoDisplay) return;
         tipoMovimentacaoDisplay.textContent = tipoDespesaRadio.checked ? "Despesa" : "Receita";
     }
 

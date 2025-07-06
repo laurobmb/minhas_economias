@@ -1,0 +1,27 @@
+# Arquivos e pastas do Git
+.git
+.gitignore
+
+# Arquivos de configuração do Docker e Compose
+Dockerfile
+Containerfile
+docker-compose.yml
+
+# Diretórios de desenvolvimento e arquivos de dados brutos
+test/
+xls/
+csv/
+backup/
+photos/
+podcast/
+docs/
+
+# Scripts de gerenciamento que não são necessários no container final
+data_manager.go
+xls_to_csv.go
+popular_saldos.sh
+test_app_playbook.yml
+
+# Arquivos do Go
+*.db-journal
+# go.sum <-- LINHA REMOVIDA
