@@ -161,3 +161,86 @@
           # CORREÇÃO FINAL: Acessando as chaves corretas (minúsculas e com underscore)
           - "'application/pdf' in r_pdf.content_type"
           - "'attachment; filename=\"relatorio_financeiro.pdf\"' in r_pdf.content_disposition"
+
+    - name: 7. Testar Validações de Sanitização (Campos Valor e Descrição)
+      block:
+        - name: Tentar adicionar com DESCRIÇÃO muito longa (> 60 caracteres)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              data_ocorrencia: "2025-07-20"
+              descricao: "Esta é uma descrição muito, muito, muito, muito, muito longa que definitivamente excede o limite de 60 caracteres."
+              valor: "100"
+              conta: "Conta Teste"
+            return_content: true
+            status_code: 400
+          register: r_fail_desc
+
+        - name: Assert - Rejeita descrição longa com a mensagem correta
+          ansible.builtin.assert:
+            that:
+              - r_fail_desc.status == 400
+              - "'A descrição não pode ter mais de 60 caracteres.' in r_fail_desc.json.error"
+
+        - name: Tentar adicionar com VALOR em formato inválido (texto)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              data_ocorrencia: "2025-07-20"
+              descricao: "Teste com valor de texto"
+              valor: "abc"
+              conta: "Conta Teste"
+            return_content: true
+            status_code: 400
+          register: r_fail_valor_formato
+
+        - name: Assert - Rejeita valor com formato de texto
+          ansible.builtin.assert:
+            that:
+              - r_fail_valor_formato.status == 400
+              - "'Valor inválido. Use um formato como 1234.56 ou -123.45.' in r_fail_valor_formato.json.error"
+
+        - name: Tentar adicionar com VALOR com casas decimais a mais
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              data_ocorrencia: "2025-07-20"
+              descricao: "Teste com muitas decimais"
+              valor: "123.456"
+              conta: "Conta Teste"
+            return_content: true
+            status_code: 400
+          register: r_fail_valor_decimais
+
+        - name: Assert - Rejeita valor com muitas casas decimais
+          ansible.builtin.assert:
+            that:
+              - r_fail_valor_decimais.status == 400
+              - "'Valor inválido. Use um formato como 1234.56 ou -123.45.' in r_fail_valor_decimais.json.error"
+
+        - name: Tentar adicionar com VALOR muito alto (acima do limite)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              data_ocorrencia: "2025-07-20"
+              descricao: "Teste com valor gigante"
+              valor: "100000000" # 100 milhões
+              conta: "Conta Teste"
+            return_content: true
+            status_code: 400
+          register: r_fail_valor_limite
+
+        - name: Assert - Rejeita valor acima do limite
+          ansible.builtin.assert:
+            that:
+              - r_fail_valor_limite.status == 400
+              - "'O valor excede o limite máximo permitido.' in r_fail_valor_limite.json.error"
+...

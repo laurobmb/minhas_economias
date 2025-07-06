@@ -1,10 +1,23 @@
-// Este arquivo contém toda a lógica da página /transacoes
-
 document.addEventListener('DOMContentLoaded', () => {
-    // Pega os dados que foram passados pelo template Go
     const goData = window.minhasEconomiasData || {};
 
     const filterForm = document.getElementById('filterForm');
+
+    // Validação em tempo real para o campo de VALOR
+    const newValorInput = document.getElementById('new_valor');
+    if (newValorInput) {
+        newValorInput.addEventListener('input', (event) => {
+            let value = event.target.value;
+            value = value.replace(/[^\d.,-]/g, '');
+            if ((value.match(/-/g) || []).length > 1) {
+                value = '-' + value.replace(/-/g, '');
+            }
+            if (value.lastIndexOf('-') > 0) {
+                 value = value.replace(/-/g, '');
+            }
+            event.target.value = value;
+        });
+    }
 
     function updateApiLink() {
         const apiLink = document.getElementById('apiLink');
@@ -80,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const addEditForm = document.getElementById('add-edit-form');
     const addEditFormTitle = document.getElementById('add-edit-form-title');
     const movementIdInput = document.getElementById('movement-id-input');
-    const newValorInput = document.getElementById('new_valor');
+    // const newValorInput já foi declarado acima
     const newDataOcorrenciaInput = document.getElementById('new_data_ocorrencia');
     const newDescricaoInput = document.getElementById('new_descricao');
     const newCategoriaInput = document.getElementById('new_categoria');
@@ -94,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tipoMovimentacaoOptions = document.getElementById('tipo-movimentacao-options');
 
     function adjustValorSign() {
+        if (!newValorInput) return;
         let rawValue = newValorInput.value.trim().replace(/\./g, '').replace(',', '.');
         if (rawValue === '' || isNaN(rawValue)) return;
         let currentValue = parseFloat(rawValue);

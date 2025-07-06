@@ -3,8 +3,10 @@ package handlers
 import (
 	"fmt"
 	"log"
+	"math"
 	"net/http"
-	"net/url" // <-- IMPORT ADICIONADO
+	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,63 +36,6 @@ func GetIndexPage(c *gin.Context) {
 		"SaldosContas": saldosContas,
 	})
 }
-
-// calculateAccountBalances calcula o saldo final de cada conta.
-func calculateAccountBalances() ([]models.ContaSaldo, error) {
-	db := database.GetDB()
-	saldos := make(map[string]float64)
-
-	rowsContas, err := db.Query("SELECT nome, saldo_inicial FROM contas")
-	if err == nil {
-		defer rowsContas.Close()
-		for rowsContas.Next() {
-			var nome string
-			var saldoInicial float64
-			if err := rowsContas.Scan(&nome, &saldoInicial); err == nil {
-				saldos[nome] = saldoInicial
-			}
-		}
-	} else {
-		log.Printf("Aviso: Não foi possível ler a tabela 'contas' para obter saldos iniciais: %v. Assumindo saldo inicial 0 para todas.", err)
-	}
-
-	rowsMov, err := db.Query(fmt.Sprintf("SELECT conta, SUM(valor) FROM %s GROUP BY conta", database.TableName))
-	if err != nil {
-		return nil, fmt.Errorf("erro ao calcular totais das movimentações por conta: %w", err)
-	}
-	defer rowsMov.Close()
-
-	for rowsMov.Next() {
-		var conta string
-		var totalMovimentacoes float64
-		if err := rowsMov.Scan(&conta, &totalMovimentacoes); err != nil {
-			log.Printf("Erro ao escanear total da conta: %v", err)
-			continue
-		}
-		saldos[conta] += totalMovimentacoes
-	}
-
-	var result []models.ContaSaldo
-	for nome, saldo := range saldos {
-		// ADICIONADA LÓGICA PARA PREENCHER O NOVO CAMPO
-		result = append(result, models.ContaSaldo{
-			Nome:           nome,
-			SaldoAtual:     saldo,
-			URLEncodedNome: url.QueryEscape(nome), // <-- ALTERAÇÃO AQUI
-		})
-	}
-
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Nome < result[j].Nome
-	})
-
-	return result, nil
-}
-
-// ... (O resto do arquivo permanece o mesmo)
-// GetTransacoesPage e as outras funções não precisam de alteração.
-// ... (cole o resto do seu arquivo handlers/movimentacoes.go aqui para manter as outras funções)
-// GetTransacoesPage, AddMovimentacao, DeleteMovimentacao, etc.
 
 // GetTransacoesPage busca os registros de movimentacoes e renderiza a página de transações.
 // Também serve a rota da API.
@@ -203,7 +148,7 @@ func GetTransacoesPage(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Busca dados para os filtros da página de transações
 	categoryRows, _ := db.Query(fmt.Sprintf("SELECT DISTINCT categoria FROM %s ORDER BY categoria ASC", database.TableName))
 	var categories []string
@@ -231,7 +176,7 @@ func GetTransacoesPage(c *gin.Context) {
 
 	consolidatedOptions := []struct{ Value, Label string }{{"", "Todos"}, {"true", "Sim"}, {"false", "Não"}}
 	currentDate := time.Now().Format("2006-01-02")
-	
+
 	c.HTML(http.StatusOK, "transacoes.html", gin.H{
 		"Movimentacoes":        movimentacoes,
 		"Titulo":               "Transações Financeiras",
@@ -252,7 +197,58 @@ func GetTransacoesPage(c *gin.Context) {
 	})
 }
 
-// AddMovimentacao adiciona uma nova transação
+// calculateAccountBalances calcula o saldo final de cada conta.
+func calculateAccountBalances() ([]models.ContaSaldo, error) {
+	db := database.GetDB()
+	saldos := make(map[string]float64)
+
+	rowsContas, err := db.Query("SELECT nome, saldo_inicial FROM contas")
+	if err == nil {
+		defer rowsContas.Close()
+		for rowsContas.Next() {
+			var nome string
+			var saldoInicial float64
+			if err := rowsContas.Scan(&nome, &saldoInicial); err == nil {
+				saldos[nome] = saldoInicial
+			}
+		}
+	} else {
+		log.Printf("Aviso: Não foi possível ler a tabela 'contas' para obter saldos iniciais: %v. Assumindo saldo inicial 0 para todas.", err)
+	}
+
+	rowsMov, err := db.Query(fmt.Sprintf("SELECT conta, SUM(valor) FROM %s GROUP BY conta", database.TableName))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao calcular totais das movimentações por conta: %w", err)
+	}
+	defer rowsMov.Close()
+
+	for rowsMov.Next() {
+		var conta string
+		var totalMovimentacoes float64
+		if err := rowsMov.Scan(&conta, &totalMovimentacoes); err != nil {
+			log.Printf("Erro ao escanear total da conta: %v", err)
+			continue
+		}
+		saldos[conta] += totalMovimentacoes
+	}
+
+	var result []models.ContaSaldo
+	for nome, saldo := range saldos {
+		result = append(result, models.ContaSaldo{
+			Nome:           nome,
+			SaldoAtual:     saldo,
+			URLEncodedNome: url.QueryEscape(nome),
+		})
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Nome < result[j].Nome
+	})
+
+	return result, nil
+}
+
+// AddMovimentacao adiciona uma nova transação com validações.
 func AddMovimentacao(c *gin.Context) {
 	db := database.GetDB()
 	dataOcorrencia := c.PostForm("data_ocorrencia")
@@ -261,6 +257,12 @@ func AddMovimentacao(c *gin.Context) {
 	categoria := c.PostForm("categoria")
 	conta := c.PostForm("conta")
 	consolidadoStr := c.PostForm("consolidado")
+
+	// --- VALIDAÇÕES ADICIONADAS ---
+	if len(descricao) > 60 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A descrição não pode ter mais de 60 caracteres."})
+		return
+	}
 
 	if strings.TrimSpace(categoria) == "" {
 		categoria = "Sem Categoria"
@@ -274,13 +276,26 @@ func AddMovimentacao(c *gin.Context) {
 		valor = 0.0
 	} else {
 		valorParseable := strings.Replace(valorStr, ",", ".", -1)
+		isValid, _ := regexp.MatchString(`^-?\d+(\.\d{1,2})?$`, valorParseable)
+		if !isValid {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido. Use um formato como 1234.56 ou -123.45."})
+			return
+		}
+
 		parsedValor, err := strconv.ParseFloat(valorParseable, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido: formato numérico incorreto."})
 			return
 		}
+
+		if math.Abs(parsedValor) >= 100000000 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "O valor excede o limite máximo permitido."})
+			return
+		}
 		valor = parsedValor
 	}
+	// --- FIM DAS VALIDAÇÕES ---
+
 	consolidado := (consolidadoStr == "on")
 	stmt, err := db.Prepare(fmt.Sprintf(
 		`INSERT INTO %s (data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES (?, ?, ?, ?, ?, ?)`, database.TableName))
@@ -294,9 +309,78 @@ func AddMovimentacao(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao inserir dados: " + err.Error()})
 		return
 	}
-    // Redireciona para a página de transações após adicionar
-	c.Redirect(http.StatusFound, "/transacoes") 
+	c.Redirect(http.StatusFound, "/transacoes")
 }
+
+// UpdateMovimentacao atualiza uma transação com validações.
+func UpdateMovimentacao(c *gin.Context) {
+	db := database.GetDB()
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido."})
+		return
+	}
+	dataOcorrencia := c.PostForm("data_ocorrencia")
+	descricao := c.PostForm("descricao")
+	valorStr := c.PostForm("valor")
+	categoria := c.PostForm("categoria")
+	conta := c.PostForm("conta")
+	consolidadoStr := c.PostForm("consolidado")
+
+	// --- VALIDAÇÕES ADICIONADAS ---
+	if len(descricao) > 60 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A descrição não pode ter mais de 60 caracteres."})
+		return
+	}
+
+	if strings.TrimSpace(categoria) == "" {
+		categoria = "Sem Categoria"
+	}
+	if strings.TrimSpace(conta) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "O campo 'Conta' é obrigatório."})
+		return
+	}
+	var valor float64
+	if strings.TrimSpace(valorStr) == "" {
+		valor = 0.0
+	} else {
+		valorParseable := strings.Replace(valorStr, ",", ".", -1)
+		isValid, _ := regexp.MatchString(`^-?\d+(\.\d{1,2})?$`, valorParseable)
+		if !isValid {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido. Use um formato como 1234.56 ou -123.45."})
+			return
+		}
+
+		parsedValor, err := strconv.ParseFloat(valorParseable, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido: formato numérico incorreto."})
+			return
+		}
+
+		if math.Abs(parsedValor) >= 100000000 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "O valor excede o limite máximo permitido."})
+			return
+		}
+		valor = parsedValor
+	}
+	// --- FIM DAS VALIDAÇÕES ---
+
+	consolidado := (consolidadoStr == "on")
+	stmt, err := db.Prepare(fmt.Sprintf(
+		`UPDATE %s SET data_ocorrencia = ?, descricao = ?, valor = ?, categoria = ?, conta = ?, consolidado = ? WHERE id = ?`, database.TableName))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno do servidor."})
+		return
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(dataOcorrencia, descricao, valor, categoria, conta, consolidado, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar dados: " + err.Error()})
+		return
+	}
+	c.Redirect(http.StatusFound, "/transacoes")
+}
+
 
 // DeleteMovimentacao deleta uma transação
 func DeleteMovimentacao(c *gin.Context) {
@@ -312,56 +396,6 @@ func DeleteMovimentacao(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Movimentação deletada com sucesso!"})
-}
-
-// UpdateMovimentacao atualiza uma transação
-func UpdateMovimentacao(c *gin.Context) {
-	db := database.GetDB()
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido."})
-		return
-	}
-	dataOcorrencia := c.PostForm("data_ocorrencia")
-	descricao := c.PostForm("descricao")
-	valorStr := c.PostForm("valor")
-	categoria := c.PostForm("categoria")
-	conta := c.PostForm("conta")
-	consolidadoStr := c.PostForm("consolidado")
-	if strings.TrimSpace(categoria) == "" {
-		categoria = "Sem Categoria"
-	}
-	if strings.TrimSpace(conta) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "O campo 'Conta' é obrigatório."})
-		return
-	}
-	var valor float64
-	if strings.TrimSpace(valorStr) == "" {
-		valor = 0.0
-	} else {
-		valorParseable := strings.Replace(valorStr, ",", ".", -1)
-		parsedValor, err := strconv.ParseFloat(valorParseable, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido: formato numérico incorreto."})
-			return
-		}
-		valor = parsedValor
-	}
-	consolidado := (consolidadoStr == "on")
-	stmt, err := db.Prepare(fmt.Sprintf(
-		`UPDATE %s SET data_ocorrencia = ?, descricao = ?, valor = ?, categoria = ?, conta = ?, consolidado = ? WHERE id = ?`, database.TableName))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno do servidor."})
-		return
-	}
-	defer stmt.Close()
-	_, err = stmt.Exec(dataOcorrencia, descricao, valor, categoria, conta, consolidado, id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar dados: " + err.Error()})
-		return
-	}
-    // Redireciona para a página de transações após atualizar
-	c.Redirect(http.StatusFound, "/transacoes")
 }
 
 // GetRelatorio renderiza a página de relatório
