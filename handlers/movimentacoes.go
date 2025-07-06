@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort" // <-- IMPORT ADICIONADO
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +15,64 @@ import (
 	"minhas_economias/models"
 	"minhas_economias/pdfgenerator"
 )
+
+// --- NOVA FUNÇÃO ADICIONADA ---
+// calculateAccountBalances calcula o saldo final de cada conta.
+func calculateAccountBalances() ([]models.ContaSaldo, error) {
+	db := database.GetDB()
+
+	// 1. Estrutura para armazenar saldos: Nome da Conta -> Saldo
+	saldos := make(map[string]float64)
+
+	// 2. Buscar saldos iniciais da nova tabela 'contas'
+	rowsContas, err := db.Query("SELECT nome, saldo_inicial FROM contas")
+	if err == nil { // Se a tabela 'contas' existir e a query rodar
+		defer rowsContas.Close()
+		for rowsContas.Next() {
+			var nome string
+			var saldoInicial float64
+			if err := rowsContas.Scan(&nome, &saldoInicial); err == nil {
+				saldos[nome] = saldoInicial
+			}
+		}
+	} else {
+		log.Printf("Aviso: Não foi possível ler a tabela 'contas' para obter saldos iniciais: %v. Assumindo saldo inicial 0 para todas.", err)
+	}
+
+	// 3. Somar todas as movimentações (entradas e saídas) para cada conta
+	rowsMov, err := db.Query(fmt.Sprintf("SELECT conta, SUM(valor) FROM %s GROUP BY conta", database.TableName))
+	if err != nil {
+		return nil, fmt.Errorf("erro ao calcular totais das movimentações por conta: %w", err)
+	}
+	defer rowsMov.Close()
+
+	for rowsMov.Next() {
+		var conta string
+		var totalMovimentacoes float64
+		if err := rowsMov.Scan(&conta, &totalMovimentacoes); err != nil {
+			log.Printf("Erro ao escanear total da conta: %v", err)
+			continue
+		}
+
+		// Adiciona o total de movimentações ao saldo (que pode ser o inicial ou 0)
+		saldos[conta] += totalMovimentacoes
+	}
+
+	// 4. Converter o mapa para uma lista (slice) para ser usada no template
+	var result []models.ContaSaldo
+	for nome, saldo := range saldos {
+		result = append(result, models.ContaSaldo{Nome: nome, SaldoAtual: saldo})
+	}
+
+	// 5. Ordenar por nome da conta para exibição consistente
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Nome < result[j].Nome
+	})
+
+	return result, nil
+}
+
+// --- FIM DA NOVA FUNÇÃO ---
 
 // GetMovimentacoes busca os registros de movimentacoes do banco de dados, com filtros opcionais
 func GetMovimentacoes(c *gin.Context) {
@@ -149,6 +208,14 @@ func GetMovimentacoes(c *gin.Context) {
 	consolidatedOptions := []struct{ Value, Label string }{{"", "Todos"}, {"true", "Sim"}, {"false", "Não"}}
 	currentDate := time.Now().Format("2006-01-02")
 
+	// --- ALTERAÇÃO: CHAMADA DA NOVA FUNÇÃO ---
+	saldosContas, err := calculateAccountBalances()
+	if err != nil {
+		// Não quebra a página, apenas loga o erro. A tabela de saldos não será exibida.
+		log.Printf("ERRO: Não foi possível calcular os saldos das contas: %v", err)
+	}
+	// --- FIM DA ALTERAÇÃO ---
+
 	if c.Request.URL.Path == "/api/movimentacoes" {
 		c.JSON(http.StatusOK, gin.H{
 			"movimentacoes": movimentacoes,
@@ -176,10 +243,14 @@ func GetMovimentacoes(c *gin.Context) {
 			"TotalEntradas":        totalEntradas,
 			"TotalSaidas":          totalSaidas,
 			"CurrentDate":          currentDate,
+			// --- ALTERAÇÃO: PASSANDO OS DADOS PARA O TEMPLATE ---
+			"SaldosContas":         saldosContas,
+			// --- FIM DA ALTERAÇÃO ---
 		})
 	}
 }
 
+// ... (o resto do arquivo 'movimentacoes.go' continua igual)
 func AddMovimentacao(c *gin.Context) {
 	db := database.GetDB()
 	dataOcorrencia := c.PostForm("data_ocorrencia")

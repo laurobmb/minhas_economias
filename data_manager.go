@@ -49,8 +49,8 @@ func main() {
 	}
 	defer db.Close()
 
-	// 2. Criar a tabela se não existir com o ESQUEMA
-	createTableSQL := fmt.Sprintf(`
+	// 2. Criar a tabela 'movimentacoes' se não existir
+	createMovimentacoesTableSQL := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			data_ocorrencia TEXT NOT NULL,
@@ -61,12 +61,27 @@ func main() {
 			consolidado BOOLEAN DEFAULT FALSE
 		);`, tableName)
 
-	_, err = db.Exec(createTableSQL)
+	_, err = db.Exec(createMovimentacoesTableSQL)
 	if err != nil {
-		fmt.Printf("Erro ao criar a tabela: %v\n", err)
+		fmt.Printf("Erro ao criar a tabela 'movimentacoes': %v\n", err)
 		os.Exit(1) // Sair com erro
 	}
 	fmt.Printf("Tabela '%s' verificada/criada com sucesso.\n", tableName)
+
+    // --- ALTERAÇÃO: CRIAR A NOVA TABELA 'contas' ---
+	createContasTableSQL := `
+		CREATE TABLE IF NOT EXISTS contas (
+			nome TEXT PRIMARY KEY,
+			saldo_inicial REAL NOT NULL DEFAULT 0
+		);`
+	
+	_, err = db.Exec(createContasTableSQL)
+	if err != nil {
+		fmt.Printf("Erro ao criar a tabela 'contas': %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Tabela 'contas' verificada/criada com sucesso.")
+    // --- FIM DA ALTERAÇÃO ---
 
 	// Lógica baseada nas flags
 	if *importFlag {
@@ -114,6 +129,7 @@ func main() {
 	}
 }
 
+// ... (o resto do arquivo 'data_manager.go' continua igual)
 // processCSVFile lida com a abertura, leitura e inserção de dados de um único arquivo CSV.
 // Espera um formato de 6 colunas: Data Ocorrência;Descrição;Valor;Categoria;Conta;Consolidado
 func processCSVFile(db *sql.DB, filename string) error {

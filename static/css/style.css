@@ -38,7 +38,7 @@ body {
     flex-grow: 1;
 }
 .api-link {
-    padding: 12px 25px;
+    padding: 10px 20px; /* Reduzido */
     background-color: #4c8bf5;
     color: white;
     border-radius: 10px;
@@ -54,14 +54,13 @@ body {
     transform: translateY(-2px);
 }
 
-/* ALTERAÇÃO AQUI */
 .filter-form {
     display: flex;
-    flex-wrap: wrap; /* Garante que os itens quebrem para a próxima linha */
-    gap: 15px;
-    margin-bottom: 30px;
+    flex-wrap: wrap; 
+    gap: 16px; /* Ajustado */
+    margin-bottom: 24px; /* Reduzido */
     background-color: #fcfdfe;
-    padding: 20px;
+    padding: 20px; /* Reduzido */
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     align-items: flex-end;
@@ -78,12 +77,12 @@ body {
 }
 .label {
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 6px; /* Reduzido */
     color: #475569;
     font-size: 0.95rem;
 }
 .select-input, .date-input, .text-input {
-    padding: 10px 12px;
+    padding: 8px 12px; /* Reduzido */
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     font-size: 1rem;
@@ -98,17 +97,16 @@ body {
     box-shadow: 0 0 0 3px rgba(76, 139, 245, 0.2);
 }
 .custom-select-container { position: relative; width: 100%; }
-.select-selected { background-color: #ffffff; border: 1px solid #cbd5e1; padding: 10px 12px; cursor: pointer; user-select: none; position: relative; padding-right: 30px; }
-.select-selected:after { position: absolute; content: ""; top: 14px; right: 10px; width: 0; height: 0; border: 6px solid transparent; border-color: #334155 transparent transparent transparent; }
-.select-selected.select-arrow-active:after { border-color: transparent transparent #334155 transparent; top: 7px; }
+.select-selected { background-color: #ffffff; border: 1px solid #cbd5e1; padding: 8px 12px; cursor: pointer; user-select: none; position: relative; padding-right: 30px; } /* Reduzido */
+.select-selected:after { position: absolute; content: ""; top: 12px; right: 10px; width: 0; height: 0; border: 6px solid transparent; border-color: #334155 transparent transparent transparent; } /* Ajustado */
+.select-selected.select-arrow-active:after { border-color: transparent transparent #334155 transparent; top: 5px; } /* Ajustado */
 .select-items { position: absolute; background-color: #ffffff; border: 1px solid #cbd5e1; border-top: none; z-index: 99; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; border-radius: 0 0 8px 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
 .select-hide { display: none; }
-.select-item-label { padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s ease; }
+.select-item-label { padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s ease; } /* Reduzido */
 .select-item-label:hover { background-color: #f0f4f8; }
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; }
 .hidden-radio-input { position: absolute; opacity: 0; width: 0; height: 0; }
 
-/* ALTERAÇÃO: Nova classe para a linha dos botões */
 .filter-actions {
     display: flex;
     justify-content: flex-end;
@@ -118,7 +116,7 @@ body {
 }
 
 .filter-button, .clear-button {
-    padding: 12px 25px;
+    padding: 10px 20px; /* Reduzido */
     border: none;
     border-radius: 10px;
     font-weight: 600;
@@ -132,7 +130,7 @@ body {
 .clear-button:hover { background-color: #dc2626; transform: translateY(-2px); }
 
 .filter-summary-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 15px; margin-bottom: 30px; padding: 0 20px; }
-.value-filter-button { padding: 12px 25px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+.value-filter-button { padding: 10px 20px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); } /* Reduzido */
 .value-filter-button:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); }
 .value-filter-button.income-filter { background-color: #d1fae5; color: #065f46; }
 .value-filter-button.income-filter.active, .value-filter-button.income-filter:hover { background-color: #10b981; color: white; }
@@ -141,7 +139,7 @@ body {
 .value-filter-button.all-values-filter { background-color: #e0f2fe; color: #1e40af; }
 .value-filter-button.all-values-filter.active, .value-filter-button.all-values-filter:hover { background-color: #3b82f6; color: white; }
 
-.summary-button-item { padding: 12px 25px; border-radius: 10px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+.summary-button-item { padding: 10px 20px; border-radius: 10px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); } /* Reduzido */
 .summary-button-item span:first-child { font-size: 0.95rem; color: #475569; }
 .summary-button-item .value { font-size: 1.1rem; font-weight: 700; }
 .summary-button-item.income { background-color: #d1fae5; color: #065f46; }
@@ -165,16 +163,29 @@ table tbody tr:last-child td { border-bottom: none; }
 .total-value { font-weight: 800; color: #22c55e; font-size: 1.3rem; }
 .total-value.negative { color: #ef4444; }
 
-.add-movement-section { margin-top: 30px; background-color: #f8fafc; border-radius: 12px; box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08); border: 1px solid #e2e8f0; padding: 30px; }
-.add-movement-section h2 { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin-bottom: 25px; text-align: center; }
-.add-movement-form { display: flex; flex-direction: column; gap: 20px; }
-.add-movement-form .form-row { display: flex; flex-wrap: wrap; gap: 15px; }
+.add-movement-section { 
+    margin-top: 0; /* Removido */
+    background-color: #f8fafc; 
+    border-radius: 12px; 
+    box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08); 
+    border: 1px solid #e2e8f0; 
+    padding: 24px; /* Reduzido */
+}
+.add-movement-section h2 { 
+    font-size: 1.8rem; 
+    font-weight: 700; 
+    color: #1e293b; 
+    margin-bottom: 20px; /* Reduzido */
+    text-align: center; 
+}
+.add-movement-form { display: flex; flex-direction: column; gap: 16px; } /* Reduzido */
+.add-movement-form .form-row { display: flex; flex-wrap: wrap; gap: 16px; } /* Ajustado */
 .add-movement-form .form-group { flex: 1; min-width: 180px; }
 .add-movement-form .form-group.checkbox-group { flex-direction: row; align-items: center; gap: 10px; min-width: unset; }
 .add-movement-form .label-checkbox { margin-bottom: 0; }
 .add-movement-form .checkbox-input { width: 20px; height: 20px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 15px; margin-top: 10px; }
-.add-button, .cancel-button { padding: 14px 30px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: background-color 0.3s ease, transform 0.2s ease; }
+.add-button, .cancel-button { padding: 12px 24px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: background-color 0.3s ease, transform 0.2s ease; } /* Reduzido */
 .add-button { background-color: #22c55e; color: white; }
 .add-button:hover { background-color: #16a34a; transform: translateY(-2px); }
 .cancel-button { background-color: #64748b; color: white; }
@@ -195,6 +206,29 @@ table tbody tr:last-child td { border-bottom: none; }
 #category-transactions-section .table-row-item:nth-child(even) { background-color: #ffffff; }
 #category-transactions-section .table-row-item:hover { background-color: #e6e9ed; }
 #category-transactions-section .text-right { text-align: right; }
+
+/* --- NOVAS CLASSES ADICIONADAS AQUI --- */
+
+/* Cor para valores positivos, para manter a consistência */
+.positive {
+    color: #22c55e;
+}
+
+/* Estilos para a barra de rolagem customizada */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9; /* Cor de fundo da trilha */
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #94a3b8; /* Cor da barra de rolagem */
+    border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #64748b; /* Cor da barra ao passar o mouse */
+}
+
 
 @media (max-width: 900px) {
     .filter-form, .add-movement-form .form-row { flex-direction: column; align-items: stretch; }
