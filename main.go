@@ -82,15 +82,20 @@ func main() {
 	r.Static("/static", "./static")
 	log.Println("Servindo arquivos estáticos de '/static' para './static'.")
 
-	// Rotas HTTP
-	r.GET("/", handlers.GetMovimentacoes)
-	r.GET("/api/movimentacoes", handlers.GetMovimentacoes)
+	// --- ROTAS ATUALIZADAS ---
+	// Rotas para as páginas HTML
+	r.GET("/", handlers.GetIndexPage)
+	r.GET("/transacoes", handlers.GetTransacoesPage)
+	r.GET("/relatorio", handlers.GetRelatorio)
+
+	// Rotas para a API e ações de formulário
+	r.GET("/api/movimentacoes", handlers.GetTransacoesPage) // A API continua a usar a lógica de transações
 	r.POST("/movimentacoes", handlers.AddMovimentacao)
 	r.DELETE("/movimentacoes/:id", handlers.DeleteMovimentacao)
 	r.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao)
-	r.GET("/relatorio", handlers.GetRelatorio)
 	r.GET("/relatorio/transactions", handlers.GetTransactionsByCategory)
-	r.POST("/relatorio/pdf", handlers.DownloadRelatorioPDF) // <-- ROTA ADICIONADA AQUI
+	r.POST("/relatorio/pdf", handlers.DownloadRelatorioPDF)
+	// --- FIM DAS ROTAS ATUALIZADAS ---
 
 	log.Println("Servidor Gin iniciado na porta :8080")
 	err = r.Run(":8080")

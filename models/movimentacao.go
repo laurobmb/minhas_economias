@@ -20,9 +20,7 @@ type RelatorioCategoria struct {
 
 // PDFRequestPayload é o struct para receber os dados do frontend para gerar o PDF.
 type PDFRequestPayload struct {
-	// --- ALTERAÇÃO ADICIONADA AQUI ---
 	SearchDescricao    string   `json:"search_descricao"`
-	// --- FIM DA ALTERAÇÃO ---
 	StartDate          string   `json:"start_date"`
 	EndDate            string   `json:"end_date"`
 	Categories         []string `json:"categories"`
@@ -31,10 +29,9 @@ type PDFRequestPayload struct {
 	ChartImageBase64   string   `json:"chartImageBase64"`
 }
 
-// --- NOVO STRUCT ADICIONADO ---
 // ContaSaldo representa o saldo atual de uma conta individual.
 type ContaSaldo struct {
-	Nome       string  `json:"nome"`
-	SaldoAtual float64 `json:"saldo_atual"`
+	Nome           string  `json:"nome"`
+	SaldoAtual     float64 `json:"saldo_atual"`
+	URLEncodedNome string  `json:"url_encoded_nome"` // <-- CAMPO ADICIONADO
 }
-// --- FIM DA ALTERAÇÃO ---

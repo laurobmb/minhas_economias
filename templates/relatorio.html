@@ -13,10 +13,13 @@
     <div class="container rounded-xl">
         <div class="header">
             <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
-            <h1 class="header-title text-gray-900">Relatório de Despesas</h1>
-            <div class="flex items-center gap-4">
-                <a href="/" class="api-link rounded-lg">Voltar</a>
-                <button id="save-pdf-button" class="api-link rounded-lg" style="background-color: #22c55e; border-color: #16a34a;">Salvar em PDF</button>
+            <h1 class="header-title text-gray-900">Minhas Economias</h1>
+            <div class="flex items-center gap-3">
+                <a href="/" class="api-link rounded-lg">Saldos</a>
+                <a href="/transacoes" class="api-link rounded-lg">Transações</a>
+                <a href="/relatorio" class="api-link rounded-lg" style="background-color: #64748b; cursor: default; box-shadow: none;">Relatório</a>
+                <a href="/api/movimentacoes" class="api-link rounded-lg" style="background-color: #1e40af;">API</a>
+                <button id="save-pdf-button" class="api-link rounded-lg" style="background-color: #22c55e;">Salvar em PDF</button>
             </div>
         </div>
         
@@ -112,7 +115,6 @@
             const savePdfButton = document.getElementById('save-pdf-button');
             const ctx = document.getElementById('expensesPieChart');
             
-            // ALTERAÇÃO: Selecionar o novo campo de busca
             const searchDescricaoInput = document.getElementById('search_descricao');
             
             const categoryCheckboxes = document.querySelectorAll('#category-select-options .custom-checkbox');
@@ -165,7 +167,6 @@
                             title: { display: true, text: 'Despesas por Categoria', font: { size: 18 } },
                             tooltip: { callbacks: { label: c => `${c.label || ''}: R$ ${c.parsed.toFixed(2).replace('.', ',')}` } }
                         },
-                        // ALTERAÇÃO: Lógica de clique corrigida para enviar todos os filtros
                         onClick: async (event, elements) => {
                             if (elements.length > 0) {
                                 const categoryName = labels[elements[0].index];
@@ -213,7 +214,6 @@
                     savePdfButton.disabled = true;
 
                     try {
-                        // ALTERAÇÃO: Adicionar o campo de busca ao payload do PDF
                         const payload = {
                             search_descricao: searchDescricaoInput.value,
                             start_date: startDateInput.value,

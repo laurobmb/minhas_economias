@@ -1,0 +1,156 @@
+---
+- name: Testar a aplicação Minhas Economias
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    base_url: "http://localhost:8080"
+    db_path: "{{ playbook_dir }}/../extratos.db"
+    test_descricao: "Transação de Teste via Ansible"
+    test_descricao_atualizada: "Transação Ansible ATUALIZADA"
+    test_transaction_date: "2025-07-20"
+    test_transaction_date_updated: "2025-07-21"
+
+  tasks:
+    - name: 1. Verificar se a aplicação está no ar
+      ansible.builtin.uri:
+        url: "{{ base_url }}/"
+        return_content: true
+      register: health_check
+      ignore_errors: true
+
+    - name: Falhar se a aplicação estiver offline
+      ansible.builtin.fail:
+        msg: "A aplicação não está respondendo em {{ base_url }}. Por favor, inicie a aplicação antes de rodar os testes."
+      when: health_check.status != 200
+
+    - name: 2. Testar o carregamento das páginas principais (GET)
+      block:
+        - name: Acessar a página de Saldos (/)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/"
+            method: GET
+            return_content: true
+          register: r_index
+        - name: Assert - Página de Saldos está OK
+          ansible.builtin.assert:
+            that:
+              - r_index.status == 200
+              - "'Painel de Saldos' in r_index.content"
+
+        - name: Acessar a página de Transações (/transacoes)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/transacoes"
+            method: GET
+            return_content: true
+          register: r_transacoes
+        - name: Assert - Página de Transações está OK
+          ansible.builtin.assert:
+            that:
+              - r_transacoes.status == 200
+              - "'Adicionar Nova Movimentação' in r_transacoes.content"
+
+        - name: Acessar a página de Relatório (/relatorio)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/relatorio"
+            method: GET
+            return_content: true
+          register: r_relatorio
+        - name: Assert - Página de Relatório está OK
+          ansible.builtin.assert:
+            that:
+              - r_relatorio.status == 200
+              - "'Relatório de Despesas' in r_relatorio.content"
+
+    - name: 3. Testar o ciclo de vida de uma transação (CRUD)
+      block:
+        - name: CRIAR - Adicionar uma nova movimentação
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              data_ocorrencia: "{{ test_transaction_date }}"
+              descricao: "{{ test_descricao }}"
+              valor: "-123.45"
+              categoria: "Teste Ansible"
+              conta: "Conta Teste Ansible"
+            status_code: 302
+          register: r_add
+
+        - name: Assert - Criação redireciona corretamente
+          ansible.builtin.assert:
+            that:
+              - r_add.status == 302
+              - r_add.location == '{{ base_url }}/transacoes'
+
+        # --- CORREÇÃO APLICADA AQUI: Busca o ID diretamente no DB ---
+        - name: LER - Buscar o ID da última transação inserida
+          ansible.builtin.command: "sqlite3 {{ db_path }} 'SELECT id FROM movimentacoes ORDER BY id DESC LIMIT 1;'"
+          register: r_get_id
+          changed_when: false
+
+        - name: Setar o ID da nova transação
+          ansible.builtin.set_fact:
+            new_item_id: "{{ r_get_id.stdout }}"
+
+        - name: Assert - ID da transação foi encontrado
+          ansible.builtin.assert:
+            that:
+              - new_item_id is defined
+              - new_item_id | int > 0
+
+        - name: ATUALIZAR - Modificar a transação criada
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes/update/{{ new_item_id }}"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              data_ocorrencia: "{{ test_transaction_date_updated }}"
+              descricao: "{{ test_descricao_atualizada }}"
+              valor: "-543.21"
+              categoria: "Teste Ansible Editado"
+              conta: "Conta Teste Ansible"
+            status_code: 302
+          register: r_update
+
+        - name: Assert - Atualização redireciona corretamente
+          ansible.builtin.assert:
+            that:
+              - r_update.status == 302
+              - r_update.location == '{{ base_url }}/transacoes'
+
+        - name: DELETAR - Excluir a transação
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes/{{ new_item_id }}"
+            method: DELETE
+            return_content: true
+          register: r_delete
+
+        - name: Assert - Deleção foi bem-sucedida
+          ansible.builtin.assert:
+            that:
+              - r_delete.status == 200
+              - "'Movimentação deletada com sucesso!' in r_delete.json.message"
+
+    - name: 4. Testar validações de erro
+      block:
+        - name: Tentar adicionar transação sem a 'conta'
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              data_ocorrencia: "2025-07-20"
+              descricao: "Teste de falha"
+              valor: "-10"
+            return_content: true
+            status_code: 400
+          register: r_fail_add
+        - name: Assert - Recebe erro 400 (Bad Request)
+          ansible.builtin.assert:
+            that:
+              - r_fail_add.status == 400
+              - "'O campo \\'Conta\\' é obrigatório.' in r_fail_add.json.error"
+...

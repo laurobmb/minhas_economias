@@ -1,11 +1,11 @@
-// handlers/movimentacoes.go
 package handlers
 
 import (
 	"fmt"
 	"log"
 	"net/http"
-	"sort" // <-- IMPORT ADICIONADO
+	"net/url" // <-- IMPORT ADICIONADO
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,17 +16,32 @@ import (
 	"minhas_economias/pdfgenerator"
 )
 
-// --- NOVA FUNÇÃO ADICIONADA ---
+// GetIndexPage renderiza a página inicial apenas com os saldos.
+func GetIndexPage(c *gin.Context) {
+	saldosContas, err := calculateAccountBalances()
+	if err != nil {
+		log.Printf("ERRO ao calcular saldos para a página inicial: %v", err)
+		c.HTML(http.StatusOK, "index.html", gin.H{
+			"Titulo":       "Minhas Economias - Saldos",
+			"SaldosContas": nil,
+			"Error":        "Não foi possível carregar os saldos.",
+		})
+		return
+	}
+
+	c.HTML(http.StatusOK, "index.html", gin.H{
+		"Titulo":       "Minhas Economias - Saldos",
+		"SaldosContas": saldosContas,
+	})
+}
+
 // calculateAccountBalances calcula o saldo final de cada conta.
 func calculateAccountBalances() ([]models.ContaSaldo, error) {
 	db := database.GetDB()
-
-	// 1. Estrutura para armazenar saldos: Nome da Conta -> Saldo
 	saldos := make(map[string]float64)
 
-	// 2. Buscar saldos iniciais da nova tabela 'contas'
 	rowsContas, err := db.Query("SELECT nome, saldo_inicial FROM contas")
-	if err == nil { // Se a tabela 'contas' existir e a query rodar
+	if err == nil {
 		defer rowsContas.Close()
 		for rowsContas.Next() {
 			var nome string
@@ -39,7 +54,6 @@ func calculateAccountBalances() ([]models.ContaSaldo, error) {
 		log.Printf("Aviso: Não foi possível ler a tabela 'contas' para obter saldos iniciais: %v. Assumindo saldo inicial 0 para todas.", err)
 	}
 
-	// 3. Somar todas as movimentações (entradas e saídas) para cada conta
 	rowsMov, err := db.Query(fmt.Sprintf("SELECT conta, SUM(valor) FROM %s GROUP BY conta", database.TableName))
 	if err != nil {
 		return nil, fmt.Errorf("erro ao calcular totais das movimentações por conta: %w", err)
@@ -53,18 +67,19 @@ func calculateAccountBalances() ([]models.ContaSaldo, error) {
 			log.Printf("Erro ao escanear total da conta: %v", err)
 			continue
 		}
-
-		// Adiciona o total de movimentações ao saldo (que pode ser o inicial ou 0)
 		saldos[conta] += totalMovimentacoes
 	}
 
-	// 4. Converter o mapa para uma lista (slice) para ser usada no template
 	var result []models.ContaSaldo
 	for nome, saldo := range saldos {
-		result = append(result, models.ContaSaldo{Nome: nome, SaldoAtual: saldo})
+		// ADICIONADA LÓGICA PARA PREENCHER O NOVO CAMPO
+		result = append(result, models.ContaSaldo{
+			Nome:           nome,
+			SaldoAtual:     saldo,
+			URLEncodedNome: url.QueryEscape(nome), // <-- ALTERAÇÃO AQUI
+		})
 	}
 
-	// 5. Ordenar por nome da conta para exibição consistente
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Nome < result[j].Nome
 	})
@@ -72,15 +87,17 @@ func calculateAccountBalances() ([]models.ContaSaldo, error) {
 	return result, nil
 }
 
-// --- FIM DA NOVA FUNÇÃO ---
+// ... (O resto do arquivo permanece o mesmo)
+// GetTransacoesPage e as outras funções não precisam de alteração.
+// ... (cole o resto do seu arquivo handlers/movimentacoes.go aqui para manter as outras funções)
+// GetTransacoesPage, AddMovimentacao, DeleteMovimentacao, etc.
 
-// GetMovimentacoes busca os registros de movimentacoes do banco de dados, com filtros opcionais
-func GetMovimentacoes(c *gin.Context) {
+// GetTransacoesPage busca os registros de movimentacoes e renderiza a página de transações.
+// Também serve a rota da API.
+func GetTransacoesPage(c *gin.Context) {
 	db := database.GetDB()
 
-	// --- ALTERAÇÃO: Adicionado search_descricao ---
 	searchDescricao := c.Query("search_descricao")
-	// --- FIM DA ALTERAÇÃO ---
 	selectedCategories := c.QueryArray("category")
 	selectedStartDate := c.Query("start_date")
 	selectedEndDate := c.Query("end_date")
@@ -94,20 +111,16 @@ func GetMovimentacoes(c *gin.Context) {
 		selectedStartDate = firstOfMonth.Format("2006-01-02")
 		lastOfMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location())
 		selectedEndDate = lastOfMonth.Format("2006-01-02")
-		log.Printf("Nenhum filtro de data fornecido. Default para mês corrente: %s a %s\n", selectedStartDate, selectedEndDate)
 	}
 
 	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s", database.TableName)
 	var args []interface{}
 	var whereClauses []string
 
-	// --- ALTERAÇÃO: Adicionada lógica de filtro para descrição ---
 	if searchDescricao != "" {
 		whereClauses = append(whereClauses, "descricao LIKE ?")
 		args = append(args, "%"+searchDescricao+"%")
 	}
-	// --- FIM DA ALTERAÇÃO ---
-
 	if len(selectedCategories) > 0 && selectedCategories[0] != "" {
 		placeholders := strings.Repeat("?,", len(selectedCategories)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("categoria IN (%s)", placeholders))
@@ -148,7 +161,6 @@ func GetMovimentacoes(c *gin.Context) {
 	if len(whereClauses) > 0 {
 		query += " WHERE " + strings.Join(whereClauses, " AND ")
 	}
-
 	query += " ORDER BY data_ocorrencia DESC"
 
 	rows, err := db.Query(query, args...)
@@ -181,6 +193,18 @@ func GetMovimentacoes(c *gin.Context) {
 		return
 	}
 
+	// Lógica para endpoint de API
+	if c.Request.URL.Path == "/api/movimentacoes" {
+		c.JSON(http.StatusOK, gin.H{
+			"movimentacoes": movimentacoes,
+			"totalValor":    totalValor,
+			"totalEntradas": totalEntradas,
+			"totalSaidas":   totalSaidas,
+		})
+		return
+	}
+	
+	// Busca dados para os filtros da página de transações
 	categoryRows, _ := db.Query(fmt.Sprintf("SELECT DISTINCT categoria FROM %s ORDER BY categoria ASC", database.TableName))
 	var categories []string
 	if categoryRows != nil {
@@ -207,50 +231,28 @@ func GetMovimentacoes(c *gin.Context) {
 
 	consolidatedOptions := []struct{ Value, Label string }{{"", "Todos"}, {"true", "Sim"}, {"false", "Não"}}
 	currentDate := time.Now().Format("2006-01-02")
-
-	// --- ALTERAÇÃO: CHAMADA DA NOVA FUNÇÃO ---
-	saldosContas, err := calculateAccountBalances()
-	if err != nil {
-		// Não quebra a página, apenas loga o erro. A tabela de saldos não será exibida.
-		log.Printf("ERRO: Não foi possível calcular os saldos das contas: %v", err)
-	}
-	// --- FIM DA ALTERAÇÃO ---
-
-	if c.Request.URL.Path == "/api/movimentacoes" {
-		c.JSON(http.StatusOK, gin.H{
-			"movimentacoes": movimentacoes,
-			"totalValor":    totalValor,
-			"totalEntradas": totalEntradas,
-			"totalSaidas":   totalSaidas,
-		})
-	} else {
-		c.HTML(http.StatusOK, "index.html", gin.H{
-			"Movimentacoes":        movimentacoes,
-			"Titulo":               "Extratos Financeiros",
-			// --- ALTERAÇÃO: Passar valor do campo de busca para o template ---
-			"SearchDescricao":      searchDescricao,
-			// --- FIM DA ALTERAÇÃO ---
-			"SelectedCategories":   selectedCategories,
-			"SelectedStartDate":    selectedStartDate,
-			"SelectedEndDate":      selectedEndDate,
-			"SelectedConsolidado":  selectedConsolidado,
-			"SelectedAccounts":     selectedAccounts,
-			"SelectedValueFilter":  selectedValueFilter,
-			"Categories":           categories,
-			"Accounts":             accounts,
-			"ConsolidatedOptions":  consolidatedOptions,
-			"TotalValor":           totalValor,
-			"TotalEntradas":        totalEntradas,
-			"TotalSaidas":          totalSaidas,
-			"CurrentDate":          currentDate,
-			// --- ALTERAÇÃO: PASSANDO OS DADOS PARA O TEMPLATE ---
-			"SaldosContas":         saldosContas,
-			// --- FIM DA ALTERAÇÃO ---
-		})
-	}
+	
+	c.HTML(http.StatusOK, "transacoes.html", gin.H{
+		"Movimentacoes":        movimentacoes,
+		"Titulo":               "Transações Financeiras",
+		"SearchDescricao":      searchDescricao,
+		"SelectedCategories":   selectedCategories,
+		"SelectedStartDate":    selectedStartDate,
+		"SelectedEndDate":      selectedEndDate,
+		"SelectedConsolidado":  selectedConsolidado,
+		"SelectedAccounts":     selectedAccounts,
+		"SelectedValueFilter":  selectedValueFilter,
+		"Categories":           categories,
+		"Accounts":             accounts,
+		"ConsolidatedOptions":  consolidatedOptions,
+		"TotalValor":           totalValor,
+		"TotalEntradas":        totalEntradas,
+		"TotalSaidas":          totalSaidas,
+		"CurrentDate":          currentDate,
+	})
 }
 
-// ... (o resto do arquivo 'movimentacoes.go' continua igual)
+// AddMovimentacao adiciona uma nova transação
 func AddMovimentacao(c *gin.Context) {
 	db := database.GetDB()
 	dataOcorrencia := c.PostForm("data_ocorrencia")
@@ -292,9 +294,11 @@ func AddMovimentacao(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao inserir dados: " + err.Error()})
 		return
 	}
-	c.Redirect(http.StatusFound, "/")
+    // Redireciona para a página de transações após adicionar
+	c.Redirect(http.StatusFound, "/transacoes") 
 }
 
+// DeleteMovimentacao deleta uma transação
 func DeleteMovimentacao(c *gin.Context) {
 	db := database.GetDB()
 	id, err := strconv.Atoi(c.Param("id"))
@@ -310,6 +314,7 @@ func DeleteMovimentacao(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Movimentação deletada com sucesso!"})
 }
 
+// UpdateMovimentacao atualiza uma transação
 func UpdateMovimentacao(c *gin.Context) {
 	db := database.GetDB()
 	id, err := strconv.Atoi(c.Param("id"))
@@ -355,13 +360,13 @@ func UpdateMovimentacao(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar dados: " + err.Error()})
 		return
 	}
-	c.Redirect(http.StatusFound, "/")
+    // Redireciona para a página de transações após atualizar
+	c.Redirect(http.StatusFound, "/transacoes")
 }
 
+// GetRelatorio renderiza a página de relatório
 func GetRelatorio(c *gin.Context) {
-	// --- ALTERAÇÃO: Adicionado search_descricao ---
 	searchDescricao := c.Query("search_descricao")
-	// --- FIM DA ALTERAÇÃO ---
 	selectedCategories := c.QueryArray("category")
 	selectedStartDate := c.Query("start_date")
 	selectedEndDate := c.Query("end_date")
@@ -376,9 +381,7 @@ func GetRelatorio(c *gin.Context) {
 		selectedEndDate = lastOfMonth.Format("2006-01-02")
 	}
 
-	// --- ALTERAÇÃO: Passar searchDescricao para a função de busca ---
 	relatorioData, err := fetchReportData(selectedStartDate, selectedEndDate, selectedCategories, selectedAccounts, selectedConsolidado, searchDescricao)
-	// --- FIM DA ALTERAÇÃO ---
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao buscar dados para relatório: %v", err)})
 		return
@@ -411,9 +414,7 @@ func GetRelatorio(c *gin.Context) {
 	c.HTML(http.StatusOK, "relatorio.html", gin.H{
 		"Titulo":               "Relatório de Despesas por Categoria",
 		"ReportData":           relatorioData,
-		// --- ALTERAÇÃO: Passar valor do campo de busca para o template ---
 		"SearchDescricao":      searchDescricao,
-		// --- FIM DA ALTERAÇÃO ---
 		"SelectedCategories":   selectedCategories,
 		"SelectedStartDate":    selectedStartDate,
 		"SelectedEndDate":      selectedEndDate,
@@ -426,12 +427,11 @@ func GetRelatorio(c *gin.Context) {
 	})
 }
 
+// GetTransactionsByCategory busca transações para o gráfico de relatório
 func GetTransactionsByCategory(c *gin.Context) {
 	db := database.GetDB()
 	category := c.Query("category")
-	// --- ALTERAÇÃO: Adicionado search_descricao ---
 	searchDescricao := c.Query("search_descricao")
-	// --- FIM DA ALTERAÇÃO ---
 	selectedStartDate := c.Query("start_date")
 	selectedEndDate := c.Query("end_date")
 	selectedConsolidado := c.Query("consolidated_filter")
@@ -449,18 +449,14 @@ func GetTransactionsByCategory(c *gin.Context) {
 	var args []interface{}
 	var whereClauses []string
 
-	// Adiciona a categoria clicada como o primeiro e principal filtro.
 	whereClauses = append(whereClauses, "categoria = ?")
 	args = append(args, category)
 	whereClauses = append(whereClauses, "valor < 0")
 
-	// --- ALTERAÇÃO: Adicionar lógica de filtro de descrição ---
 	if searchDescricao != "" {
 		whereClauses = append(whereClauses, "descricao LIKE ?")
 		args = append(args, "%"+searchDescricao+"%")
 	}
-	// --- FIM DA ALTERAÇÃO ---
-
 	if len(selectedAccounts) > 0 && selectedAccounts[0] != "" {
 		placeholders := strings.Repeat("?,", len(selectedAccounts)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", placeholders))
@@ -512,6 +508,7 @@ func GetTransactionsByCategory(c *gin.Context) {
 	c.JSON(http.StatusOK, transactions)
 }
 
+// DownloadRelatorioPDF gera o relatório em PDF
 func DownloadRelatorioPDF(c *gin.Context) {
 	var payload models.PDFRequestPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
@@ -519,14 +516,12 @@ func DownloadRelatorioPDF(c *gin.Context) {
 		return
 	}
 
-	// --- ALTERAÇÃO: Passar searchDescricao para as funções de busca ---
 	reportData, err := fetchReportData(payload.StartDate, payload.EndDate, payload.Categories, payload.Accounts, payload.ConsolidatedFilter, payload.SearchDescricao)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar dados do relatório: " + err.Error()})
 		return
 	}
 	transactions, err := fetchAllTransactions(payload.StartDate, payload.EndDate, payload.Categories, payload.Accounts, payload.ConsolidatedFilter, payload.SearchDescricao)
-	// --- FIM DA ALTERAÇÃO ---
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar transações detalhadas: " + err.Error()})
 		return
@@ -546,8 +541,7 @@ func DownloadRelatorioPDF(c *gin.Context) {
 	}
 }
 
-// --- FUNÇÕES AUXILIARES ---
-// --- ALTERAÇÃO: Adicionada a variável searchDescricao ---
+// fetchReportData busca dados para o relatório.
 func fetchReportData(startDate, endDate string, categories, accounts []string, consolidated, searchDescricao string) ([]models.RelatorioCategoria, error) {
 	db := database.GetDB()
 	query := fmt.Sprintf("SELECT categoria, SUM(valor) FROM %s WHERE valor < 0", database.TableName)
@@ -558,7 +552,6 @@ func fetchReportData(startDate, endDate string, categories, accounts []string, c
 		whereClauses = append(whereClauses, "descricao LIKE ?")
 		args = append(args, "%"+searchDescricao+"%")
 	}
-	// --- FIM DA ALTERAÇÃO ---
 
 	if len(categories) > 0 && categories[0] != "" {
 		placeholders := strings.Repeat("?,", len(categories)-1) + "?"
@@ -613,7 +606,7 @@ func fetchReportData(startDate, endDate string, categories, accounts []string, c
 	return relatorioData, rows.Err()
 }
 
-// --- ALTERAÇÃO: Adicionada a variável searchDescricao ---
+// fetchAllTransactions busca todas as transações para o relatório.
 func fetchAllTransactions(startDate, endDate string, categories, accounts []string, consolidated, searchDescricao string) ([]models.Movimentacao, error) {
 	db := database.GetDB()
 	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s", database.TableName)
@@ -625,7 +618,6 @@ func fetchAllTransactions(startDate, endDate string, categories, accounts []stri
 		whereClauses = append(whereClauses, "descricao LIKE ?")
 		args = append(args, "%"+searchDescricao+"%")
 	}
-	// --- FIM DA ALTERAÇÃO ---
 
 	if len(categories) > 0 && categories[0] != "" {
 		placeholders := strings.Repeat("?,", len(categories)-1) + "?"

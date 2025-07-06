@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Titulo }}</title>
+    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container rounded-xl">
+        <div class="header">
+            <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
+            <h1 class="header-title text-gray-900">Minhas Economias</h1>
+            <div class="flex items-center gap-3">
+                <a href="/" class="api-link rounded-lg">Saldos</a>
+                <a href="/transacoes" class="api-link rounded-lg" style="background-color: #64748b; cursor: default; box-shadow: none;">Transações</a>
+                <a href="/relatorio" class="api-link rounded-lg">Relatório</a>
+                <a href="/api/movimentacoes" id="apiLink" class="api-link rounded-lg" style="background-color: #1e40af;">API</a>
+            </div>
+        </div>
+
+        <div class="add-movement-section rounded-xl">
+            <h2 id="add-edit-form-title">Adicionar Nova Movimentação</h2>
+            <form action="/movimentacoes" method="POST" class="add-movement-form" id="add-edit-form">
+                <input type="hidden" name="id" id="movement-id-input">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="new_data_ocorrencia" class="label">Data Ocorrência:</label>
+                        <input type="date" name="data_ocorrencia" id="new_data_ocorrencia" value="{{ .CurrentDate }}" class="date-input rounded-md" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_descricao" class="label">Descrição:</label>
+                        <input type="text" name="descricao" id="new_descricao" class="text-input rounded-md" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_valor" class="label">Valor:</label>
+                        <input type="text" name="valor" id="new_valor" class="text-input rounded-md">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="label">Tipo:</label>
+                        <div class="custom-select-container">
+                            <div class="select-selected rounded-md" id="tipo-movimentacao-display">Despesa</div>
+                            <div class="select-items select-hide" id="tipo-movimentacao-options">
+                                <label class="select-item-label">
+                                    <input type="radio" name="tipo_movimentacao" value="receita" id="tipo_receita" class="hidden-radio-input"> Receita
+                                </label>
+                                <label class="select-item-label">
+                                    <input type="radio" name="tipo_movimentacao" value="despesa" id="tipo_despesa" class="hidden-radio-input" checked> Despesa
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_categoria" class="label">Categoria:</label>
+                        <input type="text" name="categoria" id="new_categoria" class="text-input rounded-md" placeholder="Ex: Alimentação" list="category-suggestions">
+                        <datalist id="category-suggestions"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_conta" class="label">Conta:</label>
+                        <input type="text" name="conta" id="new_conta" class="text-input rounded-md" placeholder="Ex: Banco X" required list="account-suggestions">
+                        <datalist id="account-suggestions"></datalist>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label for="new_consolidado" class="label-checkbox">Consolidado:</label>
+                        <input type="checkbox" name="consolidado" id="new_consolidado" class="checkbox-input rounded-md">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="add-button rounded-md" id="submit-movement-button">Adicionar Movimentação</button>
+                    <button type="button" class="cancel-button rounded-md select-hide" id="cancel-edit-button">Cancelar Edição</button>
+                </div>
+            </form>
+        </div>
+
+        <form action="/transacoes" method="GET" class="filter-form" id="filterForm">
+            <div class="form-group">
+                <label for="category" class="label">Categoria:</label>
+                <div class="custom-select-container">
+                    <div class="select-selected rounded-md" id="category-select-display">Todas as Categorias</div>
+                    <div class="select-items select-hide" id="category-select-options">
+                        {{- range $category := .Categories -}}
+                            <label class="select-item-label">
+                                <input type="checkbox" name="category" value="{{ $category }}" class="custom-checkbox"
+                                    {{- range $.SelectedCategories -}}{{- if eq . $category -}}checked{{- end -}}{{- end -}}>
+                                {{ $category }}
+                            </label>
+                        {{- end -}}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="search_descricao" class="label">Buscar por Descrição:</label>
+                <input type="text" name="search_descricao" id="search_descricao" value="{{ .SearchDescricao }}" class="text-input rounded-md" placeholder="Ex: aluguel, mercado...">
+            </div>
+            <div class="form-group">
+                <label for="account" class="label">Conta:</label>
+                <div class="custom-select-container">
+                    <div class="select-selected rounded-md" id="account-select-display">Todas as Contas</div>
+                    <div class="select-items select-hide" id="account-select-options">
+                        {{- range $account := .Accounts -}}
+                            <label class="select-item-label">
+                                <input type="checkbox" name="account" value="{{ $account }}" class="custom-checkbox"
+                                    {{- range $.SelectedAccounts -}}{{- if eq . $account -}}checked{{- end -}}{{- end -}}>
+                                {{ $account }}
+                            </label>
+                        {{- end -}}
+                    </div>
+                </div>
+            </div>
+            <div class="form-group date-range-group">
+                <label for="start_date" class="label">Data Início:</label>
+                <input type="date" name="start_date" id="start_date" value="{{ .SelectedStartDate }}" class="date-input rounded-md">
+            </div>
+            <div class="form-group date-range-group">
+                <label for="end_date" class="label">Data Fim:</label>
+                <input type="date" name="end_date" id="end_date" value="{{ .SelectedEndDate }}" class="date-input rounded-md">
+            </div>
+            <div class="form-group">
+                <label for="consolidated_filter" class="label">Consolidado:</label>
+                <select name="consolidated_filter" id="consolidated_filter" class="select-input rounded-md">
+                    {{ range .ConsolidatedOptions }}
+                        <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidado }}selected{{ end }}>{{ .Label }}</option>
+                    {{ end }}
+                </select>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="filter-button rounded-md">Filtrar</button>
+                <button type="button" class="clear-button rounded-md" onclick="window.location.href='/transacoes'">Limpar Filtros</button>
+            </div>
+            </form>
+
+        <div class="filter-summary-controls">
+            <button type="button" class="value-filter-button income-filter {{ if eq .SelectedValueFilter "income" }}active{{ end }}" data-value-filter="income">Filtrar Entradas</button>
+            <button type="button" class="value-filter-button expense-filter {{ if eq .SelectedValueFilter "expense" }}active{{ end }}" data-value-filter="expense">Filtrar Saídas</button>
+            <button type="button" class="value-filter-button all-values-filter {{ if eq .SelectedValueFilter "" }}active{{ end }}" data-value-filter="">Todos os Valores</button>
+            <div class="summary-button-item income"><span>Entradas:</span><span class="value">R$ {{ printf "%.2f" .TotalEntradas }}</span></div>
+            <div class="summary-button-item expense"><span>Saídas:</span><span class="value">R$ {{ printf "%.2f" .TotalSaidas }}</span></div>
+        </div>
+
+        {{ if .Movimentacoes }}
+        <div class="table-container">
+            <table class="rounded-lg overflow-hidden">
+                <thead>
+                    <tr>
+                        <th>ID</th><th>Data</th><th>Descrição</th><th class="text-right">Valor</th><th>Categoria</th><th>Conta</th><th>Consolidado</th><th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Movimentacoes }}
+                    <tr class="table-row-item" data-id="{{ .ID }}" data-data="{{ .DataOcorrencia }}" data-descricao="{{ .Descricao }}" data-valor="{{ printf "%.2f" .Valor }}" data-categoria="{{ .Categoria }}" data-conta="{{ .Conta }}" data-consolidado="{{ .Consolidado }}" data-tipo="{{ if lt .Valor 0.0 }}despesa{{ else }}receita{{ end }}">
+                        <td>{{ .ID }}</td><td>{{ .DataOcorrencia }}</td><td>{{ .Descricao }}</td><td class="text-right">R$ {{ printf "%.2f" .Valor }}</td><td>{{ .Categoria }}</td><td>{{ .Conta }}</td><td>{{ if .Consolidado }}Sim{{ else }}Não{{ end }}</td>
+                        <td class="action-buttons-cell">
+                            <button class="edit-button rounded-md" data-id="{{ .ID }}">Editar</button>
+                            <button class="delete-button rounded-md" data-id="{{ .ID }}">Excluir</button>
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+        <div class="total-summary-container">
+            <table class="total-summary-table rounded-lg overflow-hidden">
+                <tbody>
+                    <tr>
+                        <td class="total-label">Total Filtrado:</td>
+                        <td class="total-value text-right {{ if lt .TotalValor 0.0 }}negative{{ end }}">R$ {{ printf "%.2f" .TotalValor }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        {{ else }}
+        <p class="no-data">Nenhuma transação encontrada com os filtros aplicados.</p>
+        {{ end }}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterForm = document.getElementById('filterForm');
+
+            // NOVA FUNÇÃO PARA ATUALIZAR O LINK DA API
+            function updateApiLink() {
+                const apiLink = document.getElementById('apiLink');
+                if (!apiLink || !filterForm) return;
+
+                const formData = new FormData(filterForm);
+                const params = new URLSearchParams();
+
+                // new FormData() lida com a maioria dos campos, mas vamos garantir que os filtros de valor sejam incluídos
+                for (const [key, value] of formData.entries()) {
+                    if (value) {
+                        params.append(key, value);
+                    }
+                }
+
+                const activeValueFilterButton = document.querySelector('.value-filter-button.active');
+                if (activeValueFilterButton && activeValueFilterButton.dataset.valueFilter) {
+                    params.set('value_filter', activeValueFilterButton.dataset.valueFilter);
+                } else {
+                    params.delete('value_filter');
+                }
+
+                // Remove parâmetros vazios para um link mais limpo
+                const finalParams = new URLSearchParams();
+                for (const [key, value] of params.entries()) {
+                    if (value) {
+                       finalParams.append(key, value)
+                    }
+                }
+                
+                apiLink.href = '/api/movimentacoes?' + finalParams.toString();
+            }
+
+            function setupMultiSelectDropdown(displayId, optionsId, checkboxClass) {
+                const selectDisplay = document.getElementById(displayId);
+                const selectOptions = document.getElementById(optionsId);
+                if (!selectDisplay || !selectOptions) return;
+                const checkboxes = selectOptions.querySelectorAll('.' + checkboxClass);
+                function updateDisplay() {
+                    const currentSelectedValues = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+                    if (currentSelectedValues.length === 0) {
+                        selectDisplay.textContent = "Todas as " + (checkboxClass.includes("category") ? "Categorias" : "Contas");
+                    } else if (currentSelectedValues.length === 1) {
+                        selectDisplay.textContent = currentSelectedValues[0];
+                    } else {
+                        selectDisplay.textContent = `${currentSelectedValues.length} selecionadas`;
+                    }
+                    updateApiLink(); // Atualiza o link da API quando um checkbox muda
+                }
+                updateDisplay();
+                selectDisplay.addEventListener('click', e => { e.stopPropagation(); selectOptions.classList.toggle('select-hide'); });
+                document.addEventListener('click', () => selectOptions.classList.add('select-hide'));
+                checkboxes.forEach(checkbox => checkbox.addEventListener('change', updateDisplay));
+            }
+            
+            if (filterForm) {
+                setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox');
+                setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox');
+
+                // Atualiza o link da API sempre que um campo do formulário (que não seja checkbox) mudar
+                filterForm.querySelectorAll('input, select').forEach(input => {
+                    if (input.type !== 'checkbox') {
+                         input.addEventListener('change', updateApiLink);
+                    }
+                });
+                
+                // Atualiza o link da API no carregamento inicial da página
+                updateApiLink();
+            }
+
+            document.querySelectorAll('.value-filter-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const valueFilter = button.dataset.valueFilter;
+                    const currentParams = new URLSearchParams(new FormData(filterForm));
+                    if (valueFilter) {
+                        currentParams.set('value_filter', valueFilter);
+                    } else {
+                        currentParams.delete('value_filter');
+                    }
+                    window.location.href = `/transacoes?${currentParams.toString()}`;
+                });
+            });
+
+            // ... (o resto do seu script para editar/adicionar/deletar permanece igual)
+            const addEditForm = document.getElementById('add-edit-form');
+            const addEditFormTitle = document.getElementById('add-edit-form-title');
+            const movementIdInput = document.getElementById('movement-id-input');
+            const newValorInput = document.getElementById('new_valor');
+            const newDataOcorrenciaInput = document.getElementById('new_data_ocorrencia');
+            const newDescricaoInput = document.getElementById('new_descricao');
+            const newCategoriaInput = document.getElementById('new_categoria');
+            const newContaInput = document.getElementById('new_conta');
+            const newConsolidadoCheckbox = document.getElementById('new_consolidado');
+            const submitMovementButton = document.getElementById('submit-movement-button');
+            const cancelEditButton = document.getElementById('cancel-edit-button');
+            const tipoReceitaRadio = document.getElementById('tipo_receita');
+            const tipoDespesaRadio = document.getElementById('tipo_despesa');
+            const tipoMovimentacaoDisplay = document.getElementById('tipo-movimentacao-display');
+            const tipoMovimentacaoOptions = document.getElementById('tipo-movimentacao-options');
+
+            function adjustValorSign() {
+                let rawValue = newValorInput.value.trim().replace(/\./g, '').replace(',', '.');
+                if (rawValue === '' || isNaN(rawValue)) return;
+                let currentValue = parseFloat(rawValue);
+                let newValue = tipoDespesaRadio.checked ? -Math.abs(currentValue) : Math.abs(currentValue);
+                newValorInput.value = newValue.toFixed(2).replace('.', ',');
+            }
+            
+            function updateTipoMovimentacaoDisplay() {
+                tipoMovimentacaoDisplay.textContent = tipoDespesaRadio.checked ? "Despesa" : "Receita";
+            }
+
+            if (tipoMovimentacaoDisplay) {
+                tipoMovimentacaoDisplay.addEventListener('click', e => { e.stopPropagation(); tipoMovimentacaoOptions.classList.toggle('select-hide'); });
+                document.addEventListener('click', () => tipoMovimentacaoOptions.classList.add('select-hide'));
+                [tipoReceitaRadio, tipoDespesaRadio].forEach(radio => radio.addEventListener('change', () => {
+                    adjustValorSign();
+                    updateTipoMovimentacaoDisplay();
+                    tipoMovimentacaoOptions.classList.add('select-hide');
+                }));
+            }
+
+            if(newValorInput) newValorInput.addEventListener('change', adjustValorSign);
+            if(tipoDespesaRadio) { tipoDespesaRadio.checked = true; updateTipoMovimentacaoDisplay(); }
+
+            const categoriesFromGo = {{ .Categories | jsonify }};
+            const accountsFromGo = {{ .Accounts | jsonify }};
+            function populateDatalist(datalistElement, dataArray) {
+                if(!datalistElement || !dataArray) return;
+                datalistElement.innerHTML = '';
+                dataArray.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    datalistElement.appendChild(option);
+                });
+            }
+            populateDatalist(document.getElementById('category-suggestions'), categoriesFromGo);
+            populateDatalist(document.getElementById('account-suggestions'), accountsFromGo);
+
+            function resetAddEditForm() {
+                addEditForm.reset();
+                addEditFormTitle.textContent = "Adicionar Nova Movimentação";
+                submitMovementButton.textContent = "Adicionar Movimentação";
+                addEditForm.action = "/movimentacoes";
+                movementIdInput.value = "";
+                cancelEditButton.classList.add('select-hide');
+                tipoDespesaRadio.checked = true;
+                updateTipoMovimentacaoDisplay();
+                newDataOcorrenciaInput.value = "{{ .CurrentDate }}";
+            }
+
+            if(cancelEditButton) cancelEditButton.addEventListener('click', resetAddEditForm);
+
+            document.querySelectorAll('.delete-button').forEach(button => {
+                button.addEventListener('click', async (event) => {
+                    const id = event.target.dataset.id;
+                    if (confirm(`Tem certeza que deseja excluir a movimentação ${id}?`)) {
+                        try {
+                            const response = await fetch(`/movimentacoes/${id}`, { method: 'DELETE' });
+                            if (response.ok) { alert('Movimentação excluída!'); window.location.reload(); }
+                            else { const err = await response.json(); alert(`Erro: ${err.error}`); }
+                        } catch (error) { alert('Erro de comunicação.'); }
+                    }
+                });
+            });
+
+            document.querySelectorAll('.edit-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const row = event.target.closest('tr');
+                    movementIdInput.value = row.dataset.id;
+                    newDataOcorrenciaInput.value = row.dataset.data;
+                    newDescricaoInput.value = row.dataset.descricao;
+                    newValorInput.value = parseFloat(row.dataset.valor).toFixed(2).replace('.',',');
+                    newCategoriaInput.value = row.dataset.categoria;
+                    newContaInput.value = row.dataset.conta;
+                    newConsolidadoCheckbox.checked = (row.dataset.consolidado === 'true');
+                    if(row.dataset.tipo === 'receita') tipoReceitaRadio.checked = true; else tipoDespesaRadio.checked = true;
+                    updateTipoMovimentacaoDisplay();
+                    addEditFormTitle.textContent = `Editar Movimentação (ID: ${row.dataset.id})`;
+                    submitMovementButton.textContent = "Salvar Alterações";
+                    addEditForm.action = `/movimentacoes/update/${row.dataset.id}`;
+                    cancelEditButton.classList.remove('select-hide');
+                    addEditForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
