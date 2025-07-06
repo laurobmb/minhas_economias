@@ -2,8 +2,11 @@
 
 Este projeto oferece um sistema para gestão de movimentações financeiras pessoais, permitindo a importação e exportação de dados via linha de comando, e a visualização, filtragem e gerenciamento de registros através de uma interface web moderna e modular.
 
-![Minhas Economias Dashboard](https://i.imgur.com/your-new-screenshot-here.png)
-*(Sugestão: Substitua o link acima por um novo screenshot da sua página de Saldos)*
+![Minhas Economias 1](photos/me1.png)
+
+![Minhas Economias 2](photos/me2.png)
+
+![Minhas Economias 3](photos/me3.png)
 
 ## Descrição
 

@@ -1,7 +1,201 @@
 Data Ocorrência;Descrição;Valor;Categoria;Conta;Consolidado
-03/06/2013;CMDOMÍNIO BLOCO 27;-50,00;Taxa Bloco;meu.bolso;true
-25/06/2013;Passagem;-2,15;Metro/Ônibus;meu.bolso;true
-25/06/2013;Passagem;-2,15;Metro/Ônibus;meu.bolso;true
-25/06/2013;Lanche;-3,50;Alimentação;meu.bolso;true
-25/06/2013;lanche do almoço;-2,40;Alimentação;meu.bolso;true
-25/06/2013;Gasto supermercado;-4,20;Supermercado;meu.bolso;true
+18/02/2025;Roupa nova;-146,90;Pessoal;XP;true
+25/07/2023;Corte de cabelo;-185,41;Pessoal;Caixa;true
+14/09/2024;Passagem metrô;-439,99;Metro/Ônibus;Itau;true
+08/12/2024;Multa trânsito;-357,09;Outros;Banco do Brasil;true
+26/09/2024;Taxi aeroporto;-288,67;Transporte;meu.bolso;true
+03/06/2025;Manutenção bicicleta;-306,16;Outros;meu.bolso;true
+26/02/2024;Compras do mês;-183,78;Supermercado;meu.bolso;true
+28/10/2023;Farmácia antialérgico;-374,37;Saúde;meu.bolso;true
+26/05/2025;Conta de luz;-194,46;Serviços;meu.bolso;true
+22/01/2023;Curso online;-386,90;Educação;Banco do Brasil;true
+24/05/2025;Conta de luz;-255,89;Serviços;meu.bolso;true
+28/07/2024;Bilhete único;-488,95;Metro/Ônibus;Caixa;true
+28/06/2024;Taxi aeroporto;-473,36;Transporte;Banco do Brasil;true
+19/02/2024;Academia;-383,88;Pessoal;Banco do Brasil;true
+25/05/2023;Gasto supermercado;-151,33;Supermercado;Banco do Brasil;true
+18/05/2023;Passagem metrô;-367,41;Metro/Ônibus;Itau;true
+21/10/2024;Bilhete único;-307,06;Metro/Ônibus;Itau;true
+22/07/2024;Internet mensal;-254,64;Serviços;Itau;true
+27/11/2024;Restaurante jantar;-75,24;Alimentação;Caixa;true
+21/04/2024;Internet mensal;-439,88;Serviços;meu.bolso;true
+07/06/2025;Academia;-460,79;Pessoal;Banco do Brasil;true
+22/10/2023;Gasto supermercado;-134,56;Supermercado;Banco do Brasil;true
+02/09/2024;Corte de cabelo;-398,22;Pessoal;XP;true
+28/01/2025;Taxi aeroporto;-337,02;Transporte;meu.bolso;true
+04/07/2023;Academia;-221,25;Pessoal;meu.bolso;true
+26/12/2024;Manutenção bicicleta;-311,20;Outros;Caixa;true
+27/06/2024;Academia;-105,26;Pessoal;Banco do Brasil;true
+23/08/2023;Gasto supermercado;-457,01;Supermercado;Itau;true
+30/01/2025;Roupa nova;-463,64;Pessoal;Caixa;true
+29/09/2024;Curso online;-391,47;Educação;Caixa;true
+29/03/2023;Multa trânsito;-57,13;Outros;Itau;true
+06/04/2025;Gasto supermercado;-75,52;Supermercado;Banco do Brasil;true
+15/12/2023;Restaurante jantar;-445,32;Alimentação;Banco do Brasil;true
+25/11/2024;Farmácia antialérgico;-82,20;Saúde;XP;true
+23/07/2024;Padaria café da manhã;-141,15;Alimentação;meu.bolso;true
+22/01/2025;Consulta médica;-95,90;Saúde;Caixa;true
+27/01/2023;Padaria café da manhã;-484,01;Alimentação;Caixa;true
+16/02/2024;Feira orgânica;-253,37;Supermercado;meu.bolso;true
+04/06/2025;Corte de cabelo;-325,27;Pessoal;Itau;true
+06/11/2024;Farmácia antialérgico;-371,04;Saúde;XP;true
+12/01/2023;Ônibus trabalho;-403,36;Metro/Ônibus;Banco do Brasil;true
+10/04/2024;Multa trânsito;-438,75;Outros;meu.bolso;true
+29/05/2025;Conta de luz;-206,67;Serviços;Banco do Brasil;true
+05/04/2024;Gasto supermercado;-92,38;Supermercado;Banco do Brasil;true
+09/04/2025;Multa trânsito;-340,23;Outros;Banco do Brasil;true
+01/08/2024;Ônibus trabalho;-342,23;Metro/Ônibus;Banco do Brasil;true
+08/06/2023;Manutenção bicicleta;-120,83;Outros;meu.bolso;true
+09/04/2023;Consulta médica;-116,17;Saúde;Banco do Brasil;true
+03/03/2023;Material escolar;-285,02;Educação;XP;true
+12/09/2023;Feira orgânica;-224,49;Supermercado;XP;true
+10/05/2024;Livro técnico;-120,21;Educação;Itau;true
+15/06/2023;Taxi aeroporto;-131,49;Transporte;Itau;true
+04/07/2024;Lanche rápido;-172,24;Alimentação;Caixa;true
+01/02/2024;Manutenção celular;-142,91;Serviços;Itau;true
+10/02/2023;Gasto supermercado;-377,11;Supermercado;Itau;true
+29/07/2023;Padaria café da manhã;-103,73;Alimentação;Banco do Brasil;true
+08/04/2023;Ônibus trabalho;-326,66;Metro/Ônibus;Banco do Brasil;true
+16/11/2024;Cinema;-482,64;Lazer;Itau;true
+31/03/2023;Academia;-409,39;Pessoal;meu.bolso;true
+14/01/2025;Corte de cabelo;-231,21;Pessoal;Banco do Brasil;true
+06/10/2023;Almoço trabalho;-411,57;Alimentação;meu.bolso;true
+26/08/2023;Academia;-125,64;Pessoal;Banco do Brasil;true
+11/12/2023;Livro técnico;-195,73;Educação;XP;true
+16/07/2024;Consulta médica;-104,24;Saúde;meu.bolso;true
+09/09/2023;Passagem metrô;-417,11;Metro/Ônibus;Caixa;true
+22/04/2025;Show ao vivo;-275,80;Lazer;Caixa;true
+14/03/2024;Consulta médica;-179,99;Saúde;Banco do Brasil;true
+18/05/2023;Curso online;-474,76;Educação;XP;true
+12/11/2024;Doação ONG;-263,28;Outros;Itau;true
+13/03/2024;Internet mensal;-390,47;Serviços;Caixa;true
+10/11/2023;Roupa nova;-180,20;Pessoal;XP;true
+28/04/2023;Manutenção celular;-402,13;Serviços;XP;true
+24/10/2024;Cinema;-241,52;Lazer;Itau;true
+15/02/2023;Cinema;-357,05;Lazer;XP;true
+03/01/2025;Show ao vivo;-256,00;Lazer;Banco do Brasil;true
+19/10/2023;Assinatura streaming;-109,39;Lazer;XP;true
+25/08/2024;Consulta médica;-411,31;Saúde;Caixa;true
+14/01/2024;Manutenção celular;-203,14;Serviços;Banco do Brasil;true
+31/05/2023;Uber casa-trabalho;-423,45;Transporte;Caixa;true
+16/08/2024;Internet mensal;-309,15;Serviços;Banco do Brasil;true
+19/04/2023;Assinatura streaming;-60,37;Lazer;meu.bolso;true
+05/06/2025;Corte de cabelo;-350,69;Pessoal;Itau;true
+27/10/2023;Compras do mês;-276,56;Supermercado;meu.bolso;true
+01/02/2024;Estacionamento;-86,28;Transporte;Caixa;true
+05/08/2023;Corte de cabelo;-129,25;Pessoal;XP;true
+02/05/2025;Estacionamento;-151,70;Transporte;Itau;true
+21/10/2024;Farmácia antialérgico;-110,60;Saúde;Itau;true
+02/10/2023;Show ao vivo;-456,24;Lazer;Caixa;true
+15/06/2024;Curso online;-66,50;Educação;XP;true
+28/08/2024;Academia;-282,74;Pessoal;XP;true
+09/06/2023;Lanche rápido;-458,13;Alimentação;Banco do Brasil;true
+15/01/2024;Curso online;-494,08;Educação;Banco do Brasil;true
+20/04/2023;Conta de luz;-217,15;Serviços;meu.bolso;true
+27/07/2024;Estacionamento;-440,70;Transporte;meu.bolso;true
+28/02/2025;Roupa nova;-83,73;Pessoal;XP;true
+09/09/2024;Taxi aeroporto;-424,43;Transporte;Banco do Brasil;true
+25/06/2025;Livro técnico;-201,74;Educação;Itau;true
+29/04/2024;Consulta médica;-216,31;Saúde;Caixa;true
+26/06/2023;Farmácia antialérgico;-452,07;Saúde;XP;true
+14/01/2024;Consulta médica;-299,08;Saúde;Caixa;true
+29/11/2023;Farmácia antialérgico;-150,28;Saúde;meu.bolso;true
+12/12/2023;Internet mensal;-470,82;Serviços;Banco do Brasil;true
+14/11/2023;Academia;-252,34;Pessoal;Itau;true
+24/08/2024;Multa trânsito;-180,10;Outros;Caixa;true
+26/09/2023;Doação ONG;-418,71;Outros;meu.bolso;true
+03/08/2024;Farmácia antialérgico;-268,98;Saúde;meu.bolso;true
+26/03/2024;Livro técnico;-332,34;Educação;Caixa;true
+04/07/2023;Ônibus trabalho;-145,97;Metro/Ônibus;meu.bolso;true
+01/12/2024;Manutenção celular;-84,78;Serviços;Itau;true
+02/12/2024;Bilhete único;-128,56;Metro/Ônibus;Caixa;true
+11/06/2023;Feira orgânica;-244,27;Supermercado;Itau;true
+25/06/2023;Conta de luz;-135,37;Serviços;Banco do Brasil;true
+30/12/2023;Uber casa-trabalho;-101,76;Transporte;Banco do Brasil;true
+15/03/2025;Multa trânsito;-127,86;Outros;XP;true
+27/05/2025;Internet mensal;-233,11;Serviços;meu.bolso;true
+05/02/2024;Doação ONG;-301,68;Outros;meu.bolso;true
+08/10/2023;Padaria café da manhã;-79,68;Alimentação;meu.bolso;true
+30/10/2023;Bilhete único;-392,36;Metro/Ônibus;XP;true
+28/01/2025;Material escolar;-372,52;Educação;Itau;true
+03/12/2024;Almoço trabalho;-392,83;Alimentação;meu.bolso;true
+12/10/2024;Compras do mês;-80,59;Supermercado;XP;true
+04/03/2024;Almoço trabalho;-67,36;Alimentação;Caixa;true
+10/10/2023;Livro técnico;-186,10;Educação;Itau;true
+08/08/2023;Internet mensal;-155,57;Serviços;Banco do Brasil;true
+10/05/2025;Feira orgânica;-291,13;Supermercado;XP;true
+10/09/2024;Consulta médica;-71,25;Saúde;Itau;true
+06/09/2023;Ônibus trabalho;-188,89;Metro/Ônibus;Banco do Brasil;true
+08/06/2025;Almoço trabalho;-432,16;Alimentação;meu.bolso;true
+21/01/2023;Restaurante jantar;-57,53;Alimentação;meu.bolso;true
+21/06/2025;Gasto supermercado;-374,90;Supermercado;Banco do Brasil;true
+26/02/2024;Passagem metrô;-443,32;Metro/Ônibus;XP;true
+20/07/2023;Uber casa-trabalho;-182,52;Transporte;Caixa;true
+19/08/2023;Assinatura streaming;-53,92;Lazer;Banco do Brasil;true
+28/11/2023;Farmácia antialérgico;-83,78;Saúde;XP;true
+14/12/2024;Farmácia antialérgico;-252,23;Saúde;meu.bolso;true
+25/09/2023;Almoço trabalho;-228,50;Alimentação;Itau;true
+09/05/2024;Corte de cabelo;-290,62;Pessoal;Itau;true
+01/06/2023;Curso online;-395,47;Educação;Itau;true
+09/06/2023;Cinema;-241,56;Lazer;XP;true
+31/05/2025;Padaria café da manhã;-355,28;Alimentação;meu.bolso;true
+20/05/2025;Consulta médica;-176,79;Saúde;XP;true
+11/06/2023;Farmácia antialérgico;-80,15;Saúde;meu.bolso;true
+18/07/2024;Compras do mês;-370,79;Supermercado;meu.bolso;true
+07/10/2023;Doação ONG;-296,23;Outros;Itau;true
+31/12/2023;Almoço trabalho;-96,13;Alimentação;meu.bolso;true
+05/10/2023;Compra farmácia;-182,56;Saúde;Itau;true
+07/04/2023;Manutenção bicicleta;-213,42;Outros;XP;true
+06/03/2024;Estacionamento;-178,43;Transporte;XP;true
+30/10/2023;Assinatura streaming;-236,16;Lazer;Itau;true
+28/08/2023;Feira orgânica;-191,93;Supermercado;Banco do Brasil;true
+24/05/2023;Lanche rápido;-80,23;Alimentação;Caixa;true
+27/11/2024;Doação ONG;-431,54;Outros;Banco do Brasil;true
+05/08/2024;Livro técnico;-226,78;Educação;XP;true
+07/02/2024;Compra farmácia;-96,62;Saúde;Caixa;true
+20/09/2024;Corte de cabelo;-283,60;Pessoal;Banco do Brasil;true
+13/10/2023;Corte de cabelo;-283,48;Pessoal;Caixa;true
+21/08/2023;Uber casa-trabalho;-492,73;Transporte;Banco do Brasil;true
+23/04/2024;Bilhete único;-290,99;Metro/Ônibus;Caixa;true
+25/01/2023;Doação ONG;-163,37;Outros;meu.bolso;true
+25/09/2023;Cinema;-133,29;Lazer;Itau;true
+27/06/2023;Manutenção celular;-456,80;Serviços;XP;true
+15/06/2024;Conta de luz;-354,39;Serviços;Itau;true
+11/05/2024;Academia;-207,71;Pessoal;XP;true
+20/10/2024;Show ao vivo;-452,80;Lazer;Caixa;true
+21/05/2025;Curso online;-427,83;Educação;meu.bolso;true
+23/07/2024;Show ao vivo;-308,14;Lazer;meu.bolso;true
+20/11/2024;Compra farmácia;-187,90;Saúde;Banco do Brasil;true
+23/12/2024;Conta de luz;-235,55;Serviços;Itau;true
+22/03/2025;Doação ONG;-439,39;Outros;meu.bolso;true
+15/03/2025;Almoço trabalho;-479,76;Alimentação;meu.bolso;true
+25/10/2023;Multa trânsito;-273,13;Outros;meu.bolso;true
+11/10/2024;Passagem metrô;-155,06;Metro/Ônibus;Banco do Brasil;true
+27/01/2024;Assinatura streaming;-360,62;Lazer;Banco do Brasil;true
+23/06/2023;Material escolar;-492,26;Educação;Itau;true
+16/07/2024;Almoço trabalho;-384,40;Alimentação;meu.bolso;true
+12/12/2024;Farmácia antialérgico;-489,71;Saúde;Banco do Brasil;true
+01/02/2025;Academia;-474,95;Pessoal;Caixa;true
+12/06/2023;Livro técnico;-191,48;Educação;XP;true
+30/10/2023;Livro técnico;-443,08;Educação;XP;true
+28/09/2024;Bilhete único;-98,20;Metro/Ônibus;Itau;true
+01/03/2024;Passagem metrô;-329,09;Metro/Ônibus;Banco do Brasil;true
+29/01/2024;Padaria café da manhã;-257,18;Alimentação;Itau;true
+12/11/2023;Almoço trabalho;-485,20;Alimentação;meu.bolso;true
+20/02/2024;Internet mensal;-178,56;Serviços;XP;true
+25/09/2024;Gasto supermercado;-285,99;Supermercado;Caixa;true
+19/02/2025;Conta de luz;-357,29;Serviços;Caixa;true
+13/05/2024;Gasto supermercado;-406,35;Supermercado;Caixa;true
+10/04/2024;Academia;-489,69;Pessoal;meu.bolso;true
+09/05/2024;Lanche rápido;-263,57;Alimentação;Itau;true
+12/02/2024;Consulta médica;-171,23;Saúde;Caixa;true
+15/07/2023;Curso online;-250,11;Educação;Itau;true
+01/07/2024;Assinatura streaming;-429,08;Lazer;Banco do Brasil;true
+16/03/2025;Consulta médica;-77,90;Saúde;meu.bolso;true
+09/09/2024;Padaria café da manhã;-252,96;Alimentação;Itau;true
+05/11/2023;Taxi aeroporto;-304,65;Transporte;Banco do Brasil;true
+23/08/2024;Curso online;-113,83;Educação;Itau;true
+29/01/2023;Doação ONG;-87,59;Outros;Banco do Brasil;true
+28/02/2024;Ônibus trabalho;-376,11;Metro/Ônibus;Itau;true
+04/03/2024;Corte de cabelo;-347,71;Pessoal;Itau;true
+23/12/2023;Consulta médica;-198,52;Saúde;Banco do Brasil;true

@@ -88,6 +88,7 @@ func main() {
 		fmt.Println("Modo: Importação de CSVs para o banco de dados.")
 		csvFiles := []string{
 			// Adicione aqui os caminhos corretos para os seus arquivos CSV de importação
+			// "csv/example.csv"
 			"csv/Extrato_20130101_20131231.csv",
 			"csv/Extrato_20140101_20141231.csv",
 			"csv/Extrato_20150101_20151231.csv",
