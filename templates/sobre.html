@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Titulo }}</title>
+    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container rounded-xl">
+        <div class="header">
+            <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
+            <h1 class="header-title text-gray-900">Minhas Economias</h1>
+            <div class="flex items-center gap-3">
+                <a href="/" class="api-link rounded-lg">Saldos</a>
+                <a href="/transacoes" class="api-link rounded-lg">Transações</a>
+                <a href="/relatorio" class="api-link rounded-lg">Relatório</a>
+                <a href="/sobre" class="api-link rounded-lg" style="background-color: #64748b; cursor: default; box-shadow: none;">Sobre</a>
+                <a href="/api/movimentacoes" class="api-link rounded-lg" style="background-color: #1e40af;">API</a>
+            </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-xl shadow-md space-y-8">
+            
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">Sobre o Projeto</h2>
+                <p class="text-gray-600 leading-relaxed">
+                    Este projeto é um sistema de controle financeiro pessoal, centralizado e privado, que permite ao usuário ter total controle sobre seus dados. Suas principais características são:
+                </p>
+                <ul class="list-disc list-inside text-gray-600 mt-4 space-y-2">
+                    <li><b>Centralização de Dados:</b> Permite unificar o histórico de transações de diversas fontes, através da importação de arquivos e do lançamento manual.</li>
+                    <li><b>Visão Rápida e Clara:</b> Oferece um dashboard moderno que exibe de forma destacada o saldo atual de cada conta.</li>
+                    <li><b>Gerenciamento Detalhado:</b> Disponibiliza uma área de trabalho completa para visualizar, filtrar, e gerenciar todas as movimentações financeiras.</li>
+                    <li><b>Análise e Relatórios:</b> Gera relatórios visuais que ajudam a entender os padrões de gastos, com opção de exportar para PDF.</li>
+                </ul>
+                 <a href="{{ .ProjectURL }}" target="_blank" class="inline-block mt-4 text-sm font-semibold text-blue-600 hover:text-blue-800">
+                    Ver o projeto no GitHub &rarr;
+                </a>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">Autor</h2>
+                <ul class="text-gray-600 space-y-2">
+                    <li><b>Nome:</b> {{ .AuthorName }}</li>
+                    <li><b>Email:</b> {{ .AuthorEmail }}</li>
+                    <li><b>LinkedIn:</b> <a href="{{ .LinkedInURL }}" target="_blank" class="text-blue-600 hover:underline">Ver Perfil</a></li>
+                    <li><b>GitHub:</b> <a href="{{ .GitHubURL }}" target="_blank" class="text-blue-600 hover:underline">Ver Perfil</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">Tecnologias Utilizadas</h2>
+                <div class="flex flex-wrap gap-2">
+                    <span class="bg-blue-100 text-blue-800 text-sm font-medium me-2 px-2.5 py-0.5 rounded">Go</span>
+                    <span class="bg-cyan-100 text-cyan-800 text-sm font-medium me-2 px-2.5 py-0.5 rounded">Gin Framework</span>
+                    <span class="bg-green-100 text-green-800 text-sm font-medium me-2 px-2.5 py-0.5 rounded">SQLite</span>
+                    <span class="bg-sky-100 text-sky-800 text-sm font-medium me-2 px-2.5 py-0.5 rounded">Tailwind CSS</span>
+                    <span class="bg-indigo-100 text-indigo-800 text-sm font-medium me-2 px-2.5 py-0.5 rounded">HTML5</span>
+                    <span class="bg-gray-100 text-gray-800 text-sm font-medium me-2 px-2.5 py-0.5 rounded">Ansible</span>
+                </div>
+            </div>
+
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4">Licença</h2>
+                <p class="text-gray-600 leading-relaxed">
+                    Este projeto é distribuído sob a Licença MIT.
+                </p>
+                <div class="mt-4 p-4 bg-gray-50 border rounded-lg text-xs text-gray-500 max-h-32 overflow-y-auto custom-scrollbar">
+                    <p>Copyright (c) 2024 {{ .AuthorName }}</p>
+                    <p class="mt-2">Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions...</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
