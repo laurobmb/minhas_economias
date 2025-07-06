@@ -33,3 +33,6 @@ xls/Extrato_20250101_20250630.xls
 xls/Extrato_20250101_20251231.xls
 .~lock.*
 popular_saldos.sh
+.ansible/
+.vscode/
+
