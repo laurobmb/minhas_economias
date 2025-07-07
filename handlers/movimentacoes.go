@@ -15,7 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"minhas_economias/database"
 	"minhas_economias/models"
-	"minhas_economias/pdfgenerator" // A importação é usada na função DownloadRelatorioPDF
+	"minhas_economias/pdfgenerator"
 )
 
 // GetIndexPage renderiza a página inicial apenas com os saldos.
@@ -33,7 +33,6 @@ func GetIndexPage(c *gin.Context) {
 }
 
 // GetTransacoesPage busca os registros de movimentacoes e renderiza a página de transações.
-// Também serve a rota da API.
 func GetTransacoesPage(c *gin.Context) {
 	db := database.GetDB()
 
@@ -101,7 +100,7 @@ func GetTransacoesPage(c *gin.Context) {
 	if len(whereClauses) > 0 {
 		query += " WHERE " + strings.Join(whereClauses, " AND ")
 	}
-	query += " ORDER BY data_ocorrencia DESC"
+	query += " ORDER BY data_ocorrencia DESC, id DESC"
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
@@ -385,6 +384,7 @@ func DeleteMovimentacao(c *gin.Context) {
 
 // GetRelatorio renderiza a página de relatório
 func GetRelatorio(c *gin.Context) {
+	db := database.GetDB()
 	searchDescricao := c.Query("search_descricao")
 	selectedCategories := c.QueryArray("category")
 	selectedStartDate := c.Query("start_date")
@@ -406,7 +406,6 @@ func GetRelatorio(c *gin.Context) {
 		return
 	}
 
-	db := database.GetDB()
 	categoryRows, _ := db.Query(fmt.Sprintf("SELECT DISTINCT categoria FROM %s ORDER BY categoria ASC", database.TableName))
 	var categories []string
 	if categoryRows != nil {
