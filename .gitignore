@@ -1,3 +1,57 @@
+# ========================
+# Arquivos do Go
+# ========================
+# Binário compilado da aplicação (o nome pode variar)
+minhas_economias
+minhas_economias.exe
+
+# Banco de dados local do SQLite
+# NUNCA envie o banco de dados para o repositório!
+*.db
+
+# ========================
+# Arquivos de Ambiente
+# ========================
+# Arquivos de variáveis de ambiente que contêm senhas ou chaves de API
+.env
+*.env
+
+# ========================
+# Node.js / Playwright
+# ========================
+# Diretório de dependências do Node.js (pode ser GIGANTE)
+/node_modules/
+
+# Logs e saídas do NPM
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Resultados dos testes do Playwright
+/test-results/
+
+# Relatório HTML gerado pelo Playwright
+/playwright-report/
+
+# Cache do Playwright
+/playwright/.cache/
+
+
+# ========================
+# Configurações de IDEs e SO
+# ========================
+# Visual Studio Code
+.vscode/
+
+# JetBrains (GoLand, etc)
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
 csv/Extrato_20130101_20131231.csv
 csv/Extrato_20140101_20141231.csv
 csv/Extrato_20150101_20151231.csv
@@ -35,4 +89,14 @@ xls/Extrato_20250101_20251231.xls
 popular_saldos.sh
 .ansible/
 .vscode/
+copy_code.sh
+comandos.md
 
+# Playwright
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+tests/venv/

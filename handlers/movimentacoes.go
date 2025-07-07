@@ -15,19 +15,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"minhas_economias/database"
 	"minhas_economias/models"
-	"minhas_economias/pdfgenerator"
+	"minhas_economias/pdfgenerator" // A importação é usada na função DownloadRelatorioPDF
 )
 
 // GetIndexPage renderiza a página inicial apenas com os saldos.
 func GetIndexPage(c *gin.Context) {
 	saldosContas, err := calculateAccountBalances()
 	if err != nil {
-		log.Printf("ERRO ao calcular saldos para a página inicial: %v", err)
-		c.HTML(http.StatusOK, "index.html", gin.H{
-			"Titulo":       "Minhas Economias - Saldos",
-			"SaldosContas": nil,
-			"Error":        "Não foi possível carregar os saldos.",
-		})
+		renderErrorPage(c, http.StatusInternalServerError, "Não foi possível carregar os saldos das contas.", err)
 		return
 	}
 
@@ -110,7 +105,7 @@ func GetTransacoesPage(c *gin.Context) {
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao buscar movimentações: %v", err)})
+		renderErrorPage(c, http.StatusInternalServerError, "Erro ao buscar movimentações no banco de dados.", err)
 		return
 	}
 	defer rows.Close()
@@ -134,11 +129,10 @@ func GetTransacoesPage(c *gin.Context) {
 	}
 
 	if err = rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro na iteração das linhas de movimentação: %v", err)})
+		renderErrorPage(c, http.StatusInternalServerError, "Erro durante a leitura das movimentações.", err)
 		return
 	}
 
-	// Lógica para endpoint de API
 	if c.Request.URL.Path == "/api/movimentacoes" {
 		c.JSON(http.StatusOK, gin.H{
 			"movimentacoes": movimentacoes,
@@ -149,8 +143,7 @@ func GetTransacoesPage(c *gin.Context) {
 		return
 	}
 
-	// Busca dados para os filtros da página de transações
-	categoryRows, _ := db.Query(fmt.Sprintf("SELECT DISTINCT categoria FROM %s ORDER BY categoria ASC", database.TableName))
+	categoryRows, _ := db.Query(fmt.Sprintf("SELECT DISTINCT categoria FROM %s WHERE categoria <> '' ORDER BY categoria ASC", database.TableName))
 	var categories []string
 	if categoryRows != nil {
 		defer categoryRows.Close()
@@ -162,7 +155,7 @@ func GetTransacoesPage(c *gin.Context) {
 		}
 	}
 
-	accountRows, _ := db.Query(fmt.Sprintf("SELECT DISTINCT conta FROM %s ORDER BY conta ASC", database.TableName))
+	accountRows, _ := db.Query(fmt.Sprintf("SELECT DISTINCT conta FROM %s WHERE conta <> '' ORDER BY conta ASC", database.TableName))
 	var accounts []string
 	if accountRows != nil {
 		defer accountRows.Close()
@@ -258,17 +251,15 @@ func AddMovimentacao(c *gin.Context) {
 	conta := c.PostForm("conta")
 	consolidadoStr := c.PostForm("consolidado")
 
-	// --- VALIDAÇÕES ADICIONADAS ---
 	if len(descricao) > 60 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "A descrição não pode ter mais de 60 caracteres."})
+		renderErrorPage(c, http.StatusBadRequest, "A descrição não pode ter mais de 60 caracteres.", nil)
 		return
 	}
-
 	if strings.TrimSpace(categoria) == "" {
 		categoria = "Sem Categoria"
 	}
 	if strings.TrimSpace(conta) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "O campo 'Conta' é obrigatório."})
+		renderErrorPage(c, http.StatusBadRequest, "O campo 'Conta' é obrigatório.", nil)
 		return
 	}
 	var valor float64
@@ -278,35 +269,33 @@ func AddMovimentacao(c *gin.Context) {
 		valorParseable := strings.Replace(valorStr, ",", ".", -1)
 		isValid, _ := regexp.MatchString(`^-?\d+(\.\d{1,2})?$`, valorParseable)
 		if !isValid {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido. Use um formato como 1234.56 ou -123.45."})
+			renderErrorPage(c, http.StatusBadRequest, "Valor inválido. Use um formato como 1234.56 ou -123.45.", nil)
 			return
 		}
-
 		parsedValor, err := strconv.ParseFloat(valorParseable, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido: formato numérico incorreto."})
+			renderErrorPage(c, http.StatusBadRequest, "Valor inválido: formato numérico incorreto.", err)
 			return
 		}
-
 		if math.Abs(parsedValor) >= 100000000 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "O valor excede o limite máximo permitido."})
+			renderErrorPage(c, http.StatusBadRequest, "O valor excede o limite máximo permitido (100 milhões).", nil)
 			return
 		}
 		valor = parsedValor
 	}
-	// --- FIM DAS VALIDAÇÕES ---
 
 	consolidado := (consolidadoStr == "on")
 	stmt, err := db.Prepare(fmt.Sprintf(
 		`INSERT INTO %s (data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES (?, ?, ?, ?, ?, ?)`, database.TableName))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno do servidor."})
+		renderErrorPage(c, http.StatusInternalServerError, "Erro ao preparar a inserção no banco de dados.", err)
 		return
 	}
 	defer stmt.Close()
+
 	_, err = stmt.Exec(dataOcorrencia, descricao, valor, categoria, conta, consolidado)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao inserir dados: " + err.Error()})
+		renderErrorPage(c, http.StatusInternalServerError, "Erro ao inserir os dados no banco de dados.", err)
 		return
 	}
 	c.Redirect(http.StatusFound, "/transacoes")
@@ -317,9 +306,10 @@ func UpdateMovimentacao(c *gin.Context) {
 	db := database.GetDB()
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido."})
+		renderErrorPage(c, http.StatusBadRequest, "O ID da transação é inválido.", err)
 		return
 	}
+
 	dataOcorrencia := c.PostForm("data_ocorrencia")
 	descricao := c.PostForm("descricao")
 	valorStr := c.PostForm("valor")
@@ -327,17 +317,15 @@ func UpdateMovimentacao(c *gin.Context) {
 	conta := c.PostForm("conta")
 	consolidadoStr := c.PostForm("consolidado")
 
-	// --- VALIDAÇÕES ADICIONADAS ---
 	if len(descricao) > 60 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "A descrição não pode ter mais de 60 caracteres."})
+		renderErrorPage(c, http.StatusBadRequest, "A descrição não pode ter mais de 60 caracteres.", nil)
 		return
 	}
-
 	if strings.TrimSpace(categoria) == "" {
 		categoria = "Sem Categoria"
 	}
 	if strings.TrimSpace(conta) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "O campo 'Conta' é obrigatório."})
+		renderErrorPage(c, http.StatusBadRequest, "O campo 'Conta' é obrigatório.", nil)
 		return
 	}
 	var valor float64
@@ -347,42 +335,39 @@ func UpdateMovimentacao(c *gin.Context) {
 		valorParseable := strings.Replace(valorStr, ",", ".", -1)
 		isValid, _ := regexp.MatchString(`^-?\d+(\.\d{1,2})?$`, valorParseable)
 		if !isValid {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido. Use um formato como 1234.56 ou -123.45."})
+			renderErrorPage(c, http.StatusBadRequest, "Valor inválido. Use um formato como 1234.56 ou -123.45.", nil)
 			return
 		}
-
 		parsedValor, err := strconv.ParseFloat(valorParseable, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Valor inválido: formato numérico incorreto."})
+			renderErrorPage(c, http.StatusBadRequest, "Valor inválido: formato numérico incorreto.", err)
 			return
 		}
-
 		if math.Abs(parsedValor) >= 100000000 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "O valor excede o limite máximo permitido."})
+			renderErrorPage(c, http.StatusBadRequest, "O valor excede o limite máximo permitido (100 milhões).", nil)
 			return
 		}
 		valor = parsedValor
 	}
-	// --- FIM DAS VALIDAÇÕES ---
 
 	consolidado := (consolidadoStr == "on")
 	stmt, err := db.Prepare(fmt.Sprintf(
 		`UPDATE %s SET data_ocorrencia = ?, descricao = ?, valor = ?, categoria = ?, conta = ?, consolidado = ? WHERE id = ?`, database.TableName))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno do servidor."})
+		renderErrorPage(c, http.StatusInternalServerError, "Erro ao preparar a atualização no banco de dados.", err)
 		return
 	}
 	defer stmt.Close()
+
 	_, err = stmt.Exec(dataOcorrencia, descricao, valor, categoria, conta, consolidado, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao atualizar dados: " + err.Error()})
+		renderErrorPage(c, http.StatusInternalServerError, "Erro ao atualizar os dados no banco de dados.", err)
 		return
 	}
 	c.Redirect(http.StatusFound, "/transacoes")
 }
 
-
-// DeleteMovimentacao deleta uma transação
+// DeleteMovimentacao é um endpoint de API e mantém a resposta JSON.
 func DeleteMovimentacao(c *gin.Context) {
 	db := database.GetDB()
 	id, err := strconv.Atoi(c.Param("id"))
@@ -417,7 +402,7 @@ func GetRelatorio(c *gin.Context) {
 
 	relatorioData, err := fetchReportData(selectedStartDate, selectedEndDate, selectedCategories, selectedAccounts, selectedConsolidado, searchDescricao)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Erro ao buscar dados para relatório: %v", err)})
+		renderErrorPage(c, http.StatusInternalServerError, "Erro ao buscar dados para o relatório.", err)
 		return
 	}
 
@@ -461,7 +446,7 @@ func GetRelatorio(c *gin.Context) {
 	})
 }
 
-// GetTransactionsByCategory busca transações para o gráfico de relatório
+// GetTransactionsByCategory é um endpoint de API e mantém a resposta JSON.
 func GetTransactionsByCategory(c *gin.Context) {
 	db := database.GetDB()
 	category := c.Query("category")
@@ -542,7 +527,7 @@ func GetTransactionsByCategory(c *gin.Context) {
 	c.JSON(http.StatusOK, transactions)
 }
 
-// DownloadRelatorioPDF gera o relatório em PDF
+// DownloadRelatorioPDF é um endpoint de API e mantém a resposta JSON para erros.
 func DownloadRelatorioPDF(c *gin.Context) {
 	var payload models.PDFRequestPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {

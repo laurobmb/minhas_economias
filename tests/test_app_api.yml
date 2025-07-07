@@ -6,7 +6,7 @@
 
   vars:
     base_url: "http://localhost:8080"
-    db_path: "{{ playbook_dir }}/../extratos.db"
+    db_path: "{{ playbook_dir }}/../extratos.db" # Assumindo que o playbook está em um subdiretório (ex: 'ansible')
     test_descricao: "Transação de Teste via Ansible"
     test_descricao_atualizada: "Transação Ansible ATUALIZADA"
 
@@ -86,7 +86,7 @@
             method: DELETE
             return_content: true
           register: r_delete
-        - name: Assert - Deleção (CRUD) foi bem-sucedida
+        - name: Assert - Deleção (CRUD) foi bem-sucedida (resposta JSON)
           ansible.builtin.assert: { that: "r_delete.status == 200 and 'Movimentação deletada com sucesso!' in r_delete.json.message" }
 
     - name: 4. Testar validações de erro
@@ -101,7 +101,11 @@
             status_code: 400
           register: r_fail_add
         - name: Assert - Recebe erro 400 (Bad Request)
-          ansible.builtin.assert: { that: "r_fail_add.status == 400 and 'O campo \\'Conta\\' é obrigatório.' in r_fail_add.json.error" }
+          ansible.builtin.assert:
+            that:
+              - r_fail_add.status == 400
+              # CORREÇÃO: Verifica o HTML 'content' e usa a entidade &#39; para a aspa simples.
+              - "'O campo &#39;Conta&#39; é obrigatório.' in r_fail_add.content"
 
     - name: 5. Testar funcionalidades do Relatório (autossuficiente)
       block:
@@ -121,7 +125,7 @@
           ansible.builtin.set_fact:
             relatorio_item_id: "{{ r_get_id_relatorio.stdout }}"
 
-        - name: TESTAR - API de transações por categoria
+        - name: TESTAR - API de transações por categoria (resposta JSON)
           ansible.builtin.uri:
             url: "{{ base_url }}/relatorio/transactions?category=Categoria+Relatorio&start_date=2025-02-01&end_date=2025-02-28"
             method: GET
@@ -158,7 +162,6 @@
       ansible.builtin.assert:
         that:
           - r_pdf.status == 200
-          # CORREÇÃO FINAL: Acessando as chaves corretas (minúsculas e com underscore)
           - "'application/pdf' in r_pdf.content_type"
           - "'attachment; filename=\"relatorio_financeiro.pdf\"' in r_pdf.content_disposition"
 
@@ -182,7 +185,8 @@
           ansible.builtin.assert:
             that:
               - r_fail_desc.status == 400
-              - "'A descrição não pode ter mais de 60 caracteres.' in r_fail_desc.json.error"
+              # CORREÇÃO: Verificando o 'content' em vez de 'json.error'
+              - "'A descrição não pode ter mais de 60 caracteres.' in r_fail_desc.content"
 
         - name: Tentar adicionar com VALOR em formato inválido (texto)
           ansible.builtin.uri:
@@ -202,7 +206,8 @@
           ansible.builtin.assert:
             that:
               - r_fail_valor_formato.status == 400
-              - "'Valor inválido. Use um formato como 1234.56 ou -123.45.' in r_fail_valor_formato.json.error"
+              # CORREÇÃO: Verificando o 'content' em vez de 'json.error'
+              - "'Valor inválido. Use um formato como 1234.56 ou -123.45.' in r_fail_valor_formato.content"
 
         - name: Tentar adicionar com VALOR com casas decimais a mais
           ansible.builtin.uri:
@@ -222,7 +227,8 @@
           ansible.builtin.assert:
             that:
               - r_fail_valor_decimais.status == 400
-              - "'Valor inválido. Use um formato como 1234.56 ou -123.45.' in r_fail_valor_decimais.json.error"
+              # CORREÇÃO: Verificando o 'content' em vez de 'json.error'
+              - "'Valor inválido. Use um formato como 1234.56 ou -123.45.' in r_fail_valor_decimais.content"
 
         - name: Tentar adicionar com VALOR muito alto (acima do limite)
           ansible.builtin.uri:
@@ -242,5 +248,5 @@
           ansible.builtin.assert:
             that:
               - r_fail_valor_limite.status == 400
-              - "'O valor excede o limite máximo permitido.' in r_fail_valor_limite.json.error"
-...
+              # CORREÇÃO: Verificando o 'content' em vez de 'json.error'
+              - "'O valor excede o limite máximo permitido' in r_fail_valor_limite.content"
