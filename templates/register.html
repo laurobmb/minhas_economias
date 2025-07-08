@@ -1,0 +1,48 @@
+{{define "register.html"}}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Titulo }} - Minhas Economias</title>
+    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .auth-container { max-width: 420px; margin: 50px auto; }
+        .auth-form { display: flex; flex-direction: column; gap: 20px; }
+        .auth-input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+        .auth-button { padding: 12px; background-color: #22c55e; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background-color 0.2s;}
+        .auth-button:hover { background-color: #16a34a; }
+        .flash-error { padding: 12px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 8px; text-align: center; }
+    </style>
+</head>
+<body>
+<div class="container auth-container rounded-xl">
+    <div class="flex flex-col items-center mb-6">
+        <img src="/static/minhaseconomias.png" alt="Logo" class="header-logo mb-2">
+        <h1 class="header-title text-gray-900" style="font-size: 2rem;">Criar Conta</h1>
+    </div>
+
+    {{ if .Error }}
+    <div class="flash-error mb-4">{{ .Error }}</div>
+    {{ end }}
+
+    <form action="/register" method="POST" class="auth-form">
+        <div>
+            <label for="email" class="label">E-mail</label>
+            <input type="email" name="email" id="email" class="auth-input w-full" required>
+        </div>
+        <div>
+            <label for="password" class="label">Senha (mínimo 6 caracteres)</label>
+            <input type="password" name="password" id="password" class="auth-input w-full" required minlength="6">
+        </div>
+        <button type="submit" class="auth-button">Registrar</button>
+    </form>
+    <p class="text-center mt-6 text-sm text-slate-600">
+        Já tem uma conta? <a href="/login" class="font-semibold text-blue-600 hover:underline">Faça o login</a>
+    </p>
+</div>
+</body>
+</html>
+{{end}}

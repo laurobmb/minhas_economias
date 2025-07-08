@@ -1,56 +1,24 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .Titulo }}</title>
-    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <div class="container rounded-xl">
-        <div class="header">
-            <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
-            <h1 class="header-title text-gray-900">Minhas Economias</h1>
-            <div class="flex items-center gap-3">
-                <a href="/" class="api-link rounded-lg" style="background-color: #64748b; cursor: default; box-shadow: none;">Saldos</a>
-                <a href="/transacoes" class="api-link rounded-lg">Transações</a>
-                <a href="/relatorio" class="api-link rounded-lg">Relatório</a>
-                <a href="/sobre" class="api-link rounded-lg">Sobre</a>
-                <a href="/api/movimentacoes" class="api-link rounded-lg" style="background-color: #1e40af;">API</a>
-            </div>
-        </div>
-
-        {{ if .SaldosContas }}
-        <div class="p-2">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">Painel de Saldos</h2>
-            
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {{ range .SaldosContas }}
-                <div class="flex flex-col justify-between rounded-xl shadow-lg p-5 bg-slate-50 border-l-4 {{ if lt .SaldoAtual 0.0 }}border-red-500{{ else }}border-green-500{{ end }} transition-transform transform hover:-translate-y-1">
-                    <div>
-                        <p class="text-lg font-bold text-slate-700 truncate" title="{{ .Nome }}">{{ .Nome }}</p>
-                        <p class="text-3xl font-extrabold mt-2 {{ if lt .SaldoAtual 0.0 }}text-red-600{{ else }}text-gray-800{{ end }}">
-                            R$ {{ printf "%.2f" .SaldoAtual }}
-                        </p>
-                    </div>
-                    <a href="/transacoes?account={{ .URLEncodedNome }}" class="mt-4 text-center text-sm font-semibold text-blue-600 hover:text-blue-800">
-                        Ver Transações &rarr;
-                    </a>
+{{define "content"}}
+    {{ if .SaldosContas }}
+    <div class="p-2">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">Painel de Saldos</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {{ range .SaldosContas }}
+            <div class="flex flex-col justify-between rounded-xl shadow-lg p-5 bg-slate-50 border-l-4 {{ if lt .SaldoAtual 0.0 }}border-red-500{{ else }}border-green-500{{ end }} transition-transform transform hover:-translate-y-1">
+                <div>
+                    <p class="text-lg font-bold text-slate-700 truncate" title="{{ .Nome }}">{{ .Nome }}</p>
+                    <p class="text-3xl font-extrabold mt-2 {{ if lt .SaldoAtual 0.0 }}text-red-600{{ else }}text-gray-800{{ end }}">
+                        R$ {{ printf "%.2f" .SaldoAtual }}
+                    </p>
                 </div>
-                {{ end }}
+                <a href="/transacoes?account={{ .URLEncodedNome }}" class="mt-4 text-center text-sm font-semibold text-blue-600 hover:text-blue-800">
+                    Ver Transações &rarr;
+                </a>
             </div>
+            {{ end }}
         </div>
-        {{ else }}
-            <p class="no-data">Nenhuma conta encontrada. Adicione transações e popule os saldos iniciais para começar.</p>
-        {{ end }}
-
-        {{ if .Error }}
-        <div class="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-center">
-            <strong>Erro:</strong> {{ .Error }}
-        </div>
-        {{ end }}
     </div>
-</body>
-</html>
+    {{ else }}
+        <p class="no-data">Nenhuma conta encontrada. Adicione transações para começar a ver seus saldos.</p>
+    {{ end }}
+{{end}}

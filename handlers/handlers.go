@@ -3,7 +3,7 @@ package handlers
 import (
 	"log"
 	"os"
-	"strings" // <-- IMPORT ADICIONADO
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +16,7 @@ func renderErrorPage(c *gin.Context, statusCode int, errorMessage string, origin
 		log.Printf("ERRO (Status %d) para %s: %s", statusCode, c.Request.RequestURI, errorMessage)
 	}
 
-	if strings.HasPrefix(c.Request.URL.Path, "/api/") || strings.Contains(c.GetHeader("Accept"), "application/json") {
+	if strings.Contains(c.GetHeader("Accept"), "application/json") {
 		c.JSON(statusCode, gin.H{"error": errorMessage})
 	} else {
 		c.HTML(statusCode, "error.html", gin.H{

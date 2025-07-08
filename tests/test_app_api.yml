@@ -50,24 +50,23 @@
 
     - name: 3. Testar o ciclo de vida de uma transação (CRUD)
       block:
-        - name: CRIAR - Adicionar uma nova movimentação (CRUD)
+        - name: CRIAR - Adicionar uma nova movimentação (e obter o ID)
           ansible.builtin.uri:
             url: "{{ base_url }}/movimentacoes"
             method: POST
+            headers:
+              Accept: "application/json"  # <-- IMPORTANTE: Pedir resposta JSON
             body_format: form-urlencoded
             body: { data_ocorrencia: "2025-07-20", descricao: "{{ test_descricao }}", valor: "-123.45", categoria: "Teste Ansible", conta: "Conta Teste Ansible" }
-            status_code: 302
+            status_code: 201 # <-- IMPORTANTE: Espera 201 Created
           register: r_add
-        - name: Assert - Criação (CRUD) redireciona corretamente
-          ansible.builtin.assert: { that: "r_add.location == '{{ base_url }}/transacoes'" }
 
-        - name: LER - Buscar o ID da última transação inserida (CRUD)
-          ansible.builtin.command: "sqlite3 {{ db_path }} 'SELECT id FROM movimentacoes ORDER BY id DESC LIMIT 1;'"
-          register: r_get_id_crud
-          changed_when: false
+        - name: Assert - Criação retornou o objeto JSON com um ID
+          ansible.builtin.assert: { that: "r_add.json.id is defined and r_add.json.id > 0" }
+
         - name: Setar o ID da nova transação (CRUD)
           ansible.builtin.set_fact:
-            crud_item_id: "{{ r_get_id_crud.stdout }}"
+            crud_item_id: "{{ r_add.json.id }}"
 
         - name: ATUALIZAR - Modificar a transação criada (CRUD)
           ansible.builtin.uri:
@@ -75,7 +74,7 @@
             method: POST
             body_format: form-urlencoded
             body: { data_ocorrencia: "2025-07-21", descricao: "{{ test_descricao_atualizada }}", valor: "-543.21", categoria: "Teste Ansible Editado", conta: "Conta Teste Ansible" }
-            status_code: 302
+            status_code: 302 # A atualização ainda redireciona, o que está OK.
           register: r_update
         - name: Assert - Atualização (CRUD) redireciona corretamente
           ansible.builtin.assert: { that: "r_update.location == '{{ base_url }}/transacoes'" }
@@ -89,6 +88,9 @@
         - name: Assert - Deleção (CRUD) foi bem-sucedida (resposta JSON)
           ansible.builtin.assert: { that: "r_delete.status == 200 and 'Movimentação deletada com sucesso!' in r_delete.json.message" }
 
+
+
+
     - name: 4. Testar validações de erro
       block:
         - name: Tentar adicionar transação sem a 'conta'
@@ -100,11 +102,17 @@
             return_content: true
             status_code: 400
           register: r_fail_add
+
+        # --- ADICIONE ESTA TAREFA DE DEBUG ABAIXO ---
+        - name: DEBUG - Mostrar o conteúdo exato da resposta de erro
+          ansible.builtin.debug:
+            var: r_fail_add.content
+        # --- FIM DA TAREFA DE DEBUG ---
+
         - name: Assert - Recebe erro 400 (Bad Request)
           ansible.builtin.assert:
             that:
               - r_fail_add.status == 400
-              # CORREÇÃO: Verifica o HTML 'content' e usa a entidade &#39; para a aspa simples.
               - "'O campo &#39;Conta&#39; é obrigatório.' in r_fail_add.content"
 
     - name: 5. Testar funcionalidades do Relatório (autossuficiente)
@@ -113,17 +121,16 @@
           ansible.builtin.uri:
             url: "{{ base_url }}/movimentacoes"
             method: POST
+            headers:
+              Accept: "application/json" # <-- Pedir JSON
             body_format: form-urlencoded
             body: { data_ocorrencia: "2025-02-15", descricao: "Despesa para Teste de Relatório", valor: "-99.99", categoria: "Categoria Relatorio", conta: "Conta Relatorio" }
-            status_code: 302
+            status_code: 201 # <-- Esperar 201
+          register: r_create_relatorio
 
-        - name: LER - Buscar o ID da despesa de teste
-          ansible.builtin.command: "sqlite3 {{ db_path }} 'SELECT id FROM movimentacoes ORDER BY id DESC LIMIT 1;'"
-          register: r_get_id_relatorio
-          changed_when: false
         - name: Setar o ID da transação de relatório
           ansible.builtin.set_fact:
-            relatorio_item_id: "{{ r_get_id_relatorio.stdout }}"
+            relatorio_item_id: "{{ r_create_relatorio.json.id }}"
 
         - name: TESTAR - API de transações por categoria (resposta JSON)
           ansible.builtin.uri:
@@ -136,15 +143,14 @@
           ansible.builtin.assert:
             that:
               - r_report_api.status == 200
-              - r_report_api.json is defined and r_report_api.json is not none
-              - (r_report_api.json | length) == 1
+              - r_report_api.json is defined and r_report_api.json | length == 1
               - (r_report_api.json | first).categoria == "Categoria Relatorio"
 
       always:
-        - name: LIMPEZA FINAL - Garantir que a despesa de teste do relatório seja deletada
-          ansible.builtin.command:
-            cmd: "sqlite3 {{ db_path }} \"DELETE FROM movimentacoes WHERE categoria = 'Categoria Relatorio';\""
-          changed_when: false
+        - name: LIMPEZA FINAL - Garantir que a despesa de teste seja deletada pela API
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes/{{ relatorio_item_id }}"
+            method: DELETE
           when: relatorio_item_id is defined
 
     - name: 6. Testar geração de PDF

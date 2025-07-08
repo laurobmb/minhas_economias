@@ -12,48 +12,63 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq" // Import do driver PostgreSQL
 	"minhas_economias/database"
 )
 
-// setupTestDB configura um banco de dados SQLite em memória para testes.
+// setupTestDB configura um banco de dados PostgreSQL para testes.
+// Limpa as tabelas antes de cada execução de teste.
 func setupTestDB(t *testing.T) {
-	_, err := database.InitDB(":memory:")
+	// A função InitDB agora lê das variáveis de ambiente.
+	// Assegure-se de que elas apontem para um banco de dados de TESTE.
+	_, err := database.InitDB()
 	if err != nil {
-		t.Fatalf("Falha ao inicializar o banco de dados em memória: %v", err)
+		t.Fatalf("Falha ao inicializar o banco de dados de teste: %v", err)
 	}
 
 	db := database.GetDB()
-	createMovimentacoesSQL := fmt.Sprintf(`
-        CREATE TABLE IF NOT EXISTS %s (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, data_ocorrencia TEXT NOT NULL,
-            descricao TEXT, valor REAL, categoria TEXT, conta TEXT, consolidado BOOLEAN DEFAULT FALSE
-        );`, database.TableName)
-	_, err = db.Exec(createMovimentacoesSQL)
+
+	// Limpa as tabelas para garantir um estado limpo
+	_, err = db.Exec(fmt.Sprintf("TRUNCATE TABLE %s, contas RESTART IDENTITY", database.TableName))
 	if err != nil {
-		t.Fatalf("Falha ao criar a tabela de teste 'movimentacoes': %v", err)
+		// Se TRUNCATE falhar (ex: primeira execução), tenta criar as tabelas.
+		createMovimentacoesSQL := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
+			id SERIAL PRIMARY KEY, data_ocorrencia DATE NOT NULL,
+			descricao TEXT, valor NUMERIC(10, 2), categoria TEXT, conta TEXT, consolidado BOOLEAN DEFAULT FALSE
+		);`, database.TableName)
+		_, err = db.Exec(createMovimentacoesSQL)
+		if err != nil {
+			t.Fatalf("Falha ao criar a tabela de teste 'movimentacoes': %v", err)
+		}
+
+		createContasSQL := `
+		CREATE TABLE IF NOT EXISTS contas (
+			nome TEXT PRIMARY KEY, saldo_inicial NUMERIC(10, 2) NOT NULL DEFAULT 0
+		);`
+		_, err = db.Exec(createContasSQL)
+		if err != nil {
+			t.Fatalf("Falha ao criar a tabela de teste 'contas': %v", err)
+		}
 	}
 
-	createContasSQL := `
-        CREATE TABLE IF NOT EXISTS contas (
-            nome TEXT PRIMARY KEY, saldo_inicial REAL NOT NULL DEFAULT 0
-        );`
-	_, err = db.Exec(createContasSQL)
-	if err != nil {
-		t.Fatalf("Falha ao criar a tabela de teste 'contas': %v", err)
-	}
-
+	// Insere dados de teste
 	insertMovimentacoesSQL := fmt.Sprintf(`
-        INSERT INTO %s (id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES
-        (1, ?, ?, ?, ?, ?, ?), (2, ?, ?, ?, ?, ?, ?);`, database.TableName)
+	INSERT INTO %s (id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES
+	($1, $2, $3, $4, $5, $6, $7), ($8, $9, $10, $11, $12, $13, $14);`, database.TableName)
+
+	// Precisamos usar `ALTER SEQUENCE` para reiniciar o ID e inserir valores fixos
+	db.Exec(fmt.Sprintf("ALTER SEQUENCE %s_id_seq RESTART WITH 3;", database.TableName))
+
 	_, err = db.Exec(insertMovimentacoesSQL,
-		"2025-01-10", "Aluguel", -1500.00, "Moradia", "Banco A", true,
-		"2025-01-15", "Salario", 3000.00, "Renda", "Banco A", true)
+		1, "2025-01-10", "Aluguel", -1500.00, "Moradia", "Banco A", true,
+		2, "2025-01-15", "Salario", 3000.00, "Renda", "Banco A", true)
 	if err != nil {
 		t.Fatalf("Falha ao inserir dados de teste em 'movimentacoes': %v", err)
 	}
 }
 
-// teardownTestDB fecha a conexão com o banco de dados em memória.
+// teardownTestDB fecha a conexão com o banco de dados de teste.
 func teardownTestDB() {
 	database.CloseDB()
 }
@@ -64,11 +79,11 @@ func createTestRouter() *gin.Engine {
 
 	// Definindo os templates necessários para os testes
 	htmlTemplates := template.Must(template.New("").Parse(`
-		{{define "error.html"}}<!DOCTYPE html><html><body><h1>Erro {{.StatusCode}}</h1><p>{{.ErrorMessage}}</p></body></html>{{end}}
-		{{define "index.html"}}<!DOCTYPE html><html><body><h1>Minhas Economias - Saldos</h1></body></html>{{end}}
-		{{define "transacoes.html"}}<!DOCTYPE html><html><body><h1>Transações Financeiras</h1></body></html>{{end}}
-		{{define "relatorio.html"}}<!DOCTYPE html><html><body><h1>Relatório de Despesas por Categoria</h1></body></html>{{end}}
-    `))
+			{{define "error.html"}}<!DOCTYPE html><html><body><h1>Erro {{.StatusCode}}</h1><p>{{.ErrorMessage}}</p></body></html>{{end}}
+			{{define "index.html"}}<!DOCTYPE html><html><body><h1>Minhas Economias - Saldos</h1></body></html>{{end}}
+			{{define "transacoes.html"}}<!DOCTYPE html><html><body><h1>Transações Financeiras</h1></body></html>{{end}}
+			{{define "relatorio.html"}}<!DOCTYPE html><html><body><h1>Relatório de Despesas por Categoria</h1></body></html>{{end}}
+	`))
 	r.SetHTMLTemplate(htmlTemplates)
 
 	// Registrando todas as rotas que serão testadas
@@ -107,9 +122,8 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// --- Funções de Teste ---
+// --- Funções de Teste (permanecem as mesmas, mas agora rodam em PostgreSQL) ---
 
-// NOVO: Testa se a página inicial carrega corretamente.
 func TestGetIndexPage_Success(t *testing.T) {
 	setupTestDB(t)
 	defer teardownTestDB()
@@ -125,7 +139,6 @@ func TestGetIndexPage_Success(t *testing.T) {
 	}
 }
 
-// NOVO: Testa se a página de transações carrega corretamente.
 func TestGetTransacoesPage_Success(t *testing.T) {
 	setupTestDB(t)
 	defer teardownTestDB()
@@ -141,7 +154,6 @@ func TestGetTransacoesPage_Success(t *testing.T) {
 	}
 }
 
-// NOVO: Testa se a página de relatório carrega corretamente.
 func TestGetRelatorio_Success(t *testing.T) {
 	setupTestDB(t)
 	defer teardownTestDB()

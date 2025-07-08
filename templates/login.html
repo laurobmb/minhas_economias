@@ -1,0 +1,66 @@
+{{define "login.html"}}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Titulo }} - Minhas Economias</title>
+    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Estilos específicos para o formulário de autenticação */
+        .auth-form { display: flex; flex-direction: column; gap: 20px; }
+        .auth-input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; transition: border-color 0.2s, box-shadow 0.2s; }
+        .auth-input:focus { outline: none; border-color: #4c8bf5; box-shadow: 0 0 0 3px rgba(76, 139, 245, 0.2); }
+        .auth-button { padding: 12px; background-color: #4c8bf5; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+        .auth-button:hover { background-color: #3a75e0; }
+        .flash-success { margin-bottom: 1.5rem; padding: 12px; background-color: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; border-radius: 8px; text-align: center; }
+        .flash-error { margin-bottom: 1.5rem; padding: 12px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 8px; text-align: center; }
+    </style>
+</head>
+<body class="bg-slate-100">
+
+<div class="flex items-center justify-center min-h-screen">
+    <div class="relative flex flex-col md:flex-row w-full max-w-4xl m-6 bg-white shadow-2xl rounded-2xl overflow-hidden">
+        
+        <div class="relative hidden md:flex w-1/2 items-center justify-center bg-blue-50">
+            <img src="/static/images/login.png" alt="Ilustração de Finanças" class="w-full h-full object-cover">
+        </div>
+
+        <div class="w-full md:w-1/2 p-8 md:p-12">
+            <div class="text-center mb-8">
+                <img src="/static/minhaseconomias.png" alt="Logo" class="mx-auto h-16 mb-4">
+                <h1 class="text-3xl font-bold text-gray-800">Login</h1>
+            </div>
+
+            {{ if .Flash }}
+            <div class="flash-success">{{ .Flash }}</div>
+            {{ end }}
+            {{ if .Error }}
+            <div class="flash-error">{{ .Error }}</div>
+            {{ end }}
+
+            <form action="/login" method="POST" class="auth-form">
+                <div>
+                    <label for="email" class="label">E-mail</label>
+                    <input type="email" name="email" id="email" class="auth-input w-full" required>
+                </div>
+                <div>
+                    <label for="password" class="label">Senha</label>
+                    <input type="password" name="password" id="password" class="auth-input w-full" required>
+                </div>
+                <button type="submit" class="auth-button">Entrar</button>
+            </form>
+            
+            <p class="text-center mt-6 text-sm text-slate-600">
+                Não tem uma conta? <a href="/register" class="font-semibold text-blue-600 hover:underline">Crie uma agora</a>
+            </p>
+        </div>
+
+    </div>
+</div>
+
+</body>
+</html>
+{{end}}
