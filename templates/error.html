@@ -1,52 +1,30 @@
-{{define "error.html"}}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .Titulo }} - Minhas Economias</title>
-    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        .error-container {
-            text-align: center;
-            padding: 40px;
-            background-color: white;
-            border-radius: 8px;
-        }
-        .error-code {
-            font-size: 5rem;
-            font-weight: bold;
-            color: #dc3545;
-        }
-        .error-message {
-            font-size: 1.5rem;
-            margin-top: 0;
-            margin-bottom: 30px;
-            color: #475569;
-        }
-    </style>
-</head>
-<body>
-<div class="container rounded-xl">
-    <div class="header">
-        <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
-        <h1 class="header-title text-gray-900">Minhas Economias</h1>
-        <div class="flex items-center gap-3">
-            <a href="/" class="api-link rounded-lg">Saldos</a>
-            <a href="/transacoes" class="api-link rounded-lg">Transações</a>
-            <a href="/relatorio" class="api-link rounded-lg">Relatório</a>
-            <a href="/sobre" class="api-link rounded-lg">Sobre</a>
-        </div>
-    </div>
+{{define "head"}}
+<style>
+    .error-container {
+        text-align: center;
+        padding: 40px;
+        background-color: white;
+        border-radius: 8px;
+        margin-top: 2rem;
+    }
+    .error-code {
+        font-size: 5rem;
+        font-weight: bold;
+        color: #dc3545;
+    }
+    .error-message {
+        font-size: 1.5rem;
+        margin-top: 0;
+        margin-bottom: 30px;
+        color: #475569;
+    }
+</style>
+{{end}}
 
-    <div class="error-container">
-        <div class="error-code">{{ .StatusCode }}</div>
-        <p class="error-message">{{ .ErrorMessage }}</p>
-        <a href="/" class="filter-button rounded-md">Voltar para a Página Inicial</a>
-    </div>
+{{define "content"}}
+<div class="error-container">
+    <div class="error-code">{{ .StatusCode }}</div>
+    <p class="error-message">{{ .ErrorMessage }}</p>
+    <a href="/" class="filter-button rounded-md">Voltar para a Página de Saldos</a>
 </div>
-</body>
-</html>
 {{end}}

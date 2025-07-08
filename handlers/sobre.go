@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetSobrePage renderiza a página "Sobre".
 func GetSobrePage(c *gin.Context) {
 	c.HTML(http.StatusOK, "sobre.html", gin.H{
 		"Titulo":      "Sobre o Projeto",

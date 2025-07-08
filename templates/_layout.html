@@ -1,0 +1,36 @@
+{{/* REMOVIDO: {{define "layout.html"}} - O layout não deve ser um template nomeado */}}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Titulo }} - Minhas Economias</title>
+    <link rel="icon" href="/static/minhas_economias.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    {{block "head" .}}{{end}}
+</head>
+<body>
+    <div class="container rounded-xl">
+        <header class="header">
+            <img src="/static/minhaseconomias.png" alt="Logo Minhas Economias" class="header-logo">
+            <h1 class="header-title text-gray-900">Minhas Economias</h1>
+            <nav class="flex items-center gap-3">
+                <a href="/" class="api-link rounded-lg">Saldos</a>
+                <a href="/transacoes" class="api-link rounded-lg">Transações</a>
+                <a href="/relatorio" class="api-link rounded-lg">Relatório</a>
+                <a href="/sobre" class="api-link rounded-lg">Sobre</a>
+                <a href="/api/movimentacoes" id="apiLink" class="api-link rounded-lg" style="background-color: #1e40af;">API</a>
+                <form action="/logout" method="POST" class="m-0">
+                    <button type="submit" class="api-link rounded-lg" style="background-color: #ef4444;">Sair</button>
+                </form>
+            </nav>
+        </header>
+        <main>
+            {{block "content" .}}{{end}}
+        </main>
+    </div>
+    {{block "scripts" .}}{{end}}
+</body>
+</html>
+{{/* REMOVIDO: {{end}} */}}

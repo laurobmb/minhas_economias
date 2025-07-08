@@ -1,19 +1,66 @@
 package main
 
 import (
-	"html/template"
 	"log"
-	"os"
-
-	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"           // Import do driver PostgreSQL
-	_ "github.com/mattn/go-sqlite3" // Import do driver SQLite
+	"minhas_economias/auth"
 	"minhas_economias/database"
 	"minhas_economias/handlers"
+	"os"
+	"path/filepath"
+
+	"github.com/gin-contrib/multitemplate"
+	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
+// createMyRender carrega os templates de forma que a herança funcione corretamente.
+// Ela agora diferencia páginas que usam o layout de páginas standalone.
+func createMyRender() multitemplate.Renderer {
+	r := multitemplate.NewRenderer()
+	
+	// Lista de páginas que NÃO usam o layout principal.
+	standalonePages := map[string]bool{
+		"login.html":    true,
+		"register.html": true,
+	}
+
+	// Carrega o layout principal
+	layouts, err := filepath.Glob("templates/_layout.html")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Carrega todas as páginas
+	pages, err := filepath.Glob("templates/*.html")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	for _, page := range pages {
+		pageName := filepath.Base(page)
+
+		// Se a página for standalone, carrega somente ela.
+		if _, ok := standalonePages[pageName]; ok {
+			log.Printf("Carregando template standalone: %s", pageName)
+			r.AddFromFiles(pageName, page)
+			continue
+		}
+		
+		// Se a página usa o layout, carrega o layout junto com ela.
+		if pageName != "_layout.html" {
+			log.Printf("Carregando template com layout: %s", pageName)
+			r.AddFromFiles(pageName, append(layouts, page)...)
+		}
+	}
+	return r
+}
+
 func main() {
-	// A inicialização do banco de dados agora lê a variável DB_TYPE para decidir qual banco usar.
+	if os.Getenv("SESSION_KEY") == "" {
+		log.Fatal("A variável de ambiente SESSION_KEY não foi definida.")
+	}
+
 	_, err := database.InitDB()
 	if err != nil {
 		log.Fatalf("Erro ao inicializar o banco de dados: %v", err)
@@ -22,36 +69,34 @@ func main() {
 
 	r := gin.Default()
 
-	r.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*")))
-	log.Println("Templates HTML carregados de 'templates/'.")
-
-	// Garante que os diretórios existem
-	if _, err = os.Stat("templates"); os.IsNotExist(err) {
-		os.Mkdir("templates", 0755)
-	}
-	if _, err = os.Stat("static"); os.IsNotExist(err) {
-		os.Mkdir("static", 0755)
-	}
-	if _, err = os.Stat("static/css"); os.IsNotExist(err) {
-		os.Mkdir("static/css", 0755)
-	}
+	// Use o renderizador customizado
+	r.HTMLRender = createMyRender()
+	log.Println("Templates HTML carregados com o renderizador customizado.")
 
 	r.Static("/static", "./static")
 	log.Println("Servindo arquivos estáticos de '/static' para './static'.")
 
-	// Rotas da aplicação
-	r.GET("/", handlers.GetIndexPage)
-	r.GET("/transacoes", handlers.GetTransacoesPage)
-	r.GET("/relatorio", handlers.GetRelatorio)
-	r.GET("/sobre", handlers.GetSobrePage)
+	// --- ROTAS (sem alterações) ---
+	r.GET("/login", auth.GetLoginPage)
+	r.POST("/login", auth.PostLogin)
+	r.GET("/register", auth.GetRegisterPage)
+	r.POST("/register", auth.PostRegister)
 
-	// Rotas para a API e ações de formulário
-	r.GET("/api/movimentacoes", handlers.GetTransacoesPage)
-	r.POST("/movimentacoes", handlers.AddMovimentacao)
-	r.DELETE("/movimentacoes/:id", handlers.DeleteMovimentacao)
-	r.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao)
-	r.GET("/relatorio/transactions", handlers.GetTransactionsByCategory)
-	r.POST("/relatorio/pdf", handlers.DownloadRelatorioPDF)
+	authorized := r.Group("/")
+	authorized.Use(auth.AuthRequired())
+	{
+		authorized.GET("/", handlers.GetIndexPage)
+		authorized.GET("/transacoes", handlers.GetTransacoesPage)
+		authorized.GET("/relatorio", handlers.GetRelatorio)
+		authorized.GET("/sobre", handlers.GetSobrePage)
+		authorized.POST("/logout", auth.PostLogout)
+		authorized.GET("/api/movimentacoes", handlers.GetTransacoesPage)
+		authorized.POST("/movimentacoes", handlers.AddMovimentacao)
+		authorized.DELETE("/movimentacoes/:id", handlers.DeleteMovimentacao)
+		authorized.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao)
+		authorized.GET("/relatorio/transactions", handlers.GetTransactionsByCategory)
+		authorized.POST("/relatorio/pdf", handlers.DownloadRelatorioPDF)
+	}
 
 	log.Println("Servidor Gin iniciado na porta :8080")
 	err = r.Run(":8080")

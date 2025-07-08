@@ -16,8 +16,6 @@ func renderErrorPage(c *gin.Context, statusCode int, errorMessage string, origin
 		log.Printf("ERRO (Status %d) para %s: %s", statusCode, c.Request.RequestURI, errorMessage)
 	}
 
-	// Se o cliente pedir JSON (como o teste de API do Ansible), retorne JSON.
-	// Senão, retorne a página de erro HTML (para formulários de navegador e testes que esperam HTML).
 	if strings.Contains(c.GetHeader("Accept"), "application/json") {
 		c.JSON(statusCode, gin.H{"error": errorMessage})
 	} else {
