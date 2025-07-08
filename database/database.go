@@ -14,6 +14,7 @@ import (
 
 // DBConnection é a variável global para a conexão com o banco de dados
 var DBConnection *sql.DB
+
 // DriverName armazena o tipo de banco de dados em uso ("postgres" ou "sqlite3")
 var DriverName string
 
@@ -30,7 +31,13 @@ func getEnv(key, fallback string) string {
 
 // InitDB inicializa a conexão com o banco de dados com base na variável de ambiente DB_TYPE.
 func InitDB() (*sql.DB, error) {
-	DriverName = getEnv("DB_TYPE", "sqlite3") // Padrão para sqlite3 se não definido
+	// AJUSTE: Removemos o valor padrão. A variável DB_TYPE agora é obrigatória.
+	DriverName = os.Getenv("DB_TYPE")
+	if DriverName == "" {
+		// Se a variável não for definida, o programa para com uma mensagem de erro clara.
+		return nil, fmt.Errorf("a variável de ambiente DB_TYPE não foi definida. Por favor, configure-a (ex: 'postgres' ou 'sqlite3')")
+	}
+
 	var err error
 
 	switch DriverName {
@@ -69,7 +76,6 @@ func InitDB() (*sql.DB, error) {
 		}
 		return nil, fmt.Errorf("erro ao conectar ao banco de dados: %w", err)
 	}
-	
 	return DBConnection, nil
 }
 
