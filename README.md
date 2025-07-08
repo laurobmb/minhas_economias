@@ -40,17 +40,22 @@ minhas\_economias/
 │   ├── handlers.go               \# Funções auxiliares de handlers.
 │   ├── movimentacoes.go          \# Lógica para as páginas principais.
 │   └── ...
-│
+├── xls/
+|   ├── example.xls               \# Seus dados em Planilha
+|
+├── csv/
+|   ├── example.csv               \# Seus dados em CSV apos usar a conversao xls_to_csv.go
+|
 ├── templates/                    \# Templates HTML.
 ├── static/                       \# Arquivos estáticos (CSS, JS, Imagens).
 │
 ├── test/
-│   ├── ansible\_playbook.yml      \# Playbook Ansible para testes de API.
-│   └── selenium\_test.py          \# Script Python para testes End-to-End com Selenium.
+│   ├── ansible_playbook.yml      \# Playbook Ansible para testes de API.
+│   └── selenium_test.py          \# Script Python para testes End-to-End com Selenium.
 │
-├── data\_manager.go               \# Ferramenta CLI para importação/exportação de dados.
-├── xls\_to\_csv.go                 \# Ferramenta CLI para conversão de XLS.
-├── popular\_saldos.sh             \# Script para configurar saldos iniciais.
+├── data_manager.go               \# Ferramenta CLI para importação/exportação de dados.
+├── xls_to_csv.go                 \# Ferramenta CLI para conversão de XLS.
+├── popular_saldos.sh             \# Script para configurar saldos iniciais.
 │
 ├── Containerfile                 \# Define como construir a imagem da aplicação.
 ├── docker-compose.yml            \# Orquestra os serviços da aplicação e do banco de dados.
