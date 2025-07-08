@@ -6,13 +6,15 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"           // Import do driver PostgreSQL
+	_ "github.com/mattn/go-sqlite3" // Import do driver SQLite
 	"minhas_economias/database"
 	"minhas_economias/handlers"
 )
 
 func main() {
-	var err error
-	_, err = database.InitDB("extratos.db")
+	// A inicialização do banco de dados agora lê a variável DB_TYPE para decidir qual banco usar.
+	_, err := database.InitDB()
 	if err != nil {
 		log.Fatalf("Erro ao inicializar o banco de dados: %v", err)
 	}
@@ -20,45 +22,20 @@ func main() {
 
 	r := gin.Default()
 
-	// A configuração do template foi simplificada, sem Funcs() pois o jsonify foi removido.
-	// O template do Go lida com a conversão para JSON automaticamente dentro de tags <script>.
 	r.SetHTMLTemplate(template.Must(template.ParseGlob("templates/*")))
 	log.Println("Templates HTML carregados de 'templates/'.")
 
-	// Garante que os diretórios existem (bom para primeiro run)
+	// Garante que os diretórios existem
 	if _, err = os.Stat("templates"); os.IsNotExist(err) {
-		err = os.Mkdir("templates", 0755)
-		if err != nil {
-			log.Fatalf("Erro ao criar diretório 'templates': %v", err)
-		}
-	} else if err != nil {
-		log.Fatalf("Erro ao verificar diretório 'templates': %v", err)
+		os.Mkdir("templates", 0755)
 	}
-	log.Println("Diretório 'templates' verificado/criado com sucesso.")
-
 	if _, err = os.Stat("static"); os.IsNotExist(err) {
-		err = os.Mkdir("static", 0755)
-		if err != nil {
-			log.Fatalf("Erro ao criar diretório 'static': %v", err)
-		}
-	} else if err != nil {
-		log.Fatalf("Erro ao verificar diretório 'static': %v", err)
+		os.Mkdir("static", 0755)
 	}
-	log.Println("Diretório 'static' verificado/criado com sucesso.")
-
 	if _, err = os.Stat("static/css"); os.IsNotExist(err) {
-		err = os.Mkdir("static/css", 0755)
-		if err != nil {
-			log.Fatalf("Erro ao criar diretório 'static/css': %v", err)
-		}
-	} else if err != nil {
-		log.Fatalf("Erro ao verificar diretório 'static/css': %v", err)
+		os.Mkdir("static/css", 0755)
 	}
-	log.Println("Diretório 'static/css' verificado/criado com sucesso.")
 
-	log.Println("Esperando que 'templates/index.html' e 'static/css/style.css' existam.")
-
-	// Configura o serviço de arquivos estáticos
 	r.Static("/static", "./static")
 	log.Println("Servindo arquivos estáticos de '/static' para './static'.")
 

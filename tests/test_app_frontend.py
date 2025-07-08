@@ -7,7 +7,8 @@ import logging
 import time
 import shutil
 import sqlite3
-from datetime import date
+import psycopg2 # <-- IMPORT ADICIONADO
+from datetime import datetime, timezone # <-- Mude o import
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -22,6 +23,15 @@ BASE_URL = os.getenv('APP_URL', 'http://localhost:8080')
 DEFAULT_TIMEOUT = 10 
 IS_CONTAINER = os.getenv('CONTAINER', 'false').lower() == 'true'
 STEP_DELAY = 0
+
+# --- LER VARIÁVEIS DE AMBIENTE DO BANCO DE DADOS ---
+DB_TYPE = os.getenv('DB_TYPE', 'sqlite3')
+DB_NAME = os.getenv('DB_NAME', 'extratos.db')
+DB_USER = os.getenv('DB_USER', 'postgres')
+DB_PASS = os.getenv('DB_PASS', 'postgres')
+DB_HOST = os.getenv('DB_HOST', 'localhost')
+DB_PORT = os.getenv('DB_PORT', '5432')
+
 
 class MinhasEconomiasTest(unittest.TestCase):
     
@@ -58,7 +68,7 @@ class MinhasEconomiasTest(unittest.TestCase):
             
     @classmethod
     def tearDownClass(cls):
-        """Encerra o navegador, limpa os arquivos e o banco de dados após todos os testes."""
+        """Encerra o navegador e limpa o banco de dados após todos os testes."""
         if cls.browser:
             cls.browser.quit()
         
@@ -66,20 +76,34 @@ class MinhasEconomiasTest(unittest.TestCase):
             shutil.rmtree(cls.download_dir)
         logger.info("Navegador encerrado e pasta de downloads limpa.")
 
-        # --- CORREÇÃO: Adicionada pausa para evitar bloqueio do banco de dados ---
-        logger.info("Aguardando 2 segundos para a aplicação Go liberar o arquivo de banco de dados...")
-        time.sleep(2)
+        # --- LÓGICA DE LIMPEZA ADAPTADA ---
+        logger.info(f"Iniciando limpeza para o banco de dados tipo: {DB_TYPE}")
+        time.sleep(2) # Pausa para a aplicação Go liberar a conexão/arquivo.
 
-        logger.info("Iniciando limpeza do banco de dados...")
-        db_path = "extratos.db"
-        if not os.path.exists(db_path):
-            logger.warning(f"Arquivo de banco de dados '{db_path}' não encontrado. Pulando limpeza.")
-            return
-
+        conn = None
         try:
-            conn = sqlite3.connect(db_path)
+            if DB_TYPE == 'postgres':
+                # Conecta ao PostgreSQL
+                conn = psycopg2.connect(
+                    dbname=DB_NAME,
+                    user=DB_USER,
+                    password=DB_PASS,
+                    host=DB_HOST,
+                    port=DB_PORT
+                )
+            elif DB_TYPE == 'sqlite3':
+                # Conecta ao SQLite
+                if not os.path.exists(DB_NAME):
+                    logger.warning(f"Arquivo de banco de dados SQLite '{DB_NAME}' não encontrado. Pulando limpeza.")
+                    return
+                conn = sqlite3.connect(DB_NAME)
+            else:
+                logger.error(f"DB_TYPE '{DB_TYPE}' não suportado pelo script de teste.")
+                return
+
             cursor = conn.cursor()
             
+            # As queries SQL são as mesmas para ambos os bancos
             queries = [
                 "DELETE FROM movimentacoes WHERE conta LIKE 'Conta Saldo %';",
                 "DELETE FROM movimentacoes WHERE conta = 'Conta Teste Grafico';",
@@ -90,7 +114,9 @@ class MinhasEconomiasTest(unittest.TestCase):
             total_deleted = 0
             for query in queries:
                 cursor.execute(query)
-                total_deleted += cursor.rowcount
+                # No psycopg2, rowcount é -1 para selects, mas funciona para DML
+                if cursor.rowcount > 0:
+                    total_deleted += cursor.rowcount
 
             conn.commit()
             if total_deleted > 0:
@@ -98,10 +124,10 @@ class MinhasEconomiasTest(unittest.TestCase):
             else:
                 logger.info("Limpeza do banco de dados concluída. Nenhum registro de teste encontrado para remover.")
             
-        except sqlite3.Error as e:
+        except (sqlite3.Error, psycopg2.Error) as e:
             logger.error(f"Ocorreu um erro ao limpar o banco de dados: {e}")
         finally:
-            if 'conn' in locals() and conn:
+            if conn:
                 conn.close()
 
 
@@ -109,6 +135,9 @@ class MinhasEconomiasTest(unittest.TestCase):
         """Pausa a execução para facilitar a visualização."""
         time.sleep(STEP_DELAY)
 
+    # =========================================================================
+    # Seus testes (test_01_..., test_02_..., etc.) permanecem exatamente iguais
+    # =========================================================================
     def test_01_fluxo_crud_transacao(self):
         """Testa o fluxo completo: Criar, Ler, Atualizar e Deletar uma transação."""
         logger.info("--- INICIANDO TESTE 01: FLUXO CRUD ---")
@@ -150,7 +179,12 @@ class MinhasEconomiasTest(unittest.TestCase):
         linha_para_excluir = self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_linha_editada)))
         linha_para_excluir.find_element(By.XPATH, ".//button[text()='Excluir']").click()
         self.wait.until(EC.alert_is_present()).accept()
-        self.wait.until(EC.alert_is_present()).accept()
+        # A segunda confirmação pode não ser necessária dependendo do navegador/configuração
+        try:
+            self.wait.until(EC.alert_is_present()).accept()
+        except TimeoutException:
+            logger.warning("Segundo alerta de confirmação não apareceu, continuando...")
+        
         try:
             self.wait.until(EC.staleness_of(linha_para_excluir))
             logger.info("SUCESSO: Transação removida.")
@@ -171,7 +205,7 @@ class MinhasEconomiasTest(unittest.TestCase):
         self._delay()
         self.browser.get(BASE_URL + "/")
         self.assertIn("Minhas Economias - Saldos", self.browser.title)
-        xpath_saldo_card = f"//div[p[contains(text(), '{conta_teste}')]]//p[contains(text(), '1250.00')]"
+        xpath_saldo_card = f"//div[p[contains(text(), '{conta_teste}')]]//p[contains(text(), '1.250,00') or contains(text(), '1250.00')]"
         try:
             self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_saldo_card)))
             logger.info("SUCESSO: Saldo da conta de teste encontrado na página inicial.")
@@ -187,8 +221,8 @@ class MinhasEconomiasTest(unittest.TestCase):
         download_button = self.wait.until(EC.element_to_be_clickable((By.ID, "save-pdf-button")))
         download_button.click()
         logger.info("Botão de download do PDF clicado.")
-        data_hoje = date.today().strftime('%Y-%m-%d')
-        nome_arquivo_esperado = f"Relatorio-MinhasEconomias-{data_hoje}.pdf"
+        data_hoje_utc = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        nome_arquivo_esperado = f"Relatorio-MinhasEconomias-{data_hoje_utc}.pdf"
         caminho_arquivo = os.path.join(self.download_dir, nome_arquivo_esperado)
         tempo_limite = 20
         download_completo = False

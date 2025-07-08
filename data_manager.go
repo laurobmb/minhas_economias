@@ -3,104 +3,98 @@ package main
 import (
 	"database/sql"
 	"encoding/csv"
-	"flag" // Importe o pacote flag
+	"flag"
 	"fmt"
 	"io"
 	"log"
+	"minhas_economias/database"
 	"os"
-	"path/filepath" // Importe o pacote filepath
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3" // Driver SQLite para Go
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
-	dbName = "extratos.db"   // Nome do arquivo do banco de dados SQLite
-	tableName = "movimentacoes" // Nome da tabela
-	csvDelimiter = ';'         // Delimitador do seu CSV (ponto e vírgula)
+	tableName    = "movimentacoes" // Nome da tabela
+	csvDelimiter = ';'             // Delimitador do seu CSV
 )
 
-// Movimentacao representa uma linha do extrato com base no cabeçalho CSV
+// Movimentacao representa uma linha do extrato para o processo de import/export
 type Movimentacao struct {
-	DataOcorrencia string  // Mapeia para "Data Ocorrência" (AAAA-MM-DD)
-	Descricao      string  // Mapeia para "Descrição"
-	Valor          float64 // Mapeia para "Valor"
-	Categoria      string  // Mapeia para "Categoria"
-	Conta          string  // Mapeia para "Conta"
-	Consolidado    bool    // Mapeia para "Consolidado"
+	DataOcorrencia string
+	Descricao      string
+	Valor          float64
+	Categoria      string
+	Conta          string
+	Consolidado    bool
 }
 
 func main() {
-	// Definindo as flags de linha de comando
 	importFlag := flag.Bool("import", false, "Use esta flag para importar dados de CSVs para o banco de dados.")
 	exportFlag := flag.Bool("export", false, "Use esta flag para exportar dados do banco de dados para um único CSV.")
-	// Nova flag para o caminho de saída da exportação
-	outputPathParam := flag.String("output-path", "extrato_exportado.csv", "Caminho e nome do arquivo CSV para exportação (ex: 'data/extrato.csv').")
-	
-	flag.Parse() // Analisa as flags da linha de comando
+	outputPathParam := flag.String("output-path", "extrato_exportado.csv", "Caminho e nome do arquivo CSV para exportação.")
 
-	// 1. Abrir o banco de dados SQLite
-	db, err := sql.Open("sqlite3", dbName)
+	flag.Parse()
+
+	// 1. Conectar ao banco de dados usando a configuração do ambiente
+	_, err := database.InitDB()
 	if err != nil {
-		fmt.Printf("Erro ao abrir o banco de dados: %v\n", err)
-		os.Exit(1) // Sair com erro
+		log.Fatalf("Erro ao inicializar o banco de dados: %v", err)
 	}
-	defer db.Close()
+	db := database.GetDB()
+	defer database.CloseDB()
 
-	// 2. Criar a tabela 'movimentacoes' se não existir
-	createMovimentacoesTableSQL := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			data_ocorrencia TEXT NOT NULL,
-			descricao TEXT,
-			valor REAL,
-			categoria TEXT,
-			conta TEXT,
-			consolidado BOOLEAN DEFAULT FALSE
-		);`, tableName)
+	// 2. Definir e executar as queries de criação de tabela de acordo com o DB_TYPE
+	var createMovimentacoesTableSQL, createContasTableSQL string
 
-	_, err = db.Exec(createMovimentacoesTableSQL)
-	if err != nil {
+	if database.DriverName == "postgres" {
+		createMovimentacoesTableSQL = fmt.Sprintf(`
+			CREATE TABLE IF NOT EXISTS %s (
+				id SERIAL PRIMARY KEY, data_ocorrencia DATE NOT NULL, descricao TEXT,
+				valor NUMERIC(10, 2), categoria TEXT, conta TEXT, consolidado BOOLEAN DEFAULT FALSE
+			);`, tableName)
+		createContasTableSQL = `
+			CREATE TABLE IF NOT EXISTS contas (
+				nome TEXT PRIMARY KEY, saldo_inicial NUMERIC(10, 2) NOT NULL DEFAULT 0
+			);`
+	} else { // Padrão para sqlite3
+		createMovimentacoesTableSQL = fmt.Sprintf(`
+			CREATE TABLE IF NOT EXISTS %s (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, data_ocorrencia TEXT NOT NULL, descricao TEXT,
+				valor REAL, categoria TEXT, conta TEXT, consolidado BOOLEAN DEFAULT FALSE
+			);`, tableName)
+		createContasTableSQL = `
+			CREATE TABLE IF NOT EXISTS contas (
+				nome TEXT PRIMARY KEY, saldo_inicial REAL NOT NULL DEFAULT 0
+			);`
+	}
+
+	if _, err = db.Exec(createMovimentacoesTableSQL); err != nil {
 		fmt.Printf("Erro ao criar a tabela 'movimentacoes': %v\n", err)
-		os.Exit(1) // Sair com erro
+		os.Exit(1)
 	}
 	fmt.Printf("Tabela '%s' verificada/criada com sucesso.\n", tableName)
 
-    // --- ALTERAÇÃO: CRIAR A NOVA TABELA 'contas' ---
-	createContasTableSQL := `
-		CREATE TABLE IF NOT EXISTS contas (
-			nome TEXT PRIMARY KEY,
-			saldo_inicial REAL NOT NULL DEFAULT 0
-		);`
-	
-	_, err = db.Exec(createContasTableSQL)
-	if err != nil {
+	if _, err = db.Exec(createContasTableSQL); err != nil {
 		fmt.Printf("Erro ao criar a tabela 'contas': %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Println("Tabela 'contas' verificada/criada com sucesso.")
-    // --- FIM DA ALTERAÇÃO ---
 
-	// Lógica baseada nas flags
+	// 3. Executar a lógica de importação ou exportação
 	if *importFlag {
 		fmt.Println("Modo: Importação de CSVs para o banco de dados.")
 		csvFiles := []string{
-			// Adicione aqui os caminhos corretos para os seus arquivos CSV de importação
-			// "csv/example.csv"
-			"csv/Extrato_20130101_20131231.csv",
-			"csv/Extrato_20140101_20141231.csv",
-			"csv/Extrato_20150101_20151231.csv",
-			"csv/Extrato_20160101_20161231.csv",
-			"csv/Extrato_20170101_20171231.csv",
-			"csv/Extrato_20180101_20181231.csv",
-			"csv/Extrato_20190101_20191231.csv",
-			"csv/Extrato_20200101_20201231.csv",
-			"csv/Extrato_20210101_20211231.csv",
-			"csv/Extrato_20220101_20221231.csv",
-			"csv/Extrato_20230101_20231231.csv",
-			"csv/Extrato_20240101_20241231.csv",
+			"csv/Extrato_20130101_20131231.csv", "csv/Extrato_20140101_20141231.csv",
+			"csv/Extrato_20150101_20151231.csv", "csv/Extrato_20160101_20161231.csv",
+			"csv/Extrato_20170101_20171231.csv", "csv/Extrato_20180101_20181231.csv",
+			"csv/Extrato_20190101_20191231.csv", "csv/Extrato_20200101_20201231.csv",
+			"csv/Extrato_20210101_20211231.csv", "csv/Extrato_20220101_20221231.csv",
+			"csv/Extrato_20230101_20231231.csv", "csv/Extrato_20240101_20241231.csv",
 			"csv/Extrato_20250101_20251231.csv",
 		}
 
@@ -114,25 +108,20 @@ func main() {
 
 	} else if *exportFlag {
 		fmt.Println("Modo: Exportação do banco de dados para CSV.")
-		// Passa o valor da flag output-path para a função de exportação
-		if err := exportToCSV(db, *outputPathParam); err != nil { 
+		if err := exportToCSV(db, *outputPathParam); err != nil {
 			fmt.Printf("ERRO ao exportar para CSV: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Dados exportados com sucesso para '%s'.\n", *outputPathParam) // Confirma o caminho usado
+		fmt.Printf("Dados exportados com sucesso para '%s'.\n", *outputPathParam)
 
 	} else {
 		fmt.Println("Nenhuma flag de operação (-import ou -export) fornecida.")
 		fmt.Println("Use: go run data_manager.go -import para importar CSVs.")
-		fmt.Println("Use: go run data_manager.go -export para exportar para CSV.")
-		fmt.Println("Opcional para exportar: -output-path <caminho/do/arquivo.csv>")
-		os.Exit(1) // Sair com erro
+		fmt.Println("Use: go run data_manager.go -export -output-path <caminho/do/arquivo.csv> para exportar para CSV.")
+		os.Exit(1)
 	}
 }
 
-// ... (o resto do arquivo 'data_manager.go' continua igual)
-// processCSVFile lida com a abertura, leitura e inserção de dados de um único arquivo CSV.
-// Espera um formato de 6 colunas: Data Ocorrência;Descrição;Valor;Categoria;Conta;Consolidado
 func processCSVFile(db *sql.DB, filename string) error {
 	csvFile, err := os.Open(filename)
 	if err != nil {
@@ -144,27 +133,24 @@ func processCSVFile(db *sql.DB, filename string) error {
 	reader.Comma = rune(csvDelimiter)
 	reader.LazyQuotes = true
 
-	// Pular o cabeçalho
-	_, err = reader.Read()
+	_, err = reader.Read() // Pular cabeçalho
 	if err != nil && err != io.EOF {
 		return fmt.Errorf("erro ao ler o cabeçalho do CSV '%s': %w", filename, err)
 	}
 
-	tx, err := db.Begin() // Inicia uma transação para inserções mais rápidas
+	tx, err := db.Begin()
 	if err != nil {
 		return fmt.Errorf("erro ao iniciar transação para '%s': %w", filename, err)
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r) // re-throw panic after Rollback
-		} else if err != nil { // verifica se 'err' é nil para evitar rollback desnecessário
-			tx.Rollback()
-		}
-	}()
+	defer tx.Rollback() // Rollback é o padrão, commit será explícito
 
-	stmt, err := tx.Prepare(fmt.Sprintf(
-		`INSERT INTO %s (data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES (?, ?, ?, ?, ?, ?)`, tableName))
+	// Prepara a query com '?'
+	insertSQL := fmt.Sprintf(
+		`INSERT INTO %s (data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES (?, ?, ?, ?, ?, ?)`, tableName)
+	
+	// Adapta para a sintaxe do banco de dados atual
+	reboundSQL := database.Rebind(insertSQL)
+	stmt, err := tx.Prepare(reboundSQL)
 	if err != nil {
 		return fmt.Errorf("erro ao preparar a instrução SQL para '%s': %w", filename, err)
 	}
@@ -172,78 +158,53 @@ func processCSVFile(db *sql.DB, filename string) error {
 
 	recordsProcessed := 0
 	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break // Fim do arquivo
+		record, readErr := reader.Read()
+		if readErr == io.EOF {
+			break
 		}
-		if err != nil {
-			fmt.Printf("AVISO: Erro ao ler linha do CSV '%s': %v. Pulando esta linha.\n", filename, err)
+		if readErr != nil {
+			fmt.Printf("AVISO: Erro ao ler linha do CSV '%s': %v. Pulando linha.\n", filename, readErr)
 			continue
 		}
 
 		if len(record) != 6 {
-			fmt.Printf("AVISO: Pulando linha com número inesperado de colunas (%d em vez de 6) em '%s': %v\n", len(record), filename, record)
+			fmt.Printf("AVISO: Pulando linha com número inesperado de colunas (%d) em '%s': %v\n", len(record), filename, record)
 			continue
 		}
 
-		dataOcorrencia := record[0]
-		descricao := record[1]
-		categoria := record[3]
-		conta := record[4]
-
+		// Parse dos dados do CSV
+		dataOcorrencia, descricao, categoria, conta := record[0], record[1], record[3], record[4]
 		valorStr := strings.Replace(record[2], ",", ".", -1)
-		valor, err := strconv.ParseFloat(valorStr, 64)
-		if err != nil {
-			fmt.Printf("AVISO: Erro ao converter Valor '%s' (coluna 3) em '%s': %v. Pulando linha: %v\n", record[2], filename, err, record)
+		valor, convErr := strconv.ParseFloat(valorStr, 64)
+		if convErr != nil {
+			fmt.Printf("AVISO: Erro ao converter Valor '%s' em '%s': %v. Pulando linha.\n", record[2], filename, convErr)
 			continue
 		}
-
-		parsedDate, err := time.Parse("02/01/2006", dataOcorrencia) // Formato de entrada DD/MM/YYYY
+		parsedDate, timeErr := time.Parse("02/01/2006", dataOcorrencia)
 		formattedDate := dataOcorrencia
-		if err != nil {
-			fmt.Printf("AVISO: Erro ao parsear 'Data Ocorrência' '%s' em '%s': %v. Usando formato original.\\n", dataOcorrencia, filename, err)
-		} else {
-			formattedDate = parsedDate.Format("2006-01-02") // Formato de saída AAAA-MM-DD
+		if timeErr == nil {
+			formattedDate = parsedDate.Format("2006-01-02")
+		}
+		consolidado, convErr := strconv.ParseBool(strings.ToLower(record[5]))
+		if convErr != nil {
+			consolidado = false // Assume false em caso de erro
 		}
 
-		consolidadoStr := strings.ToLower(record[5])
-		consolidado, err := strconv.ParseBool(consolidadoStr)
-		if err != nil {
-			fmt.Printf("AVISO: Erro ao converter Consolidado '%s' (coluna 6) em '%s': %v. Usando 'false'.\n", record[5], filename, err)
-			consolidado = false
-		}
-
-		mov := Movimentacao{
-			DataOcorrencia: formattedDate,
-			Descricao:      descricao,
-			Valor:          valor,
-			Categoria:      categoria,
-			Conta:          conta,
-			Consolidado:    consolidado,
-		}
-
-		_, err = stmt.Exec(mov.DataOcorrencia, mov.Descricao, mov.Valor, mov.Categoria, mov.Conta, mov.Consolidado)
-		if err != nil {
-			fmt.Printf("ERRO: Erro ao inserir dados da linha %v de '%s': %v\n", record, filename, err)
-			return fmt.Errorf("erro ao inserir dados para '%s': %w", filename, err)
+		// Executa a inserção
+		if _, execErr := stmt.Exec(formattedDate, descricao, valor, categoria, conta, consolidado); execErr != nil {
+			return fmt.Errorf("erro ao inserir dados da linha %v de '%s': %w", record, filename, execErr)
 		}
 		recordsProcessed++
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("erro ao commitar transação para '%s': %w", filename, err)
-	}
-
 	fmt.Printf("  %d registros importados com sucesso de '%s'.\n", recordsProcessed, filename)
-	return nil
+	
+	// Se tudo deu certo, commita a transação
+	return tx.Commit()
 }
 
-// exportToCSV lê todos os dados do banco de dados e os grava em um arquivo CSV.
 func exportToCSV(db *sql.DB, outputFilename string) error {
-	// Garante que o diretório de saída exista
-	outputDir := filepath.Dir(outputFilename)
-	if outputDir != "" && outputDir != "." { // Verifica se há um diretório especificado
+	if outputDir := filepath.Dir(outputFilename); outputDir != "" && outputDir != "." {
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			return fmt.Errorf("erro ao criar diretório '%s': %w", outputDir, err)
 		}
@@ -257,16 +218,16 @@ func exportToCSV(db *sql.DB, outputFilename string) error {
 
 	writer := csv.NewWriter(file)
 	writer.Comma = rune(csvDelimiter)
-	defer writer.Flush() // Garante que todos os dados sejam gravados no arquivo
+	defer writer.Flush()
 
-	// Escrever o cabeçalho do CSV
 	header := []string{"Data Ocorrência", "Descrição", "Valor", "Categoria", "Conta", "Consolidado"}
 	if err := writer.Write(header); err != nil {
 		return fmt.Errorf("erro ao escrever cabeçalho do CSV: %w", err)
 	}
 
-	// Consultar todos os registros da tabela movimentacoes
-	rows, err := db.Query(fmt.Sprintf("SELECT data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s ORDER BY data_ocorrencia ASC", tableName))
+	// Esta query não tem placeholders, então não precisa de Rebind
+	query := fmt.Sprintf("SELECT data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s ORDER BY data_ocorrencia ASC", tableName)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("erro ao consultar o banco de dados para exportação: %w", err)
 	}
@@ -275,24 +236,26 @@ func exportToCSV(db *sql.DB, outputFilename string) error {
 	recordsExported := 0
 	for rows.Next() {
 		var mov Movimentacao
-		err := rows.Scan(&mov.DataOcorrencia, &mov.Descricao, &mov.Valor, &mov.Categoria, &mov.Conta, &mov.Consolidado) 
-		if err != nil {
-			log.Printf("AVISO: Erro ao escanear linha do banco de dados para exportação: %v. Pulando esta linha.\n", err)
+		var rawDate interface{}
+
+		if err := rows.Scan(&rawDate, &mov.Descricao, &mov.Valor, &mov.Categoria, &mov.Conta, &mov.Consolidado); err != nil {
+			log.Printf("AVISO: Erro ao escanear linha do banco de dados para exportação: %v. Pulando linha.\n", err)
 			continue
 		}
-
-		// Formatar o valor para o padrão brasileiro com vírgula
-		valorFormatado := strconv.FormatFloat(mov.Valor, 'f', 2, 64)
-		valorFormatado = strings.Replace(valorFormatado, ".", ",", -1)
-
-		// Formatar a data para DD/MM/YYYY se for necessário reverter do AAAA-MM-DD
-		parsedDate, err := time.Parse("2006-01-02", mov.DataOcorrencia) // CORREÇÃO: "DataOcorrencia" sem cedilha
-		formattedDateForCSV := mov.DataOcorrencia // Fallback
-		if err != nil {
-			log.Printf("AVISO: Erro ao parsear data '%s' para exportação: %v. Usando formato original.\n", mov.DataOcorrencia, err) // CORREÇÃO: "DataOcorrencia" sem cedilha
-		} else {
-			formattedDateForCSV = parsedDate.Format("02/01/2006")
+		
+		var formattedDateForCSV string
+		if t, ok := rawDate.(time.Time); ok {
+			formattedDateForCSV = t.Format("02/01/2006")
+		} else if s, ok := rawDate.(string); ok {
+			parsedDate, err := time.Parse("2006-01-02", s)
+			if err == nil {
+				formattedDateForCSV = parsedDate.Format("02/01/2006")
+			} else {
+				formattedDateForCSV = s // fallback para o formato original
+			}
 		}
+
+		valorFormatado := strings.Replace(strconv.FormatFloat(mov.Valor, 'f', 2, 64), ".", ",", -1)
 
 		record := []string{
 			formattedDateForCSV,
@@ -300,7 +263,7 @@ func exportToCSV(db *sql.DB, outputFilename string) error {
 			valorFormatado,
 			mov.Categoria,
 			mov.Conta,
-			strconv.FormatBool(mov.Consolidado), // Converte bool para "true" ou "false"
+			strconv.FormatBool(mov.Consolidado),
 		}
 
 		if err := writer.Write(record); err != nil {
@@ -310,7 +273,7 @@ func exportToCSV(db *sql.DB, outputFilename string) error {
 	}
 
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("erro durante a iteração das linhas do banco de dados para exportação: %w", err)
+		return fmt.Errorf("erro durante a iteração das linhas do banco de dados: %w", err)
 	}
 
 	fmt.Printf("  %d registros exportados do banco de dados.\n", recordsExported)
