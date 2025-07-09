@@ -3,14 +3,14 @@
 {{end}}
 
 {{define "content"}}
-    <form action="/relatorio" method="GET" class="filter-form" id="reportFilterForm">
+    <form action="/relatorio" method="GET" class="filter-form bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700" id="reportFilterForm">
         <div class="form-group">
             <label for="category" class="label">Categoria:</label>
             <div class="custom-select-container">
                 <div class="select-selected rounded-md" id="category-select-display">Todas as Categorias</div>
                 <div class="select-items select-hide" id="category-select-options">
                     {{- range .Categories -}}
-                    <label class="select-item-label"><input type="checkbox" name="category" value="{{.}}" class="custom-checkbox" {{- range $.SelectedCategories -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
+                    <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="checkbox" name="category" value="{{.}}" class="custom-checkbox" {{- range $.SelectedCategories -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
                     {{- end -}}
                 </div>
             </div>
@@ -25,7 +25,7 @@
                 <div class="select-selected rounded-md" id="account-select-display">Todas as Contas</div>
                 <div class="select-items select-hide" id="account-select-options">
                     {{- range .Accounts -}}
-                    <label class="select-item-label"><input type="checkbox" name="account" value="{{.}}" class="custom-checkbox" {{- range $.SelectedAccounts -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
+                    <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="checkbox" name="account" value="{{.}}" class="custom-checkbox" {{- range $.SelectedAccounts -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
                     {{- end -}}
                 </div>
             </div>
@@ -53,16 +53,16 @@
         </div>
     </form>
 
-    <div class="chart-container">
+    <div class="chart-container bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
         {{ if .ReportData }}
             <canvas id="expensesPieChart"></canvas>
         {{ else }}
-            <p class="no-data">Nenhum dado de despesa encontrado para os filtros selecionados.</p>
+            <p class="no-data dark:text-gray-400">Nenhum dado de despesa encontrado para os filtros selecionados.</p>
         {{ end }}
     </div>
 
-    <div id="category-transactions-section" class="table-container select-hide">
-        <h3>Transações da Categoria: <span id="selected-category-name"></span></h3>
+    <div id="category-transactions-section" class="table-container select-hide bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+        <h3 class="dark:text-gray-200">Transações da Categoria: <span id="selected-category-name"></span></h3>
         <table class="rounded-lg overflow-hidden">
             <thead>
                 <tr>
@@ -71,7 +71,7 @@
             </thead>
             <tbody id="category-transactions-tbody"></tbody>
         </table>
-        <p id="no-transactions-message" class="no-data select-hide">Nenhuma transação encontrada para esta categoria com os filtros aplicados.</p>
+        <p id="no-transactions-message" class="no-data select-hide dark:text-gray-400">Nenhuma transação encontrada para esta categoria com os filtros aplicados.</p>
     </div>
 {{end}}
 

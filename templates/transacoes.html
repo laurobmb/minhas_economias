@@ -1,6 +1,7 @@
 {{define "content"}}
-<div class="add-movement-section rounded-xl">
-    <h2 id="add-edit-form-title">Adicionar Nova Movimentação</h2>
+
+<div class="add-movement-section rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+    <h2 id="add-edit-form-title" class="dark:text-gray-200">Adicionar Nova Movimentação</h2>
     <form action="/movimentacoes" method="POST" class="add-movement-form" id="add-edit-form">
         <input type="hidden" name="id" id="movement-id-input">
         <div class="form-row">
@@ -23,8 +24,8 @@
                 <div class="custom-select-container">
                     <div class="select-selected rounded-md" id="tipo-movimentacao-display">Despesa</div>
                     <div class="select-items select-hide" id="tipo-movimentacao-options">
-                        <label class="select-item-label"><input type="radio" name="tipo_movimentacao" value="receita" id="tipo_receita" class="hidden-radio-input"> Receita</label>
-                        <label class="select-item-label"><input type="radio" name="tipo_movimentacao" value="despesa" id="tipo_despesa" class="hidden-radio-input" checked> Despesa</label>
+                        <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="radio" name="tipo_movimentacao" value="receita" id="tipo_receita" class="hidden-radio-input"> Receita</label>
+                        <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="radio" name="tipo_movimentacao" value="despesa" id="tipo_despesa" class="hidden-radio-input" checked> Despesa</label>
                     </div>
                 </div>
             </div>
@@ -39,7 +40,7 @@
                 <datalist id="account-suggestions"></datalist>
             </div>
             <div class="form-group checkbox-group">
-                <label for="new_consolidado" class="label-checkbox">Consolidado:</label>
+                <label for="new_consolidado" class="label-checkbox dark:text-slate-300">Consolidado:</label>
                 <input type="checkbox" name="consolidado" id="new_consolidado" class="checkbox-input rounded-md">
             </div>
         </div>
@@ -50,14 +51,14 @@
     </form>
 </div>
 
-<form action="/transacoes" method="GET" class="filter-form" id="filterForm">
+<form action="/transacoes" method="GET" class="filter-form bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700" id="filterForm">
     <div class="form-group">
         <label for="category" class="label">Categoria:</label>
         <div class="custom-select-container">
             <div class="select-selected rounded-md" id="category-select-display">Todas as Categorias</div>
             <div class="select-items select-hide" id="category-select-options">
                 {{- range .Categories -}}
-                <label class="select-item-label"><input type="checkbox" name="category" value="{{.}}" class="custom-checkbox" {{- range $.SelectedCategories -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
+                <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="checkbox" name="category" value="{{.}}" class="custom-checkbox" {{- range $.SelectedCategories -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
                 {{- end -}}
             </div>
         </div>
@@ -72,7 +73,7 @@
             <div class="select-selected rounded-md" id="account-select-display">Todas as Contas</div>
             <div class="select-items select-hide" id="account-select-options">
                 {{- range .Accounts -}}
-                <label class="select-item-label"><input type="checkbox" name="account" value="{{.}}" class="custom-checkbox" {{- range $.SelectedAccounts -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
+                 <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="checkbox" name="account" value="{{.}}" class="custom-checkbox" {{- range $.SelectedAccounts -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
                 {{- end -}}
             </div>
         </div>
@@ -86,7 +87,7 @@
         <input type="date" name="end_date" id="end_date" value="{{ .SelectedEndDate }}" class="date-input rounded-md">
     </div>
     <div class="form-group">
-        <label for="consolidated_filter" class="label">Consolidado:</label>
+        <label for="consolidado_filter" class="label">Consolidado:</label>
         <select name="consolidated_filter" id="consolidated_filter" class="select-input rounded-md">
             {{ range .ConsolidatedOptions }}
                 <option value="{{ .Value }}" {{ if eq .Value $.SelectedConsolidado }}selected{{ end }}>{{ .Label }}</option>
@@ -103,8 +104,8 @@
     <button type="button" class="value-filter-button income-filter {{ if eq .SelectedValueFilter "income" }}active{{ end }}" data-value-filter="income">Filtrar Entradas</button>
     <button type="button" class="value-filter-button expense-filter {{ if eq .SelectedValueFilter "expense" }}active{{ end }}" data-value-filter="expense">Filtrar Saídas</button>
     <button type="button" class="value-filter-button all-values-filter {{ if eq .SelectedValueFilter "" }}active{{ end }}" data-value-filter="">Todos os Valores</button>
-    <div class="summary-button-item income"><span>Entradas:</span><span class="value">R$ {{ printf "%.2f" .TotalEntradas }}</span></div>
-    <div class="summary-button-item expense"><span>Saídas:</span><span class="value">R$ {{ printf "%.2f" .TotalSaidas }}</span></div>
+    <div class="summary-button-item income dark:bg-emerald-900/50 dark:text-emerald-300"><span>Entradas:</span><span class="value">R$ {{ printf "%.2f" .TotalEntradas }}</span></div>
+    <div class="summary-button-item expense dark:bg-rose-900/50 dark:text-rose-300"><span>Saídas:</span><span class="value">R$ {{ printf "%.2f" .TotalSaidas }}</span></div>
 </div>
 
 {{ if .Movimentacoes }}
@@ -118,7 +119,13 @@
         <tbody>
             {{ range .Movimentacoes }}
             <tr class="table-row-item" data-id="{{ .ID }}" data-data="{{ .DataOcorrencia }}" data-descricao="{{ .Descricao }}" data-valor="{{ printf "%.2f" .Valor }}" data-categoria="{{ .Categoria }}" data-conta="{{ .Conta }}" data-consolidado="{{ .Consolidado }}" data-tipo="{{ if lt .Valor 0.0 }}despesa{{ else }}receita{{ end }}">
-                <td>{{ .ID }}</td><td>{{ .DataOcorrencia }}</td><td>{{ .Descricao }}</td><td class="text-right">R$ {{ printf "%.2f" .Valor }}</td><td>{{ .Categoria }}</td><td>{{ .Conta }}</td><td>{{ if .Consolidado }}Sim{{ else }}Não{{ end }}</td>
+                <td>{{ .ID }}</td>
+                <td>{{ .DataOcorrencia }}</td>
+                <td>{{ .Descricao }}</td>
+                <td class="text-right {{ if lt .Valor 0.0 }}negative{{ else }}positive dark:text-green-400{{ end }}">R$ {{ printf "%.2f" .Valor }}</td>
+                <td>{{ .Categoria }}</td>
+                <td>{{ .Conta }}</td>
+                <td>{{ if .Consolidado }}Sim{{ else }}Não{{ end }}</td>
                 <td class="action-buttons-cell">
                     <button class="edit-button rounded-md" data-id="{{ .ID }}">Editar</button>
                     <button class="delete-button rounded-md" data-id="{{ .ID }}">Excluir</button>
@@ -129,17 +136,17 @@
     </table>
 </div>
 <div class="total-summary-container">
-    <table class="total-summary-table rounded-lg overflow-hidden">
+    <table class="total-summary-table rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-800/50">
         <tbody>
             <tr>
-                <td class="total-label">Total Filtrado:</td>
-                <td class="total-value text-right {{ if lt .TotalValor 0.0 }}negative{{ end }}">R$ {{ printf "%.2f" .TotalValor }}</td>
+                <td class="total-label dark:text-gray-200">Total Filtrado:</td>
+                 <td class="total-value text-right {{ if lt .TotalValor 0.0 }}negative{{ else }}positive dark:text-green-400{{ end }}">R$ {{ printf "%.2f" .TotalValor }}</td>
             </tr>
         </tbody>
     </table>
 </div>
 {{ else }}
-<p class="no-data">Nenhuma transação encontrada com os filtros aplicados.</p>
+<p class="no-data dark:text-gray-400">Nenhuma transação encontrada com os filtros aplicados.</p>
 {{ end }}
 {{end}}
 

@@ -89,8 +89,11 @@ func main() {
 		authorized.GET("/transacoes", handlers.GetTransacoesPage)
 		authorized.GET("/relatorio", handlers.GetRelatorio)
 		authorized.GET("/sobre", handlers.GetSobrePage)
+		authorized.GET("/configuracoes", handlers.GetConfiguracoesPage) // <-- NOVA ROTA
+
 		authorized.POST("/logout", auth.PostLogout)
 		authorized.GET("/api/movimentacoes", handlers.GetTransacoesPage)
+		authorized.POST("/api/user/settings", handlers.UpdateUserSettings)
 		authorized.POST("/movimentacoes", handlers.AddMovimentacao)
 		authorized.DELETE("/movimentacoes/:id", handlers.DeleteMovimentacao)
 		authorized.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao)

@@ -48,12 +48,12 @@ func CreateUser(email, password string) error {
 // GetUserByEmail busca um usuário pelo seu e-mail, incluindo o status de admin.
 func GetUserByEmail(email string) (*models.User, error) {
 	var user models.User
-	// ATUALIZADO para selecionar o campo is_admin
-	query := "SELECT id, email, password_hash, is_admin FROM users WHERE email = ?"
+	// ATUALIZADO para selecionar o campo dark_mode_enabled
+	query := "SELECT id, email, password_hash, is_admin, dark_mode_enabled FROM users WHERE email = ?"
 	row := database.GetDB().QueryRow(database.Rebind(query), email)
 
-	// ATUALIZADO para escanear o campo is_admin
-	err := row.Scan(&user.ID, &user.Email, &user.PasswordHash, &user.IsAdmin)
+	// ATUALIZADO para escanear o campo dark_mode_enabled
+	err := row.Scan(&user.ID, &user.Email, &user.PasswordHash, &user.IsAdmin, &user.DarkModeEnabled)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("usuário não encontrado")

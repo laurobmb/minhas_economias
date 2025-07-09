@@ -45,8 +45,9 @@ func PostLogin(c *gin.Context) {
 
 	session, _ := store.Get(c.Request, "session_token")
 	session.Values["user_id"] = user.ID
-	session.Options.MaxAge = maxAgeSeconds // Define o tempo de expiração do cookie
-	session.Options.HttpOnly = true       // Medida de segurança
+	session.Values["user_email"] = user.Email // <-- ALTERADO: Adicionado para o middleware buscar o usuário completo
+	session.Options.MaxAge = maxAgeSeconds    // Define o tempo de expiração do cookie
+	session.Options.HttpOnly = true           // Medida de segurança
 	session.Options.SameSite = http.SameSiteLaxMode
 
 	err = session.Save(c.Request, c.Writer)
@@ -112,20 +113,30 @@ func PostLogout(c *gin.Context) {
 	session, _ := store.Get(c.Request, "session_token")
 	// Apaga os dados da sessão
 	session.Values["user_id"] = nil
-	session.Options.MaxAge = -1 // Expira o cookie imediatamente
+	session.Values["user_email"] = nil // <-- Limpa também o email
+	session.Options.MaxAge = -1        // Expira o cookie imediatamente
 	session.Save(c.Request, c.Writer)
 	c.Redirect(http.StatusFound, "/login")
 }
 
 // GetUserFromContext recupera os dados do usuário a partir do ID no contexto.
 func GetUserFromContext(c *gin.Context) *models.User {
+	// Embora tenhamos o objeto "user" completo no contexto agora,
+	// esta função pode ser mantida para compatibilidade ou outros usos.
 	userID, exists := c.Get("userID")
 	if !exists {
 		return nil
 	}
 
-	// Aqui, em uma aplicação real, você poderia buscar os dados completos do usuário
-	// do banco de dados se necessário. Por simplicidade, vamos apenas retornar o ID.
+	// Para uma implementação mais robusta, você buscaria no banco de dados aqui.
+	// Por simplicidade, retornamos o que está no contexto.
+	if user, exists := c.Get("user"); exists {
+		if u, ok := user.(*models.User); ok {
+			return u
+		}
+	}
+
+	// Fallback para o caso de apenas o ID estar disponível.
 	return &models.User{
 		ID: userID.(int64),
 	}

@@ -91,8 +91,10 @@ func validateMovimentacao(c *gin.Context) (models.Movimentacao, error) {
 // =============================================================================
 
 func GetIndexPage(c *gin.Context) {
-	log.Println("--- EXECUTANDO HANDLER: GetIndexPage para a rota / ---") // <-- LOG DE DIAGNÓSTICO
+	log.Println("--- EXECUTANDO HANDLER: GetIndexPage para a rota / ---") 
 	userID := c.MustGet("userID").(int64)
+	user := c.MustGet("user").(*models.User) // <-- NOVO: Pega o usuário do contexto
+
 	saldosContas, err := calculateAccountBalances(userID)
 	if err != nil {
 		renderErrorPage(c, http.StatusInternalServerError, "Não foi possível carregar os saldos das contas.", err)
@@ -101,12 +103,15 @@ func GetIndexPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"Titulo":       "Minhas Economias - Saldos",
 		"SaldosContas": saldosContas,
+		"User":         user, // <-- NOVO: Passa o usuário para o template
 	})
 }
 
 func GetTransacoesPage(c *gin.Context) {
 	log.Println("--- EXECUTANDO HANDLER: GetTransacoesPage para a rota /transacoes ---") // <-- LOG DE DIAGNÓSTICO
 	userID := c.MustGet("userID").(int64)
+	user := c.MustGet("user").(*models.User)
+
 	searchDescricao := c.Query("search_descricao")
 	selectedCategories := c.QueryArray("category")
 	selectedStartDate := c.Query("start_date")
@@ -163,12 +168,15 @@ func GetTransacoesPage(c *gin.Context) {
 		"ConsolidatedOptions": []struct{ Value, Label string }{{"", "Todos"}, {"true", "Sim"}, {"false", "Não"}},
 		"TotalValor":          totalValor, "TotalEntradas": totalEntradas, "TotalSaidas": totalSaidas,
 		"CurrentDate":         time.Now().Format("2006-01-02"),
+		"User":                user,
 	})
 }
 
 func GetRelatorio(c *gin.Context) {
 	log.Println("--- EXECUTANDO HANDLER: GetRelatorio para a rota /relatorio ---") // <-- LOG DE DIAGNÓSTICO
 	userID := c.MustGet("userID").(int64)
+	user := c.MustGet("user").(*models.User)
+
 	searchDescricao := c.Query("search_descricao")
 	selectedCategories := c.QueryArray("category")
 	selectedStartDate := c.Query("start_date")
@@ -191,6 +199,7 @@ func GetRelatorio(c *gin.Context) {
 		"Categories":          getDistinctColumnValues(userID, "categoria"), "Accounts": getDistinctColumnValues(userID, "conta"),
 		"ConsolidatedOptions": []struct{ Value, Label string }{{"", "Todos"}, {"true", "Sim"}, {"false", "Não"}},
 		"CurrentDate":         time.Now().Format("2006-01-02"),
+		"User":                user,
 	})
 }
 
