@@ -8,6 +8,8 @@ import time
 import shutil
 import sqlite3
 import psycopg2
+import csv
+from urllib.parse import quote_plus
 from datetime import datetime, timezone
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -245,6 +247,122 @@ class MinhasEconomiasTest(unittest.TestCase):
         
         self.assertIn("A senha atual está incorreta", alert_text)
         logger.info("SUCESSO: Alerta de erro para senha atual incorreta foi exibido corretamente.")
+
+
+    def test_04_export_csv_functionality(self):
+        """Testa a funcionalidade de exportação para CSV, com e sem filtros."""
+        logger.info("--- INICIANDO TESTE 04: EXPORTAÇÃO CSV ---")
+
+        # (A seção que insere os dados de teste permanece a mesma)
+        user_id_query = f"SELECT id FROM users WHERE email = '{TEST_USER_EMAIL}'"
+        desc_aluguel = f"Aluguel Teste Selenium {int(time.time())}"
+        desc_salario = f"Salario Teste Selenium {int(time.time())}"
+        conn = None
+        try:
+            if DB_TYPE == 'postgres':
+                conn = psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASS, host=DB_HOST, port=DB_PORT)
+            else: # sqlite3
+                conn = sqlite3.connect(DB_NAME)
+            
+            cursor = conn.cursor()
+            cursor.execute(user_id_query)
+            test_user_id = cursor.fetchone()[0]
+
+            logger.info(f"Inserindo dados de teste para o usuário ID: {test_user_id}")
+            
+            insert_query = "INSERT INTO movimentacoes (user_id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+            if DB_TYPE == 'sqlite3':
+                insert_query = "INSERT INTO movimentacoes (user_id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES (?, ?, ?, ?, ?, ?, ?)"
+
+            cursor.execute(insert_query, (test_user_id, '2025-01-10', desc_aluguel, -1500.50, 'Moradia Teste', 'Conta Teste Export', True))
+            cursor.execute(insert_query, (test_user_id, '2025-01-15', desc_salario, 5000.75, 'Renda Teste', 'Conta Teste Export', True))
+            conn.commit()
+        finally:
+            if conn:
+                conn.close()
+        
+        self.browser.get(f'{BASE_URL}/transacoes')
+        self.wait.until(EC.title_contains("Transações"))
+
+        # (O helper _verify_download permanece o mesmo)
+        def _verify_download(filename_part, expected_content_list, unexpected_content_list=None):
+            logger.info(f"Verificando download que deve conter: {expected_content_list}...")
+            downloaded_file_path = None
+            for _ in range(15):
+                files = [f for f in os.listdir(self.download_dir) if f.endswith('.csv') and not f.endswith('.crdownload')]
+                if files:
+                    downloaded_file_path = os.path.join(self.download_dir, files[0])
+                    break
+                time.sleep(1)
+            
+            self.assertIsNotNone(downloaded_file_path, "Nenhum arquivo .csv foi encontrado na pasta de downloads.")
+            self.assertTrue(os.path.getsize(downloaded_file_path) > 0, "O arquivo CSV baixado está vazio.")
+            
+            with open(downloaded_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                for expected in expected_content_list:
+                    self.assertIn(expected, content, f"Conteúdo esperado '{expected}' não encontrado no CSV.")
+                
+                if unexpected_content_list:
+                    for unexpected in unexpected_content_list:
+                        self.assertNotIn(unexpected, content, f"Conteúdo inesperado '{unexpected}' foi encontrado no CSV.")
+            
+            logger.info(f"SUCESSO: Arquivo '{os.path.basename(downloaded_file_path)}' baixado e verificado.")
+            os.remove(downloaded_file_path)
+
+        # --- Teste 1: Exportação de TODOS os dados ---
+        logger.info("Testando exportação de TODOS os dados (limpando filtros de data)...")
+        start_date_input = self.wait.until(EC.visibility_of_element_located((By.ID, "start_date")))
+        end_date_input = self.browser.find_element(By.ID, "end_date")
+        
+        start_date_input.clear()
+        end_date_input.clear()
+        self.browser.execute_script("arguments[0].dispatchEvent(new Event('change'))", end_date_input)
+
+        export_button_locator = (By.ID, "export-csv-button")
+        self.wait.until(EC.presence_of_element_located(export_button_locator))
+        self.wait.until(
+            lambda driver: "start_date" not in driver.find_element(*export_button_locator).get_attribute('href'),
+            "O link de exportação não foi atualizado após limpar as datas."
+        )
+        
+        export_button = self.browser.find_element(*export_button_locator)
+        export_button.click()
+        
+        _verify_download(
+            "backup_minhas_economias",
+            expected_content_list=['Data Ocorrência;Descrição;Valor', desc_aluguel, desc_salario]
+        )
+        
+        # --- Teste 2: Exportação com filtro ---
+        logger.info(f"Testando exportação com filtro de descrição ('{desc_aluguel}')...")
+        search_box = self.browser.find_element(By.ID, "search_descricao")
+        search_box.clear()
+        search_box.send_keys(desc_aluguel)
+        
+        self.browser.execute_script("arguments[0].dispatchEvent(new Event('change'))", search_box)
+        
+        export_button = self.browser.find_element(*export_button_locator)
+        
+        # ========================== CORREÇÃO FINAL ==========================
+        # Agora verificamos a versão CODIFICADA da descrição dentro do link
+        # "Aluguel Teste Selenium..." se torna "Aluguel+Teste+Selenium..."
+        desc_aluguel_encoded = quote_plus(desc_aluguel)
+        self.wait.until(
+            lambda driver: desc_aluguel_encoded in driver.find_element(*export_button_locator).get_attribute('href'),
+            f"O link do botão de exportação não foi atualizado com o filtro codificado ('{desc_aluguel_encoded}')."
+        )
+        # ===================================================================
+        
+        logger.info(f"Link com filtro: {export_button.get_attribute('href')}")
+        export_button.click()
+        
+        _verify_download(
+            "backup_minhas_economias",
+            expected_content_list=[desc_aluguel],
+            unexpected_content_list=[desc_salario]
+        )
+
 
 
 if __name__ == '__main__':

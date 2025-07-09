@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bytes" // NOVO
+	"encoding/csv" // NOVO
 	"database/sql"
 	"fmt"
 	"log"
@@ -345,4 +347,114 @@ func fetchAllTransactions(userID int64, startDate, endDate string, categories, a
 	var transactions []models.Movimentacao
 	for rows.Next() { var mov models.Movimentacao; var rawData interface{}; if err := rows.Scan(&mov.ID, &rawData, &mov.Descricao, &mov.Valor, &mov.Categoria, &mov.Conta, &mov.Consolidado); err != nil { log.Printf("Erro ao escanear transação: %v", err); continue }; mov.DataOcorrencia = scanDate(rawData); transactions = append(transactions, mov) }
 	return transactions, rows.Err()
+}
+
+// =============================================================================
+// NOVO HANDLER PARA EXPORTAÇÃO DE CSV
+// =============================================================================
+
+// ExportTransactionsCSV gera um arquivo CSV com as transações do usuário, aplicando os filtros da requisição.
+func ExportTransactionsCSV(c *gin.Context) {
+	log.Println("--- EXECUTANDO HANDLER: ExportTransactionsCSV ---")
+	userID := c.MustGet("userID").(int64)
+
+	// 1. Reutiliza a lógica de filtragem da GetTransacoesPage
+	searchDescricao := c.Query("search_descricao")
+	selectedCategories := c.QueryArray("category")
+	selectedStartDate := c.Query("start_date")
+	selectedEndDate := c.Query("end_date")
+	selectedConsolidado := c.Query("consolidated_filter")
+	selectedAccounts := c.QueryArray("account")
+	selectedValueFilter := c.Query("value_filter")
+
+	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s WHERE user_id = ?", database.TableName)
+	var args []interface{}
+	var whereClauses []string
+
+	if searchDescricao != "" {
+		clause := "descricao LIKE ?"; if database.DriverName == "postgres" { clause = "descricao ILIKE ?" }; whereClauses = append(whereClauses, clause); args = append(args, "%"+searchDescricao+"%")
+	}
+	if len(selectedCategories) > 0 && selectedCategories[0] != "" {
+		placeholders := strings.Repeat("?,", len(selectedCategories)-1) + "?"; whereClauses = append(whereClauses, fmt.Sprintf("categoria IN (%s)", placeholders)); for _, v := range selectedCategories { args = append(args, v) }
+	}
+	if len(selectedAccounts) > 0 && selectedAccounts[0] != "" {
+		placeholders := strings.Repeat("?,", len(selectedAccounts)-1) + "?"; whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", placeholders)); for _, v := range selectedAccounts { args = append(args, v) }
+	}
+	if selectedStartDate != "" {
+		whereClauses = append(whereClauses, "data_ocorrencia >= ?"); args = append(args, selectedStartDate)
+	}
+	if selectedEndDate != "" {
+		whereClauses = append(whereClauses, "data_ocorrencia <= ?"); args = append(args, selectedEndDate)
+	}
+	if selectedConsolidado != "" {
+		if b, err := strconv.ParseBool(selectedConsolidado); err == nil { whereClauses = append(whereClauses, "consolidado = ?"); args = append(args, b) }
+	}
+	if selectedValueFilter == "income" { whereClauses = append(whereClauses, "valor >= 0") }
+	if selectedValueFilter == "expense" { whereClauses = append(whereClauses, "valor < 0") }
+	if len(whereClauses) > 0 { query += " AND " + strings.Join(whereClauses, " AND ") }
+	query += " ORDER BY data_ocorrencia ASC, id ASC"
+
+	rows, err := bindAndQuery(userID, query, args...)
+	if err != nil { renderErrorPage(c, http.StatusInternalServerError, "Erro ao buscar movimentações para exportação.", err); return }
+	defer rows.Close()
+
+	// 2. Cria o CSV em um buffer de memória
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	writer.Comma = ';' // Usando o mesmo delimitador do seu data_manager
+
+	// Escreve o cabeçalho
+	header := []string{"Data Ocorrência", "Descrição", "Valor", "Categoria", "Conta", "Consolidado"}
+	if err := writer.Write(header); err != nil {
+		renderErrorPage(c, http.StatusInternalServerError, "Erro ao escrever o cabeçalho do CSV.", err)
+		return
+	}
+
+	// Escreve as linhas de dados
+	for rows.Next() {
+		var mov models.Movimentacao; var rawData interface{}
+		if err := rows.Scan(&mov.ID, &rawData, &mov.Descricao, &mov.Valor, &mov.Categoria, &mov.Conta, &mov.Consolidado); err != nil {
+			log.Printf("Erro ao escanear linha para CSV: %v", err)
+			continue
+		}
+		
+		// Formata a data
+		var formattedDateForCSV string
+		if t, ok := rawData.(time.Time); ok {
+			formattedDateForCSV = t.Format("02/01/2006")
+		} else if s, ok := rawData.(string); ok {
+			parsedDate, err := time.Parse("2006-01-02", s)
+			if err == nil {
+				formattedDateForCSV = parsedDate.Format("02/01/2006")
+			} else {
+				formattedDateForCSV = s
+			}
+		}
+
+		// Formata o valor com vírgula como separador decimal
+		valorFormatado := strings.Replace(strconv.FormatFloat(mov.Valor, 'f', 2, 64), ".", ",", -1)
+		
+		record := []string{
+			formattedDateForCSV,
+			mov.Descricao,
+			valorFormatado,
+			mov.Categoria,
+			mov.Conta,
+			strconv.FormatBool(mov.Consolidado),
+		}
+		
+		if err := writer.Write(record); err != nil {
+			log.Printf("Erro ao escrever registro no CSV: %v", err)
+			continue
+		}
+	}
+	if err = rows.Err(); err != nil { renderErrorPage(c, http.StatusInternalServerError, "Erro durante a leitura das movimentações para CSV.", err); return }
+	
+	writer.Flush()
+	
+	// 3. Envia a resposta como um download de arquivo
+	filename := fmt.Sprintf("backup_minhas_economias_%s.csv", time.Now().Format("2006-01-02"))
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Header("Content-Type", "text/csv")
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", buffer.Bytes())
 }

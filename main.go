@@ -74,6 +74,7 @@ func main() {
 		authorized.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao)
 		authorized.GET("/relatorio/transactions", handlers.GetTransactionsByCategory)
 		authorized.POST("/relatorio/pdf", handlers.DownloadRelatorioPDF)
+		authorized.GET("/export/csv", handlers.ExportTransactionsCSV)
 	}
 
 	log.Println("Servidor Gin iniciado na porta :8080")
