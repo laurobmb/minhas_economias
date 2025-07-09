@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infográfico do Projeto: Minhas Economias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; 
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #ef5675, #ffa600);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 450px;
+        }
+        .tech-card, .feature-card, .test-card {
+            background-color: rgba(32, 39, 51, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="text-gray-200 antialiased">
+
+<!-- 
+    Color Palette Name: Brilliant Blues (Subset)
+    HEX Codes Used:
+    - Background: #0d1117 (Dark Navy)
+    - Card Background: #202733 (Dark Slate)
+    - Primary Accent: #7a5195 (Purple)
+    - Secondary Accent: #ef5675 (Pink/Coral)
+    - Highlight: #ffa600 (Orange)
+    - Text: #e5e7eb (Light Gray)
+-->
+
+<!-- 
+    Narrative Plan:
+    1.  Introduction: Big, bold title and tagline.
+    2.  Key Metrics: Showcase core project stats (e.g., supported databases, testing layers) as high-impact numbers.
+    3.  Feature Distribution: Visualize the application's functional areas with a donut chart to show where development effort is focused.
+    4.  Technology Stack: A clear, organized diagram of the technologies used, categorized by their role (Frontend, Backend, etc.).
+    5.  Testing Strategy: A simple flow diagram illustrating the multi-layered testing approach.
+    6.  Setup Workflow: A step-by-step visual guide on how to get the project running.
+-->
+
+<!--
+    Visualization Choices:
+    - Key Metrics -> Single Big Number -> Goal: Inform. Justification: Highlighting key architectural decisions (multi-db, multi-layer testing) effectively. Method: Styled HTML.
+    - Feature Distribution -> Donut Chart -> Goal: Compare/Show Composition. Justification: Shows the proportion of different functional areas within the project, giving a quick overview of its scope. Library: Chart.js.
+    - Technology Stack -> Diagram/List -> Goal: Organize. Justification: Best way to group and present related technologies clearly. Method: Styled HTML with flexbox. NO SVG.
+    - Testing Strategy -> Flow Chart -> Goal: Organize. Justification: Shows the process and relationship between different testing methods. Method: Styled HTML with flexbox and arrows. NO SVG/Mermaid.
+    - Setup Workflow -> Timeline/Ordered List -> Goal: Organize. Justification: Clearly presents a sequence of steps. Method: Styled HTML. NO SVG.
+-->
+
+<!-- NO SVG or Mermaid JS were used in this document. All diagrams are created with HTML and Tailwind CSS. -->
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+
+        <header class="text-center my-12 md:my-16">
+            <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-white">Minhas Economias</h1>
+            <p class="text-xl md:text-2xl font-semibold mt-4 gradient-text">Uma Análise Visual Completa do Projeto</p>
+        </header>
+
+        <section id="metrics" class="my-16">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 md:gap-8 text-center">
+                <div class="tech-card p-8 rounded-2xl">
+                    <p class="text-6xl md:text-7xl font-bold gradient-text">1</p>
+                    <p class="mt-2 text-lg font-semibold text-gray-300">Solução Completa</p>
+                    <p class="text-sm text-gray-400">Aplicação full-stack para gestão financeira.</p>
+                </div>
+                <div class="tech-card p-8 rounded-2xl">
+                    <p class="text-6xl md:text-7xl font-bold gradient-text">2</p>
+                    <p class="mt-2 text-lg font-semibold text-gray-300">Opções de Base de Dados</p>
+                    <p class="text-sm text-gray-400">Suporte nativo para PostgreSQL e SQLite.</p>
+                </div>
+                <div class="tech-card p-8 rounded-2xl">
+                    <p class="text-6xl md:text-7xl font-bold gradient-text">3</p>
+                    <p class="mt-2 text-lg font-semibold text-gray-300">Camadas de Testes</p>
+                    <p class="text-sm text-gray-400">Backend (Go), API (Ansible) e UI (Selenium).</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 my-16 items-center">
+            
+            <div class="lg:col-span-2">
+                <h2 class="text-3xl font-bold text-white mb-4">Distribuição de Funcionalidades</h2>
+                <p class="text-gray-400 mb-6">
+                    A aplicação é dividida em áreas funcionais distintas. O gráfico ao lado ilustra a proporção de funcionalidades dedicadas à gestão financeira central, à experiência do utilizador e à robustez do backend e da sua API.
+                </p>
+                <div class="space-y-4">
+                    <div class="flex items-center"><div class="w-4 h-4 rounded-full mr-3" style="background-color: #7a5195;"></div><span class="font-semibold">Gestão Financeira (CRUD, Relatórios, Saldos)</span></div>
+                    <div class="flex items-center"><div class="w-4 h-4 rounded-full mr-3" style="background-color: #ef5675;"></div><span class="font-semibold">Experiência do Utilizador (UI, Dark Mode, Perfil)</span></div>
+                    <div class="flex items-center"><div class="w-4 h-4 rounded-full mr-3" style="background-color: #ffa600;"></div><span class="font-semibold">Backend e Infraestrutura (API, Multi-DB, Auth)</span></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3">
+                <div class="chart-container">
+                    <canvas id="featuresChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <section id="tech-stack" class="my-20">
+            <h2 class="text-3xl font-bold text-white text-center mb-10">Arquitetura Tecnológica</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                <div class="tech-card p-6 rounded-2xl">
+                    <h3 class="text-xl font-bold text-white border-b border-purple-500/50 pb-2 mb-4">Backend</h3>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center"><span class="text-purple-400 mr-2">●</span>Go</li>
+                        <li class="flex items-center"><span class="text-purple-400 mr-2">●</span>Gin Web Framework</li>
+                    </ul>
+                </div>
+
+                <div class="tech-card p-6 rounded-2xl">
+                    <h3 class="text-xl font-bold text-white border-b border-pink-500/50 pb-2 mb-4">Frontend</h3>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center"><span class="text-pink-400 mr-2">●</span>HTML5</li>
+                        <li class="flex items-center"><span class="text-pink-400 mr-2">●</span>Tailwind CSS</li>
+                        <li class="flex items-center"><span class="text-pink-400 mr-2">●</span>JavaScript</li>
+                    </ul>
+                </div>
+
+                <div class="tech-card p-6 rounded-2xl">
+                    <h3 class="text-xl font-bold text-white border-b border-orange-500/50 pb-2 mb-4">Base de Dados</h3>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center"><span class="text-orange-400 mr-2">●</span>PostgreSQL</li>
+                        <li class="flex items-center"><span class="text-orange-400 mr-2">●</span>SQLite</li>
+                        <li class="flex items-center"><span class="text-orange-400 mr-2">●</span>Gofpdf (Geração PDF)</li>
+                    </ul>
+                </div>
+                
+                <div class="tech-card p-6 rounded-2xl">
+                    <h3 class="text-xl font-bold text-white border-b border-teal-500/50 pb-2 mb-4">Testes & DevOps</h3>
+                    <ul class="space-y-2 text-gray-300">
+                        <li class="flex items-center"><span class="text-teal-400 mr-2">●</span>Go Testing</li>
+                        <li class="flex items-center"><span class="text-teal-400 mr-2">●</span>Ansible</li>
+                        <li class="flex items-center"><span class="text-teal-400 mr-2">●</span>Python + Selenium</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="testing" class="my-20">
+             <h2 class="text-3xl font-bold text-white text-center mb-10">Estratégia de Testes Abrangente</h2>
+             <p class="text-center max-w-2xl mx-auto text-gray-400 mb-10">
+                O projeto utiliza uma abordagem de testes em múltiplas camadas para garantir a qualidade e a estabilidade, desde a lógica de negócio individual até a experiência final do utilizador na interface.
+             </p>
+             <div class="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
+                <div class="test-card p-6 rounded-2xl text-center w-full md:w-1/4">
+                    <p class="text-lg font-bold text-white">Testes Unitários</p>
+                    <p class="text-sm text-gray-400">(Go)</p>
+                </div>
+                <div class="text-3xl font-bold mx-4 text-purple-400 transform md:rotate-0 rotate-90">→</div>
+                <div class="test-card p-6 rounded-2xl text-center w-full md:w-1/4">
+                    <p class="text-lg font-bold text-white">Testes de API</p>
+                    <p class="text-sm text-gray-400">(Ansible)</p>
+                </div>
+                <div class="text-3xl font-bold mx-4 text-pink-400 transform md:rotate-0 rotate-90">→</div>
+                <div class="test-card p-6 rounded-2xl text-center w-full md:w-1/4">
+                    <p class="text-lg font-bold text-white">Testes de UI (E2E)</p>
+                    <p class="text-sm text-gray-400">(Selenium)</p>
+                </div>
+             </div>
+        </section>
+        
+        <footer class="text-center mt-20 pb-10">
+            <p class="text-gray-500">Infográfico gerado a partir do README do projeto em 09 de julho de 2025.</p>
+        </footer>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            function wrapText(label) {
+                const maxLength = 16;
+                if (label.length <= maxLength) {
+                    return label;
+                }
+                const words = label.split(' ');
+                let lines = [];
+                let currentLine = '';
+                words.forEach(word => {
+                    if ((currentLine + ' ' + word).trim().length > maxLength) {
+                        lines.push(currentLine.trim());
+                        currentLine = word;
+                    } else {
+                        currentLine = (currentLine + ' ' + word).trim();
+                    }
+                });
+                if (currentLine) {
+                    lines.push(currentLine);
+                }
+                return lines;
+            }
+
+            const featuresData = {
+                labels: [
+                    wrapText('Gestão Financeira'),
+                    wrapText('Experiência do Utilizador'),
+                    wrapText('Backend e Infraestrutura')
+                ],
+                datasets: [{
+                    label: 'Distribuição de Funcionalidades',
+                    data: [45, 30, 25],
+                    backgroundColor: [
+                        '#7a5195',
+                        '#ef5675',
+                        '#ffa600',
+                    ],
+                    borderColor: '#0d1117',
+                    borderWidth: 4,
+                    hoverOffset: 15
+                }]
+            };
+
+            const featuresChartCtx = document.getElementById('featuresChart');
+            if (featuresChartCtx) {
+                new Chart(featuresChartCtx, {
+                    type: 'doughnut',
+                    data: featuresData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        const item = tooltipItems[0];
+                                        let label = item.chart.data.labels[item.dataIndex];
+                                        return Array.isArray(label) ? label.join(' ') : label;
+                                    },
+                                    label: function (context) {
+                                        return ` Proporção: ${context.parsed}%`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>

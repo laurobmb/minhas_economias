@@ -1,216 +1,196 @@
-# Minhas Economias: Gestão Financeira Pessoal (Web e CLI)
+# Minhas Economias
 
-Este projeto oferece um sistema para gestão de movimentações financeiras pessoais, com suporte a bancos de dados PostgreSQL e SQLite. Ele permite a importação e exportação de dados via linha de comando, e a visualização, filtragem e gerenciamento de registros através de uma interface web moderna e modular.
+**Minhas Economias** é uma aplicação web completa para gestão de finanças pessoais, desenvolvida em Go. O sistema permite que os utilizadores centralizem o seu histórico de transações, analisem os seus padrões de gastos através de relatórios visuais e personalizem a sua experiência na aplicação. O projeto foi construído com um backend robusto em Go (usando o framework Gin) e um frontend interativo com HTML, Tailwind CSS e JavaScript puro.
 
-![Minhas Economias Dashboard](https://i.imgur.com/GjD3F9q.png)
-*(Screenshot da aplicação em execução)*
+## ✨ Funcionalidades
 
-## Descrição
+* **Autenticação de Utilizador:** Sistema seguro de registo e login para garantir a privacidade dos dados financeiros.
+* **Gestão de Transações (CRUD):** Interface completa para adicionar, visualizar, editar e apagar movimentações financeiras (receitas e despesas).
+* **Importação de Dados:** Scripts utilitários para converter extratos em formato `.xls` para `.csv` e, em seguida, importar para a base de dados, permitindo a centralização do histórico financeiro.
+* **Dashboard de Saldos:** Uma página inicial clara e objetiva que exibe o saldo consolidado de cada conta do utilizador.
+* **Filtragem Avançada:** Ferramentas poderosas nas páginas de transações e relatórios para filtrar dados por descrição, período, categoria, conta e estado (consolidado/não consolidado).
+* **Relatórios Visuais:** Geração de gráficos de pizza interativos que mostram a distribuição de despesas por categoria, permitindo uma análise visual dos gastos.
+* **Exportação para PDF:** Funcionalidade para descarregar relatórios financeiros detalhados, incluindo gráficos e tabelas de transações, em formato PDF.
+* **Página de Configurações Completa:**
+    * **Gestão de Perfil:** O utilizador pode adicionar e atualizar as suas informações pessoais (data de nascimento, localização, etc.).
+    * **Alteração de Senha:** Interface segura para alterar a senha da conta.
+    * **Modo Escuro (Dark Mode):** Um *toggle* para alternar entre os temas claro e escuro, com a preferência a ser guardada no perfil do utilizador.
+* **API RESTful:** Endpoints para interagir com os dados de forma programática.
+* **Suporte a Múltiplos Bancos de Dados:** Arquitetura preparada para funcionar com PostgreSQL e SQLite.
 
-O Minhas Economias é uma ferramenta desenvolvida em Go, utilizando o framework Gin para a aplicação web. O objetivo é fornecer uma maneira completa, privada e organizada de acompanhar suas finanças. Após uma significativa refatoração, o projeto agora suporta **PostgreSQL** como banco de dados principal (recomendado), mantendo a opção de usar **SQLite** para simplicidade e portabilidade. Toda a configuração do banco de dados é feita de forma flexível através de variáveis de ambiente.
+---
 
-## Funcionalidades
+## 🚀 Tecnologias Utilizadas
 
-* **Backend Flexível**: Suporte nativo para PostgreSQL e SQLite, configurável via variáveis de ambiente.
-* **Dashboard de Saldos (`/`)**: Exibe o saldo atual de cada conta em um layout de cartões, com indicadores visuais e links diretos para as transações.
-* **Página de Transações (`/transacoes`)**: Área principal para visualizar, adicionar, editar, excluir e filtrar detalhadamente todas as movimentações.
-* **Página de Relatório (`/relatorio`)**: Gera um gráfico de pizza com a distribuição de despesas e permite a exportação de um relatório completo em PDF.
-* **API Robusta**: Endpoints JSON para consultar dados e realizar ações, facilitando testes automatizados e integrações futuras.
-* **Validação de Dados**: Validação no backend para garantir a integridade dos dados inseridos através dos formulários.
+* **Backend:** Go, Gin Web Framework
+* **Frontend:** HTML5, Tailwind CSS, JavaScript
+* **Base de Dados:** PostgreSQL, SQLite
+* **Geração de PDF:** Gofpdf
+* **Testes de Backend:** Testes unitários/integração nativos do Go
+* **Testes End-to-End (E2E):** Python com Selenium (para UI), Ansible (para API)
 
-## Tecnologias Utilizadas
+---
 
-* **Backend**: Go, Gin Web Framework, PostgreSQL / SQLite
-* **Frontend**: HTML5, CSS3, JavaScript, Tailwind CSS (via CDN), Chart.js
-* **Testes**: Testes Nativos do Go, Ansible (API), Selenium com Python (E2E)
-* **Contêineres**: Docker / Podman, Docker Compose
+## ⚙️ Pré-requisitos
 
-## Estrutura do Projeto
+* Go (versão 1.20 ou superior)
+* Podman (ou Docker) para a opção de base de dados em container, ou uma instalação local de PostgreSQL/SQLite3.
+* Python (versão 3.8 ou superior, para os testes de frontend)
+* Ansible (para os testes de API)
+* Um navegador web (ex: Chrome) e o respetivo ChromeDriver para os testes com Selenium.
 
-```
+---
 
-minhas\_economias/
-├── main.go                       \# Ponto de entrada da aplicação web.
-├── go.mod / go.sum               \# Gerenciamento de dependências do Go.
-│
-├── database/
-│   └── database.go               \# Lógica de conexão para PostgreSQL e SQLite.
-│
-├── handlers/                     \# Controladores que lidam com as requisições HTTP.
-│   ├── handlers.go               \# Funções auxiliares de handlers.
-│   ├── movimentacoes.go          \# Lógica para as páginas principais.
-│   └── ...
-├── xls/
-|   ├── example.xls               \# Seus dados em Planilha
-|
-├── csv/
-|   ├── example.csv               \# Seus dados em CSV apos usar a conversao xls_to_csv.go
-|
-├── templates/                    \# Templates HTML.
-├── static/                       \# Arquivos estáticos (CSS, JS, Imagens).
-│
-├── test/
-│   ├── ansible_playbook.yml      \# Playbook Ansible para testes de API.
-│   └── selenium_test.py          \# Script Python para testes End-to-End com Selenium.
-│
-├── data_manager.go               \# Ferramenta CLI para importação/exportação de dados.
-├── xls_to_csv.go                 \# Ferramenta CLI para conversão de XLS.
-├── popular_saldos.sh             \# Script para configurar saldos iniciais.
-│
-├── Containerfile                 \# Define como construir a imagem da aplicação.
-├── docker-compose.yml            \# Orquestra os serviços da aplicação e do banco de dados.
-└── .env.example                  \# Arquivo de exemplo para variáveis de ambiente.
+## 🏁 Como Começar
 
-````
+Siga estes passos para configurar e executar o projeto localmente.
 
-## Como Começar (Executando Localmente)
-
-### 1. Pré-requisitos
-* Go (versão 1.18 ou superior).
-* Se for usar SQLite: O pacote `sqlite3` instalado na sua máquina.
-* **Se for usar PostgreSQL (Recomendado):** É pré-requisito ter um servidor PostgreSQL acessível. A instalação, configuração, tunning e práticas de segurança do PostgreSQL estão fora do escopo deste README. O cliente `psql` também deve estar instalado para rodar os scripts de ajuda.
-
-<details>
-<summary><b>➡️ Exemplo: Subindo um PostgreSQL rapidamente com Podman/Docker</b></summary>
-
-Se você tem Podman ou Docker, pode subir um banco de dados PostgreSQL para desenvolvimento com o seguinte comando:
+### 1. Clonar o Repositório
 
 ```bash
+git clone [https://github.com/seu-usuario/minhas_economias.git](https://github.com/seu-usuario/minhas_economias.git)
+cd minhas_economias
+````
+
+### 2\. Configurar a Base de Dados (Escolha uma opção)
+
+#### 2.a. Opção com PostgreSQL (usando Podman)
+
+Uma forma rápida de configurar um banco de dados PostgreSQL para desenvolvimento é usando um container. O comando abaixo irá criar um container chamado `postgres`, configurar as credenciais e a base de dados, e persistir os dados no diretório `/tmp/database` do seu sistema.
+
+```bash
+# Limpa o diretório de dados antigo e cria um novo
+sudo rm -rf /tmp/database
+mkdir /tmp/database
+
+# Executa o container do PostgreSQL com Podman
 podman run \
     -it \
     --rm \
-    --name postgres-dev \
+    --name postgres \
     -e POSTGRES_USER=me \
     -e POSTGRES_PASSWORD=1q2w3e \
     -e POSTGRES_DB=minhas_economias \
     -p 5432:5432 \
     -v /tmp/database:/var/lib/postgresql/data:Z \
     postgres:latest
-````
+```
 
-**Análise do comando:**
+#### 2.b. Opção Manual
 
-  - `-e`: Define as variáveis de ambiente para criar o usuário, senha e banco de dados iniciais.
-  - `-p 5432:5432`: Expõe a porta do PostgreSQL para que sua aplicação Go possa se conectar a ela em `localhost:5432`.
-  - `-v /tmp/database...`: Cria um volume para persistir os dados do banco na sua máquina local (no diretório `/tmp/database`), para que você não perca tudo ao reiniciar o contêiner. A flag `:Z` ajusta o contexto de segurança do SELinux, se aplicável.
+Se preferir, pode configurar uma instância de PostgreSQL ou SQLite manualmente no seu sistema.
 
-\</details\>
+### 3\. Configurar Variáveis de Ambiente
 
-### 2\. Clonar e Configurar o Projeto
+Crie um ficheiro chamado `.env` na raiz do projeto ou exporte as seguintes variáveis de ambiente no seu terminal. **As credenciais devem corresponder às que configurou no passo anterior.**
 
 ```bash
-git clone [https://github.com/laurobmb/minhas_economias.git](https://github.com/laurobmb/minhas_economias.git)
-cd minhas_economias
+# Chave secreta para a sessão de utilizador. Use um gerador de strings aleatórias.
+export SESSION_KEY="uma-chave-secreta-muito-longa-e-segura"
 
-# Instalar as dependências do Go
-go mod tidy
+# Configuração do Banco de Dados (exemplo para PostgreSQL com Podman)
+export DB_TYPE="postgres"
+export DB_HOST="localhost"
+export DB_PORT="5432"
+export DB_USER="me"
+export DB_PASS="1q2w3e"
+export DB_NAME="minhas_economias"
 ```
 
-### 3\. Configurar as Variáveis de Ambiente
+### 4\. Inicializar as Tabelas
 
-A aplicação e os scripts são configurados via variáveis de ambiente. A maneira mais fácil é criar um arquivo `.env`.
+Com o banco de dados em execução, execute o `data_manager` para criar todas as tabelas necessárias.
 
 ```bash
-# Copie o arquivo de exemplo
-cp .env.example .env
+go run ./data_manager.go
 ```
 
-Agora, **edite o arquivo `.env`** com as configurações do seu banco de dados. Elas devem corresponder ao banco que você configurou no passo 1.
+### 5\. Criar um Utilizador
 
-**Exemplo de `.env` para PostgreSQL:**
-
-```env
-# TIPO DO BANCO: "postgres" ou "sqlite3"
-DB_TYPE=postgres
-
-# CONFIGURAÇÕES DO POSTGRESQL
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=me
-DB_PASS=1q2w3e
-DB_NAME=minhas_economias
-
-# Variáveis da página "Sobre"
-AUTHOR_NAME="Seu Nome"
-GITHUB_URL="[https://github.com/seu_usuario](https://github.com/seu_usuario)"
-LINKEDIN_URL="[https://linkedin.com/in/seu-perfil](https://linkedin.com/in/seu-perfil)"
-```
-
-### 4\. Executar a Aplicação
-
-Para carregar as variáveis do arquivo `.env` automaticamente, você pode usar uma biblioteca como a `godotenv`. Assumindo que você a adicionou ao projeto (`go get github.com/joho/godotenv`), você pode rodar a aplicação.
+Use o script `create_user` para criar a sua conta. Anote o ID do utilizador que será gerado, pois precisará dele para importar os dados.
 
 ```bash
-# Inicia a aplicação web
-go run main.go
+# Exemplo de criação de utilizador
+go run ./create_user.go -email="seu-email@exemplo.com" -password="sua-senha-forte"
 ```
 
-O servidor estará ativo em `http://localhost:8080`.
+### 6\. Importar Transações Históricas (Opcional)
 
-## Scripts de Gerenciamento de Dados
+Se você possui extratos bancários em formato `.xls`, pode importá-los para a aplicação.
 
-Execute estes scripts no terminal após configurar seu arquivo `.env`. Eles lerão as variáveis de ambiente para se conectar ao banco de dados correto.
+#### Passo 1: Converter XLS para CSV
 
-  * **Criar as tabelas do banco de dados:**
+Primeiro, coloque os seus ficheiros `.xls` dentro do diretório `xls/` na raiz do projeto. Em seguida, execute o script de conversão:
 
-    ```bash
-    go run data_manager.go -import
-    ```
+```bash
+go run ./xls_to_csv.go
+```
 
-    *(Nota: A flag `-import` é usada para garantir que o programa execute a lógica de criação de tabelas, mesmo que nenhum arquivo CSV seja processado.)*
+Este comando irá ler todos os ficheiros em `xls/` e criar os ficheiros `.csv` correspondentes no diretório `csv/`.
 
-  * **Popular os saldos iniciais:**
+#### Passo 2: Importar CSV para a Base de Dados
 
-    1.  Edite os valores no script `popular_saldos.sh`.
-    2.  Execute o script:
-        ```bash
-        # Certifique-se de que o arquivo .env está configurado
-        ./popular_saldos.sh
-        ```
+Agora, use o `data_manager` para importar os dados dos ficheiros CSV para a sua conta. Substitua `SEU_USER_ID` pelo ID do utilizador que criou no passo anterior.
 
-  * **Converter XLS para CSV:**
+```bash
+go run ./data_manager.go -import -user-id=SEU_USER_ID
+```
 
-    ```bash
-    go run xls_to_csv.go
-    ```
+### 7\. Executar a Aplicação
 
-## Executando com Contêineres (Docker Compose)
+Finalmente, inicie o servidor web.
 
-Esta é a forma mais robusta para um ambiente de desenvolvimento, pois orquestra a aplicação e o banco de dados juntos.
+```bash
+go run ./main.go
+```
 
-1.  **Pré-requisitos**: Docker e Docker Compose instalados.
+A aplicação estará disponível em `http://localhost:8080`.
 
-2.  **Configuração**: Copie o arquivo de exemplo `.env.example` para `.env` e preencha com suas configurações, principalmente `DB_PASS`.
+-----
 
-    ```bash
-    cp .env.example .env
-    ```
+## 🧪 Como Executar os Testes
 
-3.  **Suba os Serviços**: No diretório raiz do projeto, execute:
+O projeto inclui um conjunto completo de testes.
 
-    ```bash
-    docker-compose up --build
-    ```
+### 1\. Testes de Backend (Go)
 
-    Este comando irá:
+Estes testes validam a lógica dos handlers e as interações com a base de dados. Certifique-se de que as variáveis de ambiente do seu banco de dados de teste estão configuradas.
 
-      * Construir a imagem da sua aplicação Go (`app`).
-      * Baixar e iniciar um contêiner do PostgreSQL (`db`).
-      * Configurar uma rede para que os dois conversem.
-      * Criar um volume para persistir os dados do PostgreSQL.
+```bash
+# Executar todos os testes de um pacote específico (ex: handlers)
+go test -v ./handlers/...
+```
 
-4.  **Acesse a Aplicação**: A aplicação estará disponível em `http://localhost:8080`.
+### 2\. Testes de Frontend (Selenium)
 
-5.  **Para executar os scripts de gerenciamento**, use o `docker-compose exec`:
+Estes testes simulam a interação de um utilizador real com a interface.
 
-    ```bash
-    # Para criar as tabelas
-    docker-compose exec app go run data_manager.go -import
+```bash
+# 1. Navegue para a pasta de testes
+cd tests
 
-    # Para popular os saldos
-    docker-compose exec app ./popular_saldos.sh
-    ```
+# 2. Instale as dependências do Python (se necessário)
+# pip install -r requirements.txt
 
-## Licença
+# 3. Execute o script de teste
+python ./test_app_frontend.py
+```
 
-Este projeto é de código aberto e está disponível sob a [Licença MIT](https://opensource.org/licenses/MIT).
+### 3\. Testes de API (Ansible)
+
+Estes testes verificam os endpoints da API.
+
+```bash
+# 1. Navegue para a pasta de testes
+cd tests
+
+# 2. Execute o playbook do Ansible
+ansible-playbook ./test_app_api.yml
+```
+
+-----
+
+## 📄 Licença
+
+Este projeto está licenciado sob a Licença MIT. Veja o ficheiro `LICENSE` para mais detalhes.
+
