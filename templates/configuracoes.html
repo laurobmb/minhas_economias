@@ -1,20 +1,102 @@
 {{define "content"}}
-<div class="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-md space-y-8">
-    
-    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-2 mb-4">Configurações da Conta</h2>
+<div class="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-xl shadow-md">
 
-    <div>
-        <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Aparência</h3>
-        <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-700 p-4 rounded-lg">
-            <span class="font-medium text-gray-600 dark:text-gray-300">Modo Escuro (Dark Mode)</span>
-            <label for="dark-mode-toggle" class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" id="dark-mode-toggle" class="sr-only peer" {{ if .User.DarkModeEnabled }}checked{{ end }}>
-                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-500 peer-checked:bg-blue-600"></div>
-            </label>
+    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">Configurações da Conta</h2>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-12 gap-y-8">
+
+        <!-- Coluna 1: Aparência e Segurança -->
+        <div class="lg:col-span-1 space-y-8">
+            <!-- Seção de Aparência -->
+            <div>
+                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Aparência</h3>
+                <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                    <span class="font-medium text-gray-600 dark:text-gray-300">Modo Escuro</span>
+                    <label for="dark-mode-toggle" class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="dark-mode-toggle" class="sr-only peer" {{ if .User.DarkModeEnabled }}checked{{ end }}>
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-500 peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- NOVA SEÇÃO: Alterar Senha -->
+            <div>
+                <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Alterar Senha</h3>
+                <form id="password-form" class="space-y-4 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-lg">
+                    <div class="form-group">
+                        <label for="current_password" class="label">Senha Atual</label>
+                        <input type="password" id="current_password" name="current_password" class="text-input rounded-md w-full" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_password" class="label">Nova Senha</label>
+                        <input type="password" id="new_password" name="new_password" class="text-input rounded-md w-full" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm_new_password" class="label">Confirmar Nova Senha</label>
+                        <input type="password" id="confirm_new_password" name="confirm_new_password" class="text-input rounded-md w-full" required>
+                    </div>
+                    <div class="flex justify-end pt-2">
+                        <button type="submit" id="save-password-button" class="add-button rounded-md bg-orange-500 hover:bg-orange-600">Alterar Senha</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    </div>
+
+        <!-- Coluna 2: Informações do Perfil -->
+        <div class="lg:col-span-2">
+            <h3 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Informações do Perfil</h3>
+            <form id="profile-form" class="space-y-6 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-lg">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="form-group">
+                        <label for="date_of_birth" class="label">Data de Nascimento</label>
+                        <input type="date" id="date_of_birth" name="date_of_birth" value="{{ .UserProfile.DateOfBirth }}" class="text-input rounded-md w-full">
+                    </div>
+                    <div class="form-group">
+                        <label for="gender" class="label">Sexo</label>
+                        <select id="gender" name="gender" class="select-input rounded-md w-full">
+                            <option value="" {{ if eq .UserProfile.Gender "" }}selected{{ end }}>Prefiro não informar</option>
+                            <option value="Masculino" {{ if eq .UserProfile.Gender "Masculino" }}selected{{ end }}>Masculino</option>
+                            <option value="Feminino" {{ if eq .UserProfile.Gender "Feminino" }}selected{{ end }}>Feminino</option>
+                            <option value="Outro" {{ if eq .UserProfile.Gender "Outro" }}selected{{ end }}>Outro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="marital_status" class="label">Estado Civil</label>
+                        <select id="marital_status" name="marital_status" class="select-input rounded-md w-full">
+                            <option value="" {{ if eq .UserProfile.MaritalStatus "" }}selected{{ end }}>Prefiro não informar</option>
+                            <option value="Solteiro(a)" {{ if eq .UserProfile.MaritalStatus "Solteiro(a)" }}selected{{ end }}>Solteiro(a)</option>
+                            <option value="Casado(a)" {{ if eq .UserProfile.MaritalStatus "Casado(a)" }}selected{{ end }}>Casado(a)</option>
+                            <option value="Divorciado(a)" {{ if eq .UserProfile.MaritalStatus "Divorciado(a)" }}selected{{ end }}>Divorciado(a)</option>
+                            <option value="Viúvo(a)" {{ if eq .UserProfile.MaritalStatus "Viúvo(a)" }}selected{{ end }}>Viúvo(a)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="children_count" class="label">Quantos Filhos</label>
+                        <input type="number" id="children_count" name="children_count" value="{{ .UserProfile.ChildrenCount }}" min="0" class="text-input rounded-md w-full">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="form-group">
+                        <label for="country" class="label">País</label>
+                        <input type="text" id="country" name="country" value="{{ .UserProfile.Country }}" class="text-input rounded-md w-full">
+                    </div>
+                    <div class="form-group">
+                        <label for="state" class="label">Estado</label>
+                        <input type="text" id="state" name="state" value="{{ .UserProfile.State }}" class="text-input rounded-md w-full">
+                    </div>
+                    <div class="form-group">
+                        <label for="city" class="label">Cidade</label>
+                        <input type="text" id="city" name="city" value="{{ .UserProfile.City }}" class="text-input rounded-md w-full">
+                    </div>
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button type="submit" id="save-profile-button" class="add-button rounded-md">Salvar Informações</button>
+                </div>
+            </form>
+        </div>
 
     </div>
+</div>
 {{end}}
 
 {{define "scripts"}}

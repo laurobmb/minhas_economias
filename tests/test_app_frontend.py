@@ -25,7 +25,7 @@ IS_CONTAINER = os.getenv('CONTAINER', 'false').lower() == 'true'
 STEP_DELAY = 0
 
 # --- Credenciais de Teste ---
-TEST_USER_EMAIL = "selenium@localnet.local"
+TEST_USER_EMAIL = "lauro@localnet.com"
 TEST_USER_PASS = "1q2w3e"
 
 # --- Variáveis de Ambiente do Banco de Dados ---
@@ -98,7 +98,8 @@ class MinhasEconomiasTest(unittest.TestCase):
                 "DELETE FROM movimentacoes WHERE conta LIKE 'Conta Saldo %';",
                 "DELETE FROM movimentacoes WHERE conta = 'Conta Teste Grafico';",
                 "DELETE FROM movimentacoes WHERE conta = 'Conta Teste CRUD';",
-                "DELETE FROM movimentacoes WHERE conta = 'Conta Validação';"
+                "DELETE FROM movimentacoes WHERE conta = 'Conta Validação';",
+                f"DELETE FROM user_profiles WHERE user_id = (SELECT id FROM users WHERE email = '{TEST_USER_EMAIL}');" # Limpa o perfil
             ]
             
             total_deleted = 0
@@ -118,18 +119,15 @@ class MinhasEconomiasTest(unittest.TestCase):
         """Executado antes de cada teste. Realiza o login."""
         self.browser.get(f'{BASE_URL}/login')
         try:
-            # Se já estiver logado (ex: teste anterior falhou), faz logout primeiro
             logout_button = self.browser.find_element(By.XPATH, "//button[text()='Sair']")
             logout_button.click()
             self.wait.until(EC.url_to_be(f'{BASE_URL}/login'))
         except NoSuchElementException:
-            # Não está logado, o que é o esperado. Continua.
             pass
 
         self.wait.until(EC.visibility_of_element_located((By.ID, "email"))).send_keys(TEST_USER_EMAIL)
         self.browser.find_element(By.ID, "password").send_keys(TEST_USER_PASS)
         self.browser.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
-        # Aguarda o login ser bem-sucedido verificando a URL e o título da página de saldos
         self.wait.until(EC.url_to_be(f'{BASE_URL}/'))
         self.wait.until(EC.title_contains("Saldos"))
         logger.info(f"Login como '{TEST_USER_EMAIL}' realizado com sucesso para o teste.")
@@ -190,12 +188,10 @@ class MinhasEconomiasTest(unittest.TestCase):
         self.browser.get(f'{BASE_URL}/configuracoes')
         self.wait.until(EC.title_contains("Configurações"))
 
-        # CORREÇÃO: Alvo é o <label> clicável, não o <input> invisível.
         toggle_label_selector = (By.CSS_SELECTOR, "label[for='dark-mode-toggle']")
         toggle_label = self.wait.until(EC.element_to_be_clickable(toggle_label_selector))
         html_element = self.browser.find_element(By.TAG_NAME, 'html')
 
-        # Garante que o estado inicial é o modo claro
         if 'dark' in html_element.get_attribute('class'):
             logger.info("Modo escuro estava ativo, desativando para iniciar o teste.")
             toggle_label.click()
@@ -205,18 +201,53 @@ class MinhasEconomiasTest(unittest.TestCase):
         toggle_label.click()
         self.wait.until(lambda d: 'dark' in d.find_element(By.TAG_NAME, 'html').get_attribute('class'))
         self.assertIn('dark', self.browser.find_element(By.TAG_NAME, 'html').get_attribute('class'))
-        logger.info("SUCESSO: Modo escuro ativado e classe 'dark' encontrada no HTML.")
+        logger.info("SUCESSO: Modo escuro ativado.")
         self._delay()
 
         logger.info("Desativando o modo escuro...")
         toggle_label.click()
         self.wait.until(lambda d: 'dark' not in d.find_element(By.TAG_NAME, 'html').get_attribute('class'))
         self.assertNotIn('dark', self.browser.find_element(By.TAG_NAME, 'html').get_attribute('class'))
-        logger.info("SUCESSO: Modo escuro desativado e classe 'dark' removida do HTML.")
+        logger.info("SUCESSO: Modo escuro desativado.")
+
+    def test_03_profile_and_password(self):
+        """Testa a edição do perfil e a validação da alteração de senha."""
+        logger.info("--- INICIANDO TESTE 03: PERFIL E SENHA ---")
+        self.browser.get(f'{BASE_URL}/configuracoes')
+        self.wait.until(EC.title_contains("Configurações"))
+
+        # Teste de Edição de Perfil
+        cidade_teste = f"Cidade Teste {int(time.time())}"
+        logger.info(f"Editando perfil. Alterando cidade para: '{cidade_teste}'")
+        cidade_input = self.wait.until(EC.visibility_of_element_located((By.ID, "city")))
+        cidade_input.clear()
+        cidade_input.send_keys(cidade_teste)
+        self.browser.find_element(By.ID, "save-profile-button").click()
+        self.wait.until(EC.alert_is_present()).accept()
+        logger.info("SUCESSO: Alerta de perfil salvo foi exibido e aceite.")
+
+        self.browser.refresh()
+        cidade_input_reloaded = self.wait.until(EC.visibility_of_element_located((By.ID, "city")))
+        self.assertEqual(cidade_input_reloaded.get_attribute('value'), cidade_teste)
+        logger.info("SUCESSO: A cidade alterada foi persistida após recarregar a página.")
+        self._delay()
+
+        # Teste de Validação de Senha (cenário de erro)
+        logger.info("Testando validação de senha com senha atual incorreta.")
+        self.browser.find_element(By.ID, "current_password").send_keys("senha_incorreta_propositalmente")
+        self.browser.find_element(By.ID, "new_password").send_keys("qualquercoisa123")
+        self.browser.find_element(By.ID, "confirm_new_password").send_keys("qualquercoisa123")
+        self.browser.find_element(By.ID, "save-password-button").click()
+        
+        alert = self.wait.until(EC.alert_is_present())
+        alert_text = alert.text
+        alert.accept()
+        
+        self.assertIn("A senha atual está incorreta", alert_text)
+        logger.info("SUCESSO: Alerta de erro para senha atual incorreta foi exibido corretamente.")
 
 
 if __name__ == '__main__':
-    # Garante que o usuário de teste exista antes de rodar os testes
     if os.system(f'go run create_user.go -email="{TEST_USER_EMAIL}" -password="{TEST_USER_PASS}"') != 0:
         logger.warning(f"Pode ter ocorrido um erro ao criar/verificar o usuário de teste. Se os testes falharem no login, verifique se o usuário '{TEST_USER_EMAIL}' existe.")
     

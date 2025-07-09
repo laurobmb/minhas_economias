@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"minhas_economias/auth"
 	"minhas_economias/database"
 	"minhas_economias/models"
 	"net/http"
@@ -11,21 +10,28 @@ import (
 
 // GetConfiguracoesPage renderiza a página de configurações do usuário.
 func GetConfiguracoesPage(c *gin.Context) {
-	// O objeto de usuário já está no contexto graças ao middleware
 	user := c.MustGet("user").(*models.User)
 
+	// Busca o perfil do usuário
+	userProfile, err := GetUserProfileByUserID(user.ID)
+	if err != nil {
+		renderErrorPage(c, http.StatusInternalServerError, "Não foi possível carregar o perfil do usuário.", err)
+		return
+	}
+
 	c.HTML(http.StatusOK, "configuracoes.html", gin.H{
-		"Titulo": "Configurações",
-		"User":   user, // Passa o objeto de usuário inteiro para o template
+		"Titulo":      "Configurações",
+		"User":        user,
+		"UserProfile": userProfile, // Passa o perfil para o template
 	})
 }
 
-// UpdateUserSettingsPayload é o struct para o corpo da requisição de atualização.
+// UpdateUserSettingsPayload é o struct para o corpo da requisição de atualização do tema.
 type UpdateUserSettingsPayload struct {
 	DarkMode bool `json:"dark_mode"`
 }
 
-// UpdateUserSettings atualiza as configurações do usuário.
+// UpdateUserSettings atualiza as configurações de tema do usuário.
 func UpdateUserSettings(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 	var payload UpdateUserSettingsPayload
@@ -43,12 +49,6 @@ func UpdateUserSettings(c *gin.Context) {
 	if err != nil {
 		renderErrorPage(c, http.StatusInternalServerError, "Erro ao atualizar as configurações.", err)
 		return
-	}
-
-	// Atualiza o usuário na sessão para refletir a mudança imediatamente
-	user, err := auth.GetUserByEmail(c.MustGet("user").(*models.User).Email)
-	if err == nil {
-		c.Set("user", user)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Configurações atualizadas com sucesso"})

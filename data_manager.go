@@ -41,7 +41,6 @@ func main() {
 
 	flag.Parse()
 
-	// Verificação para proteger o usuário admin (ID 1)
 	if (*importFlag || *exportFlag) && *userIdParam == 1 {
 		log.Fatal("ERRO: A importação/exportação de dados não é permitida para o usuário admin (ID 1).")
 	}
@@ -53,76 +52,101 @@ func main() {
 	db := database.GetDB()
 	defer database.CloseDB()
 
-	// SQL de criação das tabelas atualizado com o campo 'is_admin'
-	var createUsersTableSQL, createMovimentacoesTableSQL, createContasTableSQL string
+	// SQL de criação das tabelas atualizado
+	var createUsersTableSQL, createMovimentacoesTableSQL, createContasTableSQL, createUserProfilesTableSQL string
 
 	if database.DriverName == "postgres" {
 		createUsersTableSQL = `
-        CREATE TABLE IF NOT EXISTS users (
-            id BIGINT PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT FALSE,
-            dark_mode_enabled BOOLEAN DEFAULT FALSE 
-        );`
-		// Garante que a sequência do ID comece a partir de 2 para novos usuários não-admin
+		CREATE TABLE IF NOT EXISTS users (
+			id BIGINT PRIMARY KEY,
+			email TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			is_admin BOOLEAN DEFAULT FALSE,
+			dark_mode_enabled BOOLEAN DEFAULT FALSE
+		);`
 		createUsersTableSQL += `
-		DO $$
-		BEGIN
-			IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = 'users_id_seq') THEN
-				CREATE SEQUENCE users_id_seq START 2;
-			END IF;
-		END$$;
+			DO $$
+			BEGIN
+				IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = 'users_id_seq') THEN
+					CREATE SEQUENCE users_id_seq START 2;
+				END IF;
+			END$$;
 		`
 		createMovimentacoesTableSQL = fmt.Sprintf(`
-        CREATE TABLE IF NOT EXISTS %s (
-            id SERIAL PRIMARY KEY,
-            user_id BIGINT NOT NULL,
-            data_ocorrencia DATE NOT NULL,
-            descricao TEXT,
-            valor NUMERIC(10, 2),
-            categoria TEXT,
-            conta TEXT,
-            consolidado BOOLEAN DEFAULT FALSE,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );`, tableName)
+		CREATE TABLE IF NOT EXISTS %s (
+			id SERIAL PRIMARY KEY,
+			user_id BIGINT NOT NULL,
+			data_ocorrencia DATE NOT NULL,
+			descricao TEXT,
+			valor NUMERIC(10, 2),
+			categoria TEXT,
+			conta TEXT,
+			consolidado BOOLEAN DEFAULT FALSE,
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+		);`, tableName)
 		createContasTableSQL = `
-        CREATE TABLE IF NOT EXISTS contas (
-            user_id BIGINT NOT NULL,
-            nome TEXT NOT NULL,
-            saldo_inicial NUMERIC(10, 2) NOT NULL DEFAULT 0,
-            PRIMARY KEY (user_id, nome),
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );`
+		CREATE TABLE IF NOT EXISTS contas (
+			user_id BIGINT NOT NULL,
+			nome TEXT NOT NULL,
+			saldo_inicial NUMERIC(10, 2) NOT NULL DEFAULT 0,
+			PRIMARY KEY (user_id, nome),
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+		);`
+		// NOVA TABELA PARA PERFIS DE USUÁRIO (POSTGRES)
+		createUserProfilesTableSQL = `
+		CREATE TABLE IF NOT EXISTS user_profiles (
+			user_id BIGINT PRIMARY KEY,
+			date_of_birth DATE,
+			gender TEXT,
+			marital_status TEXT,
+			children_count INTEGER,
+			country TEXT,
+			state TEXT,
+			city TEXT,
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+		);`
 	} else { // Padrão para sqlite3
 		createUsersTableSQL = `
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT FALSE,
+		CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY,
+			email TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			is_admin BOOLEAN DEFAULT FALSE,
 			dark_mode_enabled BOOLEAN DEFAULT 0
-        );`
+		);`
 		createMovimentacoesTableSQL = fmt.Sprintf(`
-        CREATE TABLE IF NOT EXISTS %s (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            data_ocorrencia TEXT NOT NULL,
-            descricao TEXT,
-            valor REAL,
-            categoria TEXT,
-            conta TEXT,
-            consolidado BOOLEAN DEFAULT FALSE,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );`, tableName)
+		CREATE TABLE IF NOT EXISTS %s (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			data_ocorrencia TEXT NOT NULL,
+			descricao TEXT,
+			valor REAL,
+			categoria TEXT,
+			conta TEXT,
+			consolidado BOOLEAN DEFAULT FALSE,
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+		);`, tableName)
 		createContasTableSQL = `
-        CREATE TABLE IF NOT EXISTS contas (
-            user_id INTEGER NOT NULL,
-            nome TEXT NOT NULL,
-            saldo_inicial REAL NOT NULL DEFAULT 0,
-            PRIMARY KEY (user_id, nome),
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );`
+		CREATE TABLE IF NOT EXISTS contas (
+			user_id INTEGER NOT NULL,
+			nome TEXT NOT NULL,
+			saldo_inicial REAL NOT NULL DEFAULT 0,
+			PRIMARY KEY (user_id, nome),
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+		);`
+		// NOVA TABELA PARA PERFIS DE USUÁRIO (SQLITE)
+		createUserProfilesTableSQL = `
+		CREATE TABLE IF NOT EXISTS user_profiles (
+			user_id INTEGER PRIMARY KEY,
+			date_of_birth TEXT,
+			gender TEXT,
+			marital_status TEXT,
+			children_count INTEGER,
+			country TEXT,
+			state TEXT,
+			city TEXT,
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+		);`
 	}
 
 	if _, err = db.Exec(createUsersTableSQL); err != nil {
@@ -139,6 +163,13 @@ func main() {
 		log.Fatalf("Erro ao criar a tabela 'contas': %v", err)
 	}
 	fmt.Println("Tabela 'contas' verificada/criada com sucesso.")
+
+	// ADICIONADO: Execução da criação da nova tabela
+	if _, err = db.Exec(createUserProfilesTableSQL); err != nil {
+		log.Fatalf("Erro ao criar a tabela 'user_profiles': %v", err)
+	}
+	fmt.Println("Tabela 'user_profiles' verificada/criada com sucesso.")
+
 
 	if *importFlag {
 		if *userIdParam == 0 {
@@ -250,7 +281,7 @@ func processCSVFile(db *sql.DB, filename string, userId int64) error {
 		recordsProcessed++
 	}
 
-	fmt.Printf("  %d registros importados com sucesso de '%s'.\n", recordsProcessed, filename)
+	fmt.Printf(" 	%d registros importados com sucesso de '%s'.\n", recordsProcessed, filename)
 	return tx.Commit()
 }
 
@@ -321,6 +352,6 @@ func exportToCSV(db *sql.DB, outputFilename string, userId int64) error {
 		return fmt.Errorf("erro durante a iteração das linhas do banco de dados: %w", err)
 	}
 
-	fmt.Printf("  %d registros exportados do banco de dados.\n", recordsExported)
+	fmt.Printf(" 	%d registros exportados do banco de dados.\n", recordsExported)
 	return nil
 }
