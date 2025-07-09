@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterFormId = 'filterForm';
     const apiLinkId = 'apiLink';
     const filterForm = document.getElementById(filterFormId);
+    const exportButtonId = 'export-csv-button'; // O ID do nosso botão
+
 
     // --- Configuração dos Listeners ---
     if (filterForm) {
@@ -155,4 +157,51 @@ document.addEventListener('DOMContentLoaded', () => {
             addEditForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     });
+
+    // --- FUNÇÃO PARA ATUALIZAR O LINK DE EXPORTAÇÃO (NOVA) ---
+    function updateExportLink() {
+        const exportButton = document.getElementById(exportButtonId);
+        if (!filterForm || !exportButton) return;
+
+        // Pega os mesmos parâmetros do formulário de filtro
+        const params = new URLSearchParams(new FormData(filterForm));
+        
+        // Mantém consistência com o filtro de entradas/saídas
+        const activeValueFilterButton = document.querySelector('.value-filter-button.active');
+        if (activeValueFilterButton && activeValueFilterButton.dataset.valueFilter) {
+            params.set('value_filter', activeValueFilterButton.dataset.valueFilter);
+        } else {
+            params.delete('value_filter');
+        }
+
+        // Remove parâmetros vazios para um link mais limpo
+        const finalParams = new URLSearchParams();
+        for (const [key, value] of params.entries()) {
+            if (value) {
+                finalParams.append(key, value)
+            }
+        }
+        
+        exportButton.href = `/export/csv?${finalParams.toString()}`;
+    }
+
+    // --- Configuração dos Listeners ---
+    if (filterForm) {
+        const callback = () => {
+            updateApiLink(filterFormId, apiLinkId);
+            updateExportLink(); // ATUALIZADO: Chama a nova função
+        };
+        setupMultiSelectDropdown('category-select-display', 'category-select-options', 'custom-checkbox', callback);
+        setupMultiSelectDropdown('account-select-display', 'account-select-options', 'custom-checkbox', callback);
+        
+        filterForm.querySelectorAll('input, select').forEach(input => {
+            if (input.type !== 'checkbox') {
+                input.addEventListener('change', callback);
+            }
+        });
+        
+        // Chamada inicial para configurar os links
+        updateApiLink(filterFormId, apiLinkId); 
+        updateExportLink(); // ATUALIZADO: Chamada inicial
+    }    
 });

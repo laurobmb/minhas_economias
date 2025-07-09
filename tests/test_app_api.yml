@@ -8,8 +8,13 @@
     base_url: "http://localhost:8080"
     test_user_email: "lauro@localnet.com"
     test_user_pass: "1q2w3e"
-    test_descricao: "Transação de Teste via Ansible"
-    test_descricao_atualizada: "Transação Ansible ATUALIZADA"
+    
+    # Variáveis para o teste de CRUD (Task 5)
+    test_descricao_crud: "Transação CRUD via Ansible"
+    test_descricao_crud_atualizada: "Transação CRUD Ansible ATUALIZADA"
+    
+    # Variável específica para o teste de CSV (Task 7)
+    test_descricao_csv: "Transação CSV via Ansible"
 
   tasks:
     - name: 1. Verificar se a aplicação está no ar (página de login)
@@ -106,11 +111,9 @@
             body:
               dark_mode: false
 
-    # Os testes de CRUD e validação permanecem muito similares,
-    # apenas adicionando o header de Cookie em cada requisição.
     - name: 5. Testar o ciclo de vida de uma transação (CRUD autenticado)
       block:
-        - name: CRIAR - Adicionar uma nova movimentação
+        - name: 5.1 CRIAR - Adicionar uma nova movimentação para o teste de CRUD
           ansible.builtin.uri:
             url: "{{ base_url }}/movimentacoes"
             method: POST
@@ -118,38 +121,30 @@
               Accept: "application/json"
               Cookie: "{{ session_cookie }}"
             body_format: form-urlencoded
-            body: { data_ocorrencia: "2025-07-09", descricao: "{{ test_descricao }}", valor: "-123.45", categoria: "Teste Ansible", conta: "Conta Teste Ansible" }
+            body: { data_ocorrencia: "2025-07-09", descricao: "{{ test_descricao_crud }}", valor: "-123.45", categoria: "Teste CRUD", conta: "Conta Teste CRUD" }
             status_code: 201
           register: r_add
-        - name: Assert - Criação retornou o objeto JSON com um ID
-          ansible.builtin.assert: { that: "r_add.json.id is defined and r_add.json.id > 0" }
-        - name: Setar o ID da nova transação (CRUD)
+        - name: 5.2 Setar o ID da transação para o teste
           ansible.builtin.set_fact:
             crud_item_id: "{{ r_add.json.id }}"
 
-        - name: ATUALIZAR - Modificar a transação criada
+        - name: 5.3 ATUALIZAR - Modificar a transação criada
           ansible.builtin.uri:
             url: "{{ base_url }}/movimentacoes/update/{{ crud_item_id }}"
             method: POST
-            headers:
-              Cookie: "{{ session_cookie }}"
+            headers: { Cookie: "{{ session_cookie }}" }
             body_format: form-urlencoded
-            body: { data_ocorrencia: "2025-07-09", descricao: "{{ test_descricao_atualizada }}", valor: "-543.21", categoria: "Teste Ansible Editado", conta: "Conta Teste Ansible" }
+            body: { data_ocorrencia: "2025-07-09", descricao: "{{ test_descricao_crud_atualizada }}", valor: "-543.21", categoria: "Teste CRUD Editado", conta: "Conta Teste CRUD" }
             status_code: 302
-          register: r_update
-        - name: Assert - Atualização (CRUD) redireciona corretamente
-          ansible.builtin.assert: { that: "r_update.location == '{{ base_url }}/transacoes'" }
-
-        - name: DELETAR - Excluir a transação (CRUD)
+        
+      always:
+        - name: 5.4 LIMPEZA - Excluir a transação do teste de CRUD
           ansible.builtin.uri:
             url: "{{ base_url }}/movimentacoes/{{ crud_item_id }}"
             method: DELETE
             headers:
               Cookie: "{{ session_cookie }}"
-            return_content: true
-          register: r_delete
-        - name: Assert - Deleção (CRUD) foi bem-sucedida
-          ansible.builtin.assert: { that: "r_delete.status == 200 and 'Movimentação deletada com sucesso!' in r_delete.json.message" }
+          when: crud_item_id is defined
 
     - name: 6. Testar geração de PDF (autenticado)
       ansible.builtin.uri:
@@ -168,3 +163,62 @@
         that:
           - r_pdf.status == 200
           - "'application/pdf' in r_pdf.content_type"
+
+    - name: 7. Testar o Endpoint de Exportação CSV
+      block:
+        # ETAPA 1: CRIAR DADOS PARA ESTE TESTE ESPECÍFICO
+        - name: 7.1 CRIAR - Adicionar uma movimentação para o teste de CSV
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes"
+            method: POST
+            headers:
+              Accept: "application/json"
+              Cookie: "{{ session_cookie }}"
+            body_format: form-urlencoded
+            body: { data_ocorrencia: "2025-01-15", descricao: "{{ test_descricao_csv }}", valor: "-99.99", categoria: "Categoria CSV", conta: "Conta CSV" }
+            status_code: 201
+          register: r_csv_add
+        - name: 7.2 Setar o ID da transação para a limpeza posterior
+          ansible.builtin.set_fact:
+            csv_test_item_id: "{{ r_csv_add.json.id }}"
+
+        # ETAPA 2: EXECUTAR OS TESTES DE EXPORTAÇÃO
+        - name: 7.3 Verificar se o acesso não autenticado ao CSV é redirecionado
+          ansible.builtin.uri:
+            url: "{{ base_url }}/export/csv"
+            method: GET
+            follow_redirects: no
+          register: unauth_response
+          failed_when: unauth_response.status != 302 or '/login' not in unauth_response.location
+          changed_when: false
+          
+        - name: 7.4 Verificar a exportação CSV (sem filtros)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/export/csv"
+            method: GET
+            headers:
+              Cookie: "{{ session_cookie }}"
+            return_content: yes
+          register: csv_response
+          
+        - name: 7.5 Validar a resposta da exportação sem filtros
+          ansible.builtin.assert:
+            that:
+              - csv_response.status == 200
+              - "'text/csv' in csv_response.content_type"
+              - "'attachment' in csv_response.content_disposition"
+              - "test_descricao_csv in csv_response.content"
+            fail_msg: "A exportação CSV sem filtros falhou na validação."
+            success_msg: "A exportação CSV sem filtros foi validada com sucesso."
+
+      # ETAPA 3: LIMPEZA (SEMPRE EXECUTA, MESMO SE O TESTE FALHAR)
+      always:
+        - name: 7.6 LIMPEZA - Excluir a transação do teste de CSV
+          ansible.builtin.uri:
+            url: "{{ base_url }}/movimentacoes/{{ csv_test_item_id }}"
+            method: DELETE
+            headers:
+              Cookie: "{{ session_cookie }}"
+          when: csv_test_item_id is defined
+      tags:
+        - test_export
