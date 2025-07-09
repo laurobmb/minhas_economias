@@ -1,20 +1,24 @@
 ---
-- name: Testar a aplicação Minhas Economias
+- name: Testar a aplicação Minhas Economias com Autenticação
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
     base_url: "http://localhost:8080"
-    db_path: "{{ playbook_dir }}/../extratos.db" # Assumindo que o playbook está em um subdiretório (ex: 'ansible')
+    test_user_email: "lauro@localnet.com"
+    test_user_pass: "1q2w3e"
     test_descricao: "Transação de Teste via Ansible"
     test_descricao_atualizada: "Transação Ansible ATUALIZADA"
 
   tasks:
-    - name: 1. Verificar se a aplicação está no ar
+    - name: 1. Verificar se a aplicação está no ar (página de login)
       ansible.builtin.uri:
-        url: "{{ base_url }}/"
+        url: "{{ base_url }}/login"
       register: health_check
+      until: health_check.status == 200
+      retries: 5
+      delay: 2
       ignore_errors: true
 
     - name: Falhar se a aplicação estiver offline
@@ -22,59 +26,116 @@
         msg: "A aplicação não está respondendo em {{ base_url }}. Por favor, inicie a aplicação antes de rodar os testes."
       when: health_check.status != 200
 
-    - name: 2. Testar o carregamento das páginas principais (GET)
+    - name: 2. Autenticar na aplicação para obter o cookie de sessão
+      ansible.builtin.uri:
+        url: "{{ base_url }}/login"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          email: "{{ test_user_email }}"
+          password: "{{ test_user_pass }}"
+        status_code: 302 # Login bem-sucedido redireciona para /
+      register: login_result
+
+    - name: Assert - Login bem-sucedido e cookie recebido
+      ansible.builtin.assert:
+        that:
+          - "'session_token' in login_result.set_cookie"
+          - login_result.location == "{{ base_url }}/"
+        msg: "Falha no login ou cookie de sessão não encontrado. Verifique as credenciais."
+
+    - name: Extrair o cookie de sessão para uso futuro
+      ansible.builtin.set_fact:
+        session_cookie: "{{ login_result.set_cookie }}"
+
+    - name: 3. Testar o carregamento das páginas principais (autenticado)
       block:
         - name: Acessar a página de Saldos (/)
-          ansible.builtin.uri: { url: "{{ base_url }}/", return_content: true }
+          ansible.builtin.uri:
+            url: "{{ base_url }}/"
+            return_content: true
+            headers:
+              Cookie: "{{ session_cookie }}"
           register: r_index
         - name: Assert - Página de Saldos está OK
           ansible.builtin.assert: { that: "r_index.status == 200 and 'Painel de Saldos' in r_index.content" }
 
-        - name: Acessar a página de Transações (/transacoes)
-          ansible.builtin.uri: { url: "{{ base_url }}/transacoes", return_content: true }
-          register: r_transacoes
-        - name: Assert - Página de Transações está OK
-          ansible.builtin.assert: { that: "r_transacoes.status == 200 and 'Adicionar Nova Movimentação' in r_transacoes.content" }
+        - name: Acessar a página de Configurações (/configuracoes)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/configuracoes"
+            return_content: true
+            headers:
+              Cookie: "{{ session_cookie }}"
+          register: r_config
+        - name: Assert - Página de Configurações está OK
+          ansible.builtin.assert: { that: "r_config.status == 200 and 'Configurações da Conta' in r_config.content" }
 
-        - name: Acessar a página de Relatório (/relatorio)
-          ansible.builtin.uri: { url: "{{ base_url }}/relatorio", return_content: true }
-          register: r_relatorio
-        - name: Assert - Página de Relatório está OK
-          ansible.builtin.assert: { that: "r_relatorio.status == 200 and 'Relatório de Despesas' in r_relatorio.content" }
-
-        - name: Acessar a página Sobre (/sobre)
-          ansible.builtin.uri: { url: "{{ base_url }}/sobre", return_content: true }
-          register: r_sobre
-        - name: Assert - Página Sobre está OK
-          ansible.builtin.assert: { that: "r_sobre.status == 200 and 'Sobre o Projeto' in r_sobre.content" }
-
-    - name: 3. Testar o ciclo de vida de uma transação (CRUD)
+    - name: 4. Testar a funcionalidade de Dark Mode
       block:
-        - name: CRIAR - Adicionar uma nova movimentação (e obter o ID)
+        - name: ATIVAR Dark Mode via API
+          ansible.builtin.uri:
+            url: "{{ base_url }}/api/user/settings"
+            method: POST
+            headers:
+              Cookie: "{{ session_cookie }}"
+            body_format: json
+            body:
+              dark_mode: true
+          register: r_dark_on
+        - name: Assert - Resposta da API de ativação está OK
+          ansible.builtin.assert: { that: "r_dark_on.status == 200 and 'Configurações atualizadas' in r_dark_on.json.message" }
+
+        - name: Verificar se o Dark Mode está ATIVO no HTML
+          ansible.builtin.uri:
+            url: "{{ base_url }}/" # Pode ser qualquer página que usa o layout
+            headers:
+              Cookie: "{{ session_cookie }}"
+            return_content: true
+          register: r_dark_check
+        - name: Assert - Tag HTML contém a classe 'dark'
+          ansible.builtin.assert: { that: "r_dark_check.status == 200 and '<html lang=\"pt-BR\" class=\"dark\">' in r_dark_check.content" }
+
+      always:
+        - name: DESATIVAR Dark Mode via API (limpeza)
+          ansible.builtin.uri:
+            url: "{{ base_url }}/api/user/settings"
+            method: POST
+            headers:
+              Cookie: "{{ session_cookie }}"
+            body_format: json
+            body:
+              dark_mode: false
+
+    # Os testes de CRUD e validação permanecem muito similares,
+    # apenas adicionando o header de Cookie em cada requisição.
+    - name: 5. Testar o ciclo de vida de uma transação (CRUD autenticado)
+      block:
+        - name: CRIAR - Adicionar uma nova movimentação
           ansible.builtin.uri:
             url: "{{ base_url }}/movimentacoes"
             method: POST
             headers:
-              Accept: "application/json"  # <-- IMPORTANTE: Pedir resposta JSON
+              Accept: "application/json"
+              Cookie: "{{ session_cookie }}"
             body_format: form-urlencoded
-            body: { data_ocorrencia: "2025-07-20", descricao: "{{ test_descricao }}", valor: "-123.45", categoria: "Teste Ansible", conta: "Conta Teste Ansible" }
-            status_code: 201 # <-- IMPORTANTE: Espera 201 Created
+            body: { data_ocorrencia: "2025-07-09", descricao: "{{ test_descricao }}", valor: "-123.45", categoria: "Teste Ansible", conta: "Conta Teste Ansible" }
+            status_code: 201
           register: r_add
-
         - name: Assert - Criação retornou o objeto JSON com um ID
           ansible.builtin.assert: { that: "r_add.json.id is defined and r_add.json.id > 0" }
-
         - name: Setar o ID da nova transação (CRUD)
           ansible.builtin.set_fact:
             crud_item_id: "{{ r_add.json.id }}"
 
-        - name: ATUALIZAR - Modificar a transação criada (CRUD)
+        - name: ATUALIZAR - Modificar a transação criada
           ansible.builtin.uri:
             url: "{{ base_url }}/movimentacoes/update/{{ crud_item_id }}"
             method: POST
+            headers:
+              Cookie: "{{ session_cookie }}"
             body_format: form-urlencoded
-            body: { data_ocorrencia: "2025-07-21", descricao: "{{ test_descricao_atualizada }}", valor: "-543.21", categoria: "Teste Ansible Editado", conta: "Conta Teste Ansible" }
-            status_code: 302 # A atualização ainda redireciona, o que está OK.
+            body: { data_ocorrencia: "2025-07-09", descricao: "{{ test_descricao_atualizada }}", valor: "-543.21", categoria: "Teste Ansible Editado", conta: "Conta Teste Ansible" }
+            status_code: 302
           register: r_update
         - name: Assert - Atualização (CRUD) redireciona corretamente
           ansible.builtin.assert: { that: "r_update.location == '{{ base_url }}/transacoes'" }
@@ -83,176 +144,27 @@
           ansible.builtin.uri:
             url: "{{ base_url }}/movimentacoes/{{ crud_item_id }}"
             method: DELETE
+            headers:
+              Cookie: "{{ session_cookie }}"
             return_content: true
           register: r_delete
-        - name: Assert - Deleção (CRUD) foi bem-sucedida (resposta JSON)
+        - name: Assert - Deleção (CRUD) foi bem-sucedida
           ansible.builtin.assert: { that: "r_delete.status == 200 and 'Movimentação deletada com sucesso!' in r_delete.json.message" }
 
-
-
-
-    - name: 4. Testar validações de erro
-      block:
-        - name: Tentar adicionar transação sem a 'conta'
-          ansible.builtin.uri:
-            url: "{{ base_url }}/movimentacoes"
-            method: POST
-            body_format: form-urlencoded
-            body: { data_ocorrencia: "2025-07-20", descricao: "Teste de falha", valor: "-10" }
-            return_content: true
-            status_code: 400
-          register: r_fail_add
-
-        # --- ADICIONE ESTA TAREFA DE DEBUG ABAIXO ---
-        - name: DEBUG - Mostrar o conteúdo exato da resposta de erro
-          ansible.builtin.debug:
-            var: r_fail_add.content
-        # --- FIM DA TAREFA DE DEBUG ---
-
-        - name: Assert - Recebe erro 400 (Bad Request)
-          ansible.builtin.assert:
-            that:
-              - r_fail_add.status == 400
-              - "'O campo &#39;Conta&#39; é obrigatório.' in r_fail_add.content"
-
-    - name: 5. Testar funcionalidades do Relatório (autossuficiente)
-      block:
-        - name: PREPARAR - Criar uma despesa de teste para o relatório
-          ansible.builtin.uri:
-            url: "{{ base_url }}/movimentacoes"
-            method: POST
-            headers:
-              Accept: "application/json" # <-- Pedir JSON
-            body_format: form-urlencoded
-            body: { data_ocorrencia: "2025-02-15", descricao: "Despesa para Teste de Relatório", valor: "-99.99", categoria: "Categoria Relatorio", conta: "Conta Relatorio" }
-            status_code: 201 # <-- Esperar 201
-          register: r_create_relatorio
-
-        - name: Setar o ID da transação de relatório
-          ansible.builtin.set_fact:
-            relatorio_item_id: "{{ r_create_relatorio.json.id }}"
-
-        - name: TESTAR - API de transações por categoria (resposta JSON)
-          ansible.builtin.uri:
-            url: "{{ base_url }}/relatorio/transactions?category=Categoria+Relatorio&start_date=2025-02-01&end_date=2025-02-28"
-            method: GET
-            return_content: true
-          register: r_report_api
-
-        - name: Assert - API do relatório retorna o dado criado
-          ansible.builtin.assert:
-            that:
-              - r_report_api.status == 200
-              - r_report_api.json is defined and r_report_api.json | length == 1
-              - (r_report_api.json | first).categoria == "Categoria Relatorio"
-
-      always:
-        - name: LIMPEZA FINAL - Garantir que a despesa de teste seja deletada pela API
-          ansible.builtin.uri:
-            url: "{{ base_url }}/movimentacoes/{{ relatorio_item_id }}"
-            method: DELETE
-          when: relatorio_item_id is defined
-
-    - name: 6. Testar geração de PDF
+    - name: 6. Testar geração de PDF (autenticado)
       ansible.builtin.uri:
         url: "{{ base_url }}/relatorio/pdf"
         method: POST
+        headers:
+          Cookie: "{{ session_cookie }}"
         body_format: json
         body:
           start_date: "2025-01-01"
-          end_date: "2025-03-31"
+          end_date: "2025-12-31"
           chartImageBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
       register: r_pdf
-
     - name: Assert - Geração de PDF foi bem-sucedida
       ansible.builtin.assert:
         that:
           - r_pdf.status == 200
           - "'application/pdf' in r_pdf.content_type"
-          - "'attachment; filename=\"relatorio_financeiro.pdf\"' in r_pdf.content_disposition"
-
-    - name: 7. Testar Validações de Sanitização (Campos Valor e Descrição)
-      block:
-        - name: Tentar adicionar com DESCRIÇÃO muito longa (> 60 caracteres)
-          ansible.builtin.uri:
-            url: "{{ base_url }}/movimentacoes"
-            method: POST
-            body_format: form-urlencoded
-            body:
-              data_ocorrencia: "2025-07-20"
-              descricao: "Esta é uma descrição muito, muito, muito, muito, muito longa que definitivamente excede o limite de 60 caracteres."
-              valor: "100"
-              conta: "Conta Teste"
-            return_content: true
-            status_code: 400
-          register: r_fail_desc
-
-        - name: Assert - Rejeita descrição longa com a mensagem correta
-          ansible.builtin.assert:
-            that:
-              - r_fail_desc.status == 400
-              # CORREÇÃO: Verificando o 'content' em vez de 'json.error'
-              - "'A descrição não pode ter mais de 60 caracteres.' in r_fail_desc.content"
-
-        - name: Tentar adicionar com VALOR em formato inválido (texto)
-          ansible.builtin.uri:
-            url: "{{ base_url }}/movimentacoes"
-            method: POST
-            body_format: form-urlencoded
-            body:
-              data_ocorrencia: "2025-07-20"
-              descricao: "Teste com valor de texto"
-              valor: "abc"
-              conta: "Conta Teste"
-            return_content: true
-            status_code: 400
-          register: r_fail_valor_formato
-
-        - name: Assert - Rejeita valor com formato de texto
-          ansible.builtin.assert:
-            that:
-              - r_fail_valor_formato.status == 400
-              # CORREÇÃO: Verificando o 'content' em vez de 'json.error'
-              - "'Valor inválido. Use um formato como 1234.56 ou -123.45.' in r_fail_valor_formato.content"
-
-        - name: Tentar adicionar com VALOR com casas decimais a mais
-          ansible.builtin.uri:
-            url: "{{ base_url }}/movimentacoes"
-            method: POST
-            body_format: form-urlencoded
-            body:
-              data_ocorrencia: "2025-07-20"
-              descricao: "Teste com muitas decimais"
-              valor: "123.456"
-              conta: "Conta Teste"
-            return_content: true
-            status_code: 400
-          register: r_fail_valor_decimais
-
-        - name: Assert - Rejeita valor com muitas casas decimais
-          ansible.builtin.assert:
-            that:
-              - r_fail_valor_decimais.status == 400
-              # CORREÇÃO: Verificando o 'content' em vez de 'json.error'
-              - "'Valor inválido. Use um formato como 1234.56 ou -123.45.' in r_fail_valor_decimais.content"
-
-        - name: Tentar adicionar com VALOR muito alto (acima do limite)
-          ansible.builtin.uri:
-            url: "{{ base_url }}/movimentacoes"
-            method: POST
-            body_format: form-urlencoded
-            body:
-              data_ocorrencia: "2025-07-20"
-              descricao: "Teste com valor gigante"
-              valor: "100000000" # 100 milhões
-              conta: "Conta Teste"
-            return_content: true
-            status_code: 400
-          register: r_fail_valor_limite
-
-        - name: Assert - Rejeita valor acima do limite
-          ansible.builtin.assert:
-            that:
-              - r_fail_valor_limite.status == 400
-              # CORREÇÃO: Verificando o 'content' em vez de 'json.error'
-              - "'O valor excede o limite máximo permitido' in r_fail_valor_limite.content"

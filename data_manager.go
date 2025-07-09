@@ -62,7 +62,8 @@ func main() {
             id BIGINT PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT FALSE
+            is_admin BOOLEAN DEFAULT FALSE,
+            dark_mode_enabled BOOLEAN DEFAULT FALSE 
         );`
 		// Garante que a sequência do ID comece a partir de 2 para novos usuários não-admin
 		createUsersTableSQL += `
@@ -99,7 +100,8 @@ func main() {
             id INTEGER PRIMARY KEY,
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT FALSE
+            is_admin BOOLEAN DEFAULT FALSE,
+			dark_mode_enabled BOOLEAN DEFAULT 0
         );`
 		createMovimentacoesTableSQL = fmt.Sprintf(`
         CREATE TABLE IF NOT EXISTS %s (

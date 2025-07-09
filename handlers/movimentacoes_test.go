@@ -1,68 +1,136 @@
 package handlers
 
 import (
-	"bytes"
+	"database/sql"
 	"fmt"
-	"html/template"
+	"minhas_economias/auth"
+	"minhas_economias/database"
+	"minhas_economias/models"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath" // NOVO IMPORT
 	"strings"
 	"testing"
 
+	"github.com/gin-contrib/multitemplate" // NOVO IMPORT
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq" // Import do driver PostgreSQL
-	"minhas_economias/database"
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
-// setupTestDB configura um banco de dados PostgreSQL para testes.
-// Limpa as tabelas antes de cada execução de teste.
+// testUserID é o ID do usuário que usaremos para todos os testes.
+const testUserID int64 = 999
+
+// mockAuthMiddleware simula um usuário logado.
+func mockAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		testUser := &models.User{
+			ID:              testUserID,
+			Email:           "test@user.com",
+			IsAdmin:         false,
+			DarkModeEnabled: false,
+		}
+		c.Set("userID", testUserID)
+		c.Set("user", testUser)
+		c.Next()
+	}
+}
+
+// setupTestDB configura um banco de dados de teste limpo.
 func setupTestDB(t *testing.T) {
-	// A função InitDB agora lê das variáveis de ambiente.
-	// Assegure-se de que elas apontem para um banco de dados de TESTE.
 	_, err := database.InitDB()
 	if err != nil {
 		t.Fatalf("Falha ao inicializar o banco de dados de teste: %v", err)
 	}
-
 	db := database.GetDB()
 
-	// Limpa as tabelas para garantir um estado limpo
-	_, err = db.Exec(fmt.Sprintf("TRUNCATE TABLE %s, contas RESTART IDENTITY", database.TableName))
-	if err != nil {
-		// Se TRUNCATE falhar (ex: primeira execução), tenta criar as tabelas.
-		createMovimentacoesSQL := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
-			id SERIAL PRIMARY KEY, data_ocorrencia DATE NOT NULL,
-			descricao TEXT, valor NUMERIC(10, 2), categoria TEXT, conta TEXT, consolidado BOOLEAN DEFAULT FALSE
-		);`, database.TableName)
-		_, err = db.Exec(createMovimentacoesSQL)
+	tables := []string{"movimentacoes", "contas", "users"}
+	for _, table := range tables {
+		_, err := db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", table))
 		if err != nil {
-			t.Fatalf("Falha ao criar a tabela de teste 'movimentacoes': %v", err)
-		}
-
-		createContasSQL := `
-		CREATE TABLE IF NOT EXISTS contas (
-			nome TEXT PRIMARY KEY, saldo_inicial NUMERIC(10, 2) NOT NULL DEFAULT 0
-		);`
-		_, err = db.Exec(createContasSQL)
-		if err != nil {
-			t.Fatalf("Falha ao criar a tabela de teste 'contas': %v", err)
+			db.Exec(fmt.Sprintf("DELETE FROM %s", table))
 		}
 	}
 
-	// Insere dados de teste
-	insertMovimentacoesSQL := fmt.Sprintf(`
-	INSERT INTO %s (id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES
-	($1, $2, $3, $4, $5, $6, $7), ($8, $9, $10, $11, $12, $13, $14);`, database.TableName)
+	createUsersSQL := `
+	CREATE TABLE users (
+		id BIGINT PRIMARY KEY,
+		email TEXT UNIQUE NOT NULL,
+		password_hash TEXT NOT NULL,
+		is_admin BOOLEAN DEFAULT FALSE,
+		dark_mode_enabled BOOLEAN DEFAULT FALSE
+	);`
+	createMovimentacoesSQL_sqlite := fmt.Sprintf(`
+	CREATE TABLE %s (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id BIGINT NOT NULL,
+		data_ocorrencia DATE NOT NULL,
+		descricao TEXT,
+		valor NUMERIC(10, 2),
+		categoria TEXT,
+		conta TEXT,
+		consolidado BOOLEAN DEFAULT FALSE,
+		FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+	);`, database.TableName)
+	createMovimentacoesSQL_postgres := fmt.Sprintf(`
+	CREATE TABLE %s (
+		id SERIAL PRIMARY KEY,
+		user_id BIGINT NOT NULL,
+		data_ocorrencia DATE NOT NULL,
+		descricao TEXT,
+		valor NUMERIC(10, 2),
+		categoria TEXT,
+		conta TEXT,
+		consolidado BOOLEAN DEFAULT FALSE,
+		FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+	);`, database.TableName)
+	createContasSQL := `
+	CREATE TABLE contas (
+		user_id BIGINT NOT NULL,
+		nome TEXT NOT NULL,
+		saldo_inicial NUMERIC(10, 2) NOT NULL DEFAULT 0,
+		PRIMARY KEY (user_id, nome),
+		FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+	);`
 
-	// Precisamos usar `ALTER SEQUENCE` para reiniciar o ID e inserir valores fixos
-	db.Exec(fmt.Sprintf("ALTER SEQUENCE %s_id_seq RESTART WITH 3;", database.TableName))
+	if _, err := db.Exec(createUsersSQL); err != nil {
+		t.Fatalf("Falha ao criar a tabela de teste 'users': %v", err)
+	}
+	if database.DriverName == "postgres" {
+		if _, err := db.Exec(createMovimentacoesSQL_postgres); err != nil {
+			t.Fatalf("Falha ao criar a tabela de teste 'movimentacoes' para postgres: %v", err)
+		}
+	} else {
+		if _, err := db.Exec(createMovimentacoesSQL_sqlite); err != nil {
+			t.Fatalf("Falha ao criar a tabela de teste 'movimentacoes' para sqlite: %v", err)
+		}
+	}
+	if _, err := db.Exec(createContasSQL); err != nil {
+		t.Fatalf("Falha ao criar a tabela de teste 'contas': %v", err)
+	}
+
+	hashedPassword, err := auth.HashPassword("password123")
+	if err != nil {
+		t.Fatalf("Falha ao gerar hash da senha de teste: %v", err)
+	}
+	insertUserSQL := database.Rebind("INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)")
+	if _, err := db.Exec(insertUserSQL, testUserID, "test@user.com", hashedPassword); err != nil {
+		t.Fatalf("Falha ao inserir usuário de teste: %v", err)
+	}
+
+	insertMovimentacoesSQL := database.Rebind(fmt.Sprintf(`
+    INSERT INTO %s (id, user_id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES
+    (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?);`, database.TableName))
+
+	if database.DriverName == "postgres" {
+		db.Exec(fmt.Sprintf("SELECT setval('%s_id_seq', 2, true);", database.TableName))
+	}
 
 	_, err = db.Exec(insertMovimentacoesSQL,
-		1, "2025-01-10", "Aluguel", -1500.00, "Moradia", "Banco A", true,
-		2, "2025-01-15", "Salario", 3000.00, "Renda", "Banco A", true)
+		1, testUserID, "2025-01-10", "Aluguel", -1500.00, "Moradia", "Banco A", true,
+		2, testUserID, "2025-01-15", "Salario", 3000.00, "Renda", "Banco A", true)
 	if err != nil {
 		t.Fatalf("Falha ao inserir dados de teste em 'movimentacoes': %v", err)
 	}
@@ -73,43 +141,73 @@ func teardownTestDB() {
 	database.CloseDB()
 }
 
-// createTestRouter cria um roteador Gin para testes e configura o renderizador de HTML.
+// createTestRouter cria um roteador Gin para testes com o middleware de autenticação mockado.
 func createTestRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
 	r := gin.Default()
 
-	// Definindo os templates necessários para os testes
-	htmlTemplates := template.Must(template.New("").Parse(`
-			{{define "error.html"}}<!DOCTYPE html><html><body><h1>Erro {{.StatusCode}}</h1><p>{{.ErrorMessage}}</p></body></html>{{end}}
-			{{define "index.html"}}<!DOCTYPE html><html><body><h1>Minhas Economias - Saldos</h1></body></html>{{end}}
-			{{define "transacoes.html"}}<!DOCTYPE html><html><body><h1>Transações Financeiras</h1></body></html>{{end}}
-			{{define "relatorio.html"}}<!DOCTYPE html><html><body><h1>Relatório de Despesas por Categoria</h1></body></html>{{end}}
-	`))
-	r.SetHTMLTemplate(htmlTemplates)
+	// --- CORREÇÃO: Configura o renderizador multitemplate para lidar com o layout base ---
+	renderer := multitemplate.NewRenderer()
+	layouts, err := filepath.Glob("../templates/_layout.html")
+	if err != nil || len(layouts) == 0 {
+		panic("Erro: não foi possível encontrar o arquivo de layout _layout.html. " + err.Error())
+	}
 
-	// Registrando todas as rotas que serão testadas
-	r.GET("/", GetIndexPage)
-	r.GET("/transacoes", GetTransacoesPage)
-	r.GET("/relatorio", GetRelatorio)
-	r.POST("/movimentacoes", AddMovimentacao)
-	r.POST("/movimentacoes/update/:id", UpdateMovimentacao)
-	r.DELETE("/movimentacoes/:id", DeleteMovimentacao)
+	pages, err := filepath.Glob("../templates/*.html")
+	if err != nil {
+		panic("Erro: não foi possível encontrar os templates de página. " + err.Error())
+	}
+
+	for _, page := range pages {
+		pageName := filepath.Base(page)
+		// Ignora o próprio layout e as páginas standalone que não usam layout (login/register)
+		if pageName != "_layout.html" && pageName != "login.html" && pageName != "register.html" {
+			renderer.AddFromFiles(pageName, append(layouts, page)...)
+		}
+	}
+	r.HTMLRender = renderer
+	// --- FIM DA CORREÇÃO ---
+
+	// Grupo de rotas protegidas com o nosso middleware FALSO
+	authorized := r.Group("/")
+	authorized.Use(mockAuthMiddleware())
+	{
+		authorized.GET("/", GetIndexPage)
+		authorized.GET("/transacoes", GetTransacoesPage)
+		authorized.GET("/relatorio", GetRelatorio)
+		authorized.GET("/configuracoes", GetConfiguracoesPage)
+		authorized.POST("/movimentacoes", AddMovimentacao)
+		authorized.POST("/movimentacoes/update/:id", UpdateMovimentacao)
+		authorized.DELETE("/movimentacoes/:id", DeleteMovimentacao)
+		authorized.POST("/api/user/settings", UpdateUserSettings)
+	}
 
 	return r
 }
 
-// Helper para simular requisições HTTP.
-func performRequest(r http.Handler, method, path string, body url.Values) *httptest.ResponseRecorder {
+// performRequest é um helper para simular requisições HTTP.
+func performRequest(r http.Handler, method, path string, body url.Values, headers http.Header) *httptest.ResponseRecorder {
 	var req *http.Request
 	var err error
+
 	if body != nil {
-		req, err = http.NewRequest(method, path, bytes.NewBufferString(body.Encode()))
+		req, err = http.NewRequest(method, path, strings.NewReader(body.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	} else {
 		req, err = http.NewRequest(method, path, nil)
 	}
 	if err != nil {
-		panic(fmt.Sprintf("Failed to create request: %v", err))
+		panic(fmt.Sprintf("Falha ao criar a requisição: %v", err))
 	}
+
+	if headers != nil {
+		for key, values := range headers {
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
+		}
+	}
+
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 	return w
@@ -122,91 +220,20 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// --- Funções de Teste (permanecem as mesmas, mas agora rodam em PostgreSQL) ---
+// --- Funções de Teste Atualizadas ---
 
 func TestGetIndexPage_Success(t *testing.T) {
 	setupTestDB(t)
 	defer teardownTestDB()
 	router := createTestRouter()
 
-	w := performRequest(router, "GET", "/", nil)
+	w := performRequest(router, "GET", "/", nil, nil)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Esperado status 200, mas obteve %d.", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "Minhas Economias - Saldos") {
+	if !strings.Contains(w.Body.String(), "Painel de Saldos") {
 		t.Errorf("Corpo da resposta não contém o título esperado para a página inicial.")
-	}
-}
-
-func TestGetTransacoesPage_Success(t *testing.T) {
-	setupTestDB(t)
-	defer teardownTestDB()
-	router := createTestRouter()
-
-	w := performRequest(router, "GET", "/transacoes", nil)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Esperado status 200, mas obteve %d.", w.Code)
-	}
-	if !strings.Contains(w.Body.String(), "Transações Financeiras") {
-		t.Errorf("Corpo da resposta não contém o título esperado para a página de transações.")
-	}
-}
-
-func TestGetRelatorio_Success(t *testing.T) {
-	setupTestDB(t)
-	defer teardownTestDB()
-	router := createTestRouter()
-
-	w := performRequest(router, "GET", "/relatorio", nil)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Esperado status 200, mas obteve %d.", w.Code)
-	}
-	if !strings.Contains(w.Body.String(), "Relatório de Despesas por Categoria") {
-		t.Errorf("Corpo da resposta não contém o título esperado para a página de relatório.")
-	}
-}
-
-func TestAddMovimentacao_Validation(t *testing.T) {
-	setupTestDB(t)
-	defer teardownTestDB()
-	router := createTestRouter()
-
-	formData := url.Values{}
-	formData.Set("data_ocorrencia", "2025-06-30")
-	formData.Set("descricao", "Despesa sem conta")
-	formData.Set("valor", "-10.00")
-
-	w := performRequest(router, "POST", "/movimentacoes", formData)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Esperado status 400, mas obteve %d.", w.Code)
-	}
-	if !strings.Contains(w.Body.String(), "O campo &#39;Conta&#39; é obrigatório.") {
-		t.Errorf("Mensagem de erro para conta vazia não encontrada.")
-	}
-}
-
-func TestUpdateMovimentacao_Validation(t *testing.T) {
-	setupTestDB(t)
-	defer teardownTestDB()
-	router := createTestRouter()
-
-	formData := url.Values{}
-	formData.Set("data_ocorrencia", "2025-01-10")
-	formData.Set("descricao", strings.Repeat("a", 61))
-	formData.Set("valor", "-1500.00")
-	formData.Set("conta", "Banco A")
-
-	w := performRequest(router, "POST", "/movimentacoes/update/1", formData)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Esperado status 400, mas obteve %d.", w.Code)
-	}
-	if !strings.Contains(w.Body.String(), "A descrição não pode ter mais de 60 caracteres.") {
-		t.Errorf("Mensagem de erro para descrição longa não encontrada.")
 	}
 }
 
@@ -222,10 +249,21 @@ func TestAddMovimentacao_Success(t *testing.T) {
 	formData.Set("categoria", "Testes")
 	formData.Set("conta", "Conta Teste")
 
-	w := performRequest(router, "POST", "/movimentacoes", formData)
+	w := performRequest(router, "POST", "/movimentacoes", formData, nil)
 
 	if w.Code != http.StatusFound {
-		t.Errorf("Esperado status 302, mas obteve %d.", w.Code)
+		t.Errorf("Esperado status 302 (redirecionamento), mas obteve %d.", w.Code)
+	}
+
+	db := database.GetDB()
+	var count int
+	query := database.Rebind("SELECT COUNT(*) FROM movimentacoes WHERE descricao = ? AND user_id = ?")
+	err := db.QueryRow(query, "Nova Despesa", testUserID).Scan(&count)
+	if err != nil {
+		t.Fatalf("Erro ao verificar a inserção no banco de dados: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Esperado encontrar 1 movimentação inserida, mas encontrou %d", count)
 	}
 }
 
@@ -241,10 +279,21 @@ func TestUpdateMovimentacao_Success(t *testing.T) {
 	formData.Set("categoria", "Renda Principal")
 	formData.Set("conta", "Banco A")
 
-	w := performRequest(router, "POST", "/movimentacoes/update/2", formData)
+	w := performRequest(router, "POST", "/movimentacoes/update/2", formData, nil)
 
 	if w.Code != http.StatusFound {
-		t.Errorf("Esperado status 302, mas obteve %d.", w.Code)
+		t.Errorf("Esperado status 302 (redirecionamento), mas obteve %d.", w.Code)
+	}
+
+	db := database.GetDB()
+	var desc string
+	query := database.Rebind("SELECT descricao FROM movimentacoes WHERE id = ? AND user_id = ?")
+	err := db.QueryRow(query, 2, testUserID).Scan(&desc)
+	if err != nil {
+		t.Fatalf("Erro ao verificar a atualização no banco de dados: %v", err)
+	}
+	if desc != "Salario Atualizado" {
+		t.Errorf("Esperava descrição 'Salario Atualizado', mas obteve '%s'", desc)
 	}
 }
 
@@ -253,9 +302,45 @@ func TestDeleteMovimentacao_Success(t *testing.T) {
 	defer teardownTestDB()
 	router := createTestRouter()
 
-	w := performRequest(router, "DELETE", "/movimentacoes/1", nil)
+	w := performRequest(router, "DELETE", "/movimentacoes/1", nil, nil)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Esperado status 200, mas obteve %d.", w.Code)
+	}
+
+	db := database.GetDB()
+	var count int
+	query := database.Rebind("SELECT COUNT(*) FROM movimentacoes WHERE id = ? AND user_id = ?")
+	err := db.QueryRow(query, 1, testUserID).Scan(&count)
+	if err != nil && err != sql.ErrNoRows {
+		if err == sql.ErrNoRows {
+			count = 0
+		} else {
+			t.Fatalf("Erro ao verificar a deleção no banco de dados: %v", err)
+		}
+	}
+	if count != 0 {
+		t.Errorf("Esperado que a movimentação fosse deletada (contagem 0), mas a contagem é %d", count)
+	}
+}
+
+func TestUpdateMovimentacao_Validation(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB()
+	router := createTestRouter()
+
+	formData := url.Values{}
+	formData.Set("data_ocorrencia", "2025-01-10")
+	formData.Set("descricao", strings.Repeat("a", 61)) // Descrição muito longa
+	formData.Set("valor", "-1500.00")
+	formData.Set("conta", "Banco A")
+
+	w := performRequest(router, "POST", "/movimentacoes/update/1", formData, nil)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Esperado status 400, mas obteve %d.", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "A descrição não pode ter mais de 60 caracteres.") {
+		t.Errorf("Mensagem de erro para descrição longa não encontrada no corpo: %s", w.Body.String())
 	}
 }

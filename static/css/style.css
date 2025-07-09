@@ -238,3 +238,115 @@ table tbody tr:last-child td { border-bottom: none; }
     .summary-button-item { justify-content: space-between; }
     .chart-container { width: 95%; height: 300px; }
 }
+
+/* Adicione no final de static/css/style.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Cores base para light e dark mode */
+  body {
+    @apply bg-slate-100 text-slate-700;
+    @apply dark:bg-slate-900 dark:text-slate-300;
+  }
+}
+
+@layer components {
+  .container {
+    @apply bg-white;
+    @apply dark:bg-slate-800;
+  }
+  .header-title {
+      @apply text-gray-900;
+      @apply dark:text-gray-100;
+  }
+  /* ... e assim por diante para outros componentes ... */
+  th {
+      @apply bg-slate-50 text-slate-600;
+      @apply dark:bg-slate-700 dark:text-slate-300;
+  }
+  
+  tr:nth-child(even) {
+      @apply bg-slate-50;
+      @apply dark:bg-slate-800;
+  }
+  tr:hover {
+      @apply bg-slate-100;
+      @apply dark:bg-slate-700;
+  }
+  td {
+      @apply border-slate-200;
+      @apply dark:border-slate-700;
+  }
+  .label {
+      @apply text-slate-600;
+      @apply dark:text-slate-400;
+  }
+  .text-input, .date-input, .select-input, .select-selected {
+      @apply bg-white border-slate-300 text-slate-800;
+      @apply dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:placeholder-slate-400;
+  }
+}
+
+/* Substitua o conteúdo ou adicione as classes dark: */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-700 transition-colors duration-300;
+    @apply dark:bg-slate-900 dark:text-slate-300;
+  }
+}
+
+@layer components {
+  .container {
+    @apply bg-white dark:bg-slate-800;
+  }
+  .header-title {
+    @apply text-gray-900 dark:text-gray-100;
+  }
+  .label {
+      @apply text-slate-600 dark:text-slate-400;
+  }
+  .text-input, .date-input, .select-input {
+      @apply bg-white border-slate-300 text-slate-800 focus:ring-blue-500/50;
+      @apply dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:placeholder-slate-400 dark:focus:ring-blue-500/30;
+  }
+  .select-selected {
+      @apply bg-white border-slate-300;
+      @apply dark:bg-slate-700 dark:border-slate-600;
+  }
+  .select-selected:after {
+    @apply border-t-slate-600 dark:border-t-slate-300;
+  }
+  .select-items {
+      @apply bg-white border-slate-300;
+      @apply dark:bg-slate-700 dark:border-slate-600;
+  }
+  .select-item-label:hover {
+      @apply bg-slate-100 dark:bg-slate-600;
+  }
+  table {
+      @apply text-slate-700 dark:text-slate-300;
+  }
+  th {
+      @apply bg-slate-50 text-slate-600 border-b border-slate-200;
+      @apply dark:bg-slate-700/50 dark:text-slate-300 dark:border-b-slate-700;
+  }
+  td {
+      @apply border-b border-slate-200 dark:border-b-slate-700;
+  }
+  tr:last-child td {
+      @apply border-b-0;
+  }
+  tbody tr:nth-child(even) {
+      @apply bg-slate-50 dark:bg-transparent;
+  }
+  tbody tr:hover {
+      @apply bg-slate-100 dark:bg-slate-700;
+  }
+  /* ... continue para outros elementos conforme necessário ... */
+}

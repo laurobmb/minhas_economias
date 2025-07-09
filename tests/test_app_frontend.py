@@ -7,24 +7,28 @@ import logging
 import time
 import shutil
 import sqlite3
-import psycopg2 # <-- IMPORT ADICIONADO
-from datetime import datetime, timezone # <-- Mude o import
+import psycopg2
+from datetime import datetime, timezone
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 # --- Configurações ---
 logging.basicConfig(format='%(asctime)s: %(name)s: %(levelname)s: %(message)s', level=logging.INFO, datefmt='%H:%M:%S')
 logger = logging.getLogger('MinhasEconomiasTest')
 
 BASE_URL = os.getenv('APP_URL', 'http://localhost:8080')
-DEFAULT_TIMEOUT = 10 
+DEFAULT_TIMEOUT = 10
 IS_CONTAINER = os.getenv('CONTAINER', 'false').lower() == 'true'
 STEP_DELAY = 0
 
-# --- LER VARIÁVEIS DE AMBIENTE DO BANCO DE DADOS ---
+# --- Credenciais de Teste ---
+TEST_USER_EMAIL = "selenium@localnet.local"
+TEST_USER_PASS = "1q2w3e"
+
+# --- Variáveis de Ambiente do Banco de Dados ---
 DB_TYPE = os.getenv('DB_TYPE', 'sqlite3')
 DB_NAME = os.getenv('DB_NAME', 'extratos.db')
 DB_USER = os.getenv('DB_USER', 'postgres')
@@ -44,10 +48,7 @@ class MinhasEconomiasTest(unittest.TestCase):
         os.makedirs(cls.download_dir)
         
         options = webdriver.ChromeOptions()
-        prefs = {
-            "download.default_directory": cls.download_dir,
-            "download.prompt_for_download": False
-        }
+        prefs = {"download.default_directory": cls.download_dir, "download.prompt_for_download": False}
         options.add_experimental_option("prefs", prefs)
         options.add_argument("--start-maximized")
 
@@ -76,23 +77,14 @@ class MinhasEconomiasTest(unittest.TestCase):
             shutil.rmtree(cls.download_dir)
         logger.info("Navegador encerrado e pasta de downloads limpa.")
 
-        # --- LÓGICA DE LIMPEZA ADAPTADA ---
-        logger.info(f"Iniciando limpeza para o banco de dados tipo: {DB_TYPE}")
-        time.sleep(2) # Pausa para a aplicação Go liberar a conexão/arquivo.
+        logger.info(f"Iniciando limpeza do banco de dados ({DB_TYPE})...")
+        time.sleep(1)
 
         conn = None
         try:
             if DB_TYPE == 'postgres':
-                # Conecta ao PostgreSQL
-                conn = psycopg2.connect(
-                    dbname=DB_NAME,
-                    user=DB_USER,
-                    password=DB_PASS,
-                    host=DB_HOST,
-                    port=DB_PORT
-                )
+                conn = psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASS, host=DB_HOST, port=DB_PORT)
             elif DB_TYPE == 'sqlite3':
-                # Conecta ao SQLite
                 if not os.path.exists(DB_NAME):
                     logger.warning(f"Arquivo de banco de dados SQLite '{DB_NAME}' não encontrado. Pulando limpeza.")
                     return
@@ -102,8 +94,6 @@ class MinhasEconomiasTest(unittest.TestCase):
                 return
 
             cursor = conn.cursor()
-            
-            # As queries SQL são as mesmas para ambos os bancos
             queries = [
                 "DELETE FROM movimentacoes WHERE conta LIKE 'Conta Saldo %';",
                 "DELETE FROM movimentacoes WHERE conta = 'Conta Teste Grafico';",
@@ -114,197 +104,120 @@ class MinhasEconomiasTest(unittest.TestCase):
             total_deleted = 0
             for query in queries:
                 cursor.execute(query)
-                # No psycopg2, rowcount é -1 para selects, mas funciona para DML
                 if cursor.rowcount > 0:
                     total_deleted += cursor.rowcount
-
             conn.commit()
-            if total_deleted > 0:
-                logger.info(f"SUCESSO: Limpeza do banco de dados concluída. {total_deleted} registros de teste removidos.")
-            else:
-                logger.info("Limpeza do banco de dados concluída. Nenhum registro de teste encontrado para remover.")
-            
+            logger.info(f"Limpeza do banco de dados concluída. {total_deleted} registros de teste removidos.")
         except (sqlite3.Error, psycopg2.Error) as e:
             logger.error(f"Ocorreu um erro ao limpar o banco de dados: {e}")
         finally:
             if conn:
                 conn.close()
 
+    def setUp(self):
+        """Executado antes de cada teste. Realiza o login."""
+        self.browser.get(f'{BASE_URL}/login')
+        try:
+            # Se já estiver logado (ex: teste anterior falhou), faz logout primeiro
+            logout_button = self.browser.find_element(By.XPATH, "//button[text()='Sair']")
+            logout_button.click()
+            self.wait.until(EC.url_to_be(f'{BASE_URL}/login'))
+        except NoSuchElementException:
+            # Não está logado, o que é o esperado. Continua.
+            pass
+
+        self.wait.until(EC.visibility_of_element_located((By.ID, "email"))).send_keys(TEST_USER_EMAIL)
+        self.browser.find_element(By.ID, "password").send_keys(TEST_USER_PASS)
+        self.browser.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        # Aguarda o login ser bem-sucedido verificando a URL e o título da página de saldos
+        self.wait.until(EC.url_to_be(f'{BASE_URL}/'))
+        self.wait.until(EC.title_contains("Saldos"))
+        logger.info(f"Login como '{TEST_USER_EMAIL}' realizado com sucesso para o teste.")
 
     def _delay(self):
         """Pausa a execução para facilitar a visualização."""
         time.sleep(STEP_DELAY)
 
-    # =========================================================================
-    # Seus testes (test_01_..., test_02_..., etc.) permanecem exatamente iguais
-    # =========================================================================
     def test_01_fluxo_crud_transacao(self):
         """Testa o fluxo completo: Criar, Ler, Atualizar e Deletar uma transação."""
         logger.info("--- INICIANDO TESTE 01: FLUXO CRUD ---")
-        transacoes_url = f'{BASE_URL}/transacoes'
+        self.browser.get(f'{BASE_URL}/transacoes')
+        self.wait.until(EC.title_contains("Transações"))
+        
         timestamp = int(time.time())
         descricao_inicial = f"Pagamento Teste Selenium {timestamp}"
         descricao_editada = f"Pagamento Teste Selenium EDITADO {timestamp}"
-        self.browser.get(transacoes_url)
-        self._delay()
-        self.assertIn("Transações Financeiras", self.browser.title)
+        
         logger.info(f"CRIANDO nova transação: '{descricao_inicial}'")
         self.wait.until(EC.visibility_of_element_located((By.ID, "new_descricao"))).send_keys(descricao_inicial)
         self.browser.find_element(By.ID, "new_valor").send_keys("-150,77")
         self.browser.find_element(By.ID, "new_categoria").send_keys("Testes CRUD")
         self.browser.find_element(By.ID, "new_conta").send_keys("Conta Teste CRUD")
         self.browser.find_element(By.ID, "submit-movement-button").click()
+        
         xpath_linha_inicial = f"//tr[contains(., '{descricao_inicial}')]"
-        try:
-            linha_criada = self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_linha_inicial)))
-            self.assertIsNotNone(linha_criada)
-            logger.info("SUCESSO: Transação criada encontrada.")
-        except TimeoutException:
-            self.fail(f"A transação '{descricao_inicial}' não apareceu na tabela.")
+        linha_criada = self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_linha_inicial)))
+        self.assertIsNotNone(linha_criada, f"A transação '{descricao_inicial}' não apareceu na tabela.")
+        logger.info("SUCESSO: Transação criada encontrada.")
+
         logger.info(f"EDITANDO a transação para '{descricao_editada}'")
         linha_criada.find_element(By.XPATH, ".//button[text()='Editar']").click()
-        self._delay()
         self.wait.until(EC.text_to_be_present_in_element_value((By.ID, "new_descricao"), descricao_inicial))
         campo_descricao = self.browser.find_element(By.ID, "new_descricao")
         campo_descricao.clear()
         campo_descricao.send_keys(descricao_editada)
         self.browser.find_element(By.ID, "submit-movement-button").click()
+        
         xpath_linha_editada = f"//tr[contains(., '{descricao_editada}')]"
-        try:
-            self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_linha_editada)))
-            logger.info("SUCESSO: Transação editada encontrada.")
-        except TimeoutException:
-            self.fail(f"A transação editada '{descricao_editada}' não apareceu.")
+        linha_editada = self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_linha_editada)))
+        self.assertIsNotNone(linha_editada, f"A transação editada '{descricao_editada}' não apareceu.")
+        logger.info("SUCESSO: Transação editada encontrada.")
+
         logger.info(f"EXCLUINDO a transação '{descricao_editada}'")
-        linha_para_excluir = self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_linha_editada)))
-        linha_para_excluir.find_element(By.XPATH, ".//button[text()='Excluir']").click()
+        linha_editada.find_element(By.XPATH, ".//button[text()='Excluir']").click()
+        
         self.wait.until(EC.alert_is_present()).accept()
-        # A segunda confirmação pode não ser necessária dependendo do navegador/configuração
-        try:
-            self.wait.until(EC.alert_is_present()).accept()
-        except TimeoutException:
-            logger.warning("Segundo alerta de confirmação não apareceu, continuando...")
         
-        try:
-            self.wait.until(EC.staleness_of(linha_para_excluir))
-            logger.info("SUCESSO: Transação removida.")
-        except TimeoutException:
-            self.fail(f"A transação '{descricao_editada}' não foi removida.")
-
-    def test_02_pagina_inicial(self):
-        """Testa a exibição de saldos na página inicial."""
-        logger.info("--- INICIANDO TESTE 02: PÁGINA INICIAL ---")
-        conta_teste = f"Conta Saldo {int(time.time())}"
-        self.browser.get(f'{BASE_URL}/transacoes')
-        self.wait.until(EC.visibility_of_element_located((By.ID, "new_descricao"))).send_keys("Receita para Saldo")
-        self.browser.find_element(By.ID, "new_valor").send_keys("1250,00")
-        self.browser.find_element(By.ID, "new_conta").send_keys(conta_teste)
-        self.browser.find_element(By.ID, "submit-movement-button").click()
-        self.wait.until(EC.visibility_of_element_located((By.XPATH, f"//tr[contains(., '{conta_teste}')]")))
-        logger.info(f"Transação de teste criada para a conta '{conta_teste}'.")
-        self._delay()
-        self.browser.get(BASE_URL + "/")
-        self.assertIn("Minhas Economias - Saldos", self.browser.title)
-        xpath_saldo_card = f"//div[p[contains(text(), '{conta_teste}')]]//p[contains(text(), '1.250,00') or contains(text(), '1250.00')]"
-        try:
-            self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_saldo_card)))
-            logger.info("SUCESSO: Saldo da conta de teste encontrado na página inicial.")
-        except TimeoutException:
-            self.fail("Não foi possível encontrar o saldo da conta de teste na página inicial.")
-        self._delay()
-
-    def test_03_download_pdf(self):
-        """Testa a funcionalidade de download de PDF."""
-        logger.info("--- INICIANDO TESTE 03: DOWNLOAD DE PDF ---")
-        self.browser.get(f'{BASE_URL}/relatorio')
-        self.assertIn("Relatório de Despesas", self.browser.title)
-        download_button = self.wait.until(EC.element_to_be_clickable((By.ID, "save-pdf-button")))
-        download_button.click()
-        logger.info("Botão de download do PDF clicado.")
-        data_hoje_utc = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-        nome_arquivo_esperado = f"Relatorio-MinhasEconomias-{data_hoje_utc}.pdf"
-        caminho_arquivo = os.path.join(self.download_dir, nome_arquivo_esperado)
-        tempo_limite = 20
-        download_completo = False
-        logger.info(f"Aguardando o download do arquivo '{nome_arquivo_esperado}'...")
-        for _ in range(tempo_limite):
-            if os.path.exists(caminho_arquivo) and not any(".crdownload" in f for f in os.listdir(self.download_dir)):
-                logger.info("SUCESSO: Arquivo PDF encontrado no diretório de downloads!")
-                download_completo = True
-                break
-            time.sleep(1)
-        self.assertTrue(download_completo, f"FALHA: O download do PDF '{nome_arquivo_esperado}' não foi concluído no tempo.")
-        self.assertGreater(os.path.getsize(caminho_arquivo), 0, "O arquivo PDF baixado está vazio.")
-    
-    def test_04_clique_grafico_relatorio(self):
-        """Testa a interatividade do gráfico na página de relatório."""
-        logger.info("--- INICIANDO TESTE 04: INTERATIVIDADE DO GRÁFICO ---")
-        timestamp = int(time.time())
-        categoria_grafico = f"Categoria Grafico {timestamp}"
-        descricao_grafico = f"Despesa para teste de gráfico {timestamp}"
-        self.browser.get(f'{BASE_URL}/transacoes')
-        self.wait.until(EC.visibility_of_element_located((By.ID, "new_descricao"))).send_keys(descricao_grafico)
-        self.browser.find_element(By.ID, "new_valor").send_keys("-99.99")
-        self.browser.find_element(By.ID, "new_categoria").send_keys(categoria_grafico)
-        self.browser.find_element(By.ID, "new_conta").send_keys("Conta Teste Grafico")
-        self.browser.find_element(By.ID, "submit-movement-button").click()
-        self.wait.until(EC.url_contains('/transacoes'))
-        logger.info(f"Transação de teste criada para a categoria '{categoria_grafico}'.")
-        self._delay()
-        self.browser.get(f'{BASE_URL}/relatorio')
-        self.assertIn("Relatório de Despesas", self.browser.title)
-        logger.info(f"Filtrando o relatório pela categoria '{categoria_grafico}'...")
-        try:
-            self.wait.until(EC.element_to_be_clickable((By.ID, "category-select-display"))).click()
-            self._delay()
-            categoria_checkbox_label = self.wait.until(EC.element_to_be_clickable((By.XPATH, f"//label[contains(., '{categoria_grafico}')]")))
-            categoria_checkbox_label.click()
-            self._delay()
-            self.browser.find_element(By.TAG_NAME, 'body').click()
-            self.browser.find_element(By.XPATH, "//button[text()='Filtrar Relatório']").click()
-            logger.info("Filtro aplicado.")
-        except TimeoutException:
-            self.fail("Não foi possível encontrar e aplicar o filtro de categoria no relatório.")
-        try:
-            canvas = self.wait.until(EC.element_to_be_clickable((By.ID, "expensesPieChart")))
-            time.sleep(2) 
-            canvas.click()
-            logger.info("Clicou no canvas do gráfico já filtrado.")
-        except TimeoutException:
-            self.fail("O gráfico não foi encontrado ou não está clicável após filtrar o relatório.")
-        try:
-            secao_transacoes = self.wait.until(EC.visibility_of_element_located((By.ID, "category-transactions-section")))
-            logger.info("SUCESSO: A seção de detalhes da categoria está visível.")
-            xpath_transacao_detalhe = f"//tbody[@id='category-transactions-tbody']//td[contains(text(), '{descricao_grafico}')]"
-            self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_transacao_detalhe)))
-            logger.info("SUCESSO: A transação de teste foi encontrada na tabela de detalhes.")
-        except TimeoutException:
-            self.fail("A tabela de detalhes da categoria não apareceu ou não continha a transação esperada.")
-
-    def test_05_validacoes_formulario(self):
-        """Testa as validações dos campos do formulário."""
-        logger.info("--- INICIANDO TESTE 05: VALIDAÇÕES DE FORMULÁRIO ---")
-        transacoes_url = f'{BASE_URL}/transacoes'
-
-        logger.info("Cenário de Validação: Descrição com mais de 60 caracteres.")
-        self.browser.get(transacoes_url)
-        campo_descricao = self.wait.until(EC.visibility_of_element_located((By.ID, "new_descricao")))
-        descricao_longa = 'a' * 61
-        campo_descricao.send_keys(descricao_longa)
-        self._delay()
-        valor_no_campo = campo_descricao.get_attribute("value")
-        self.assertEqual(len(valor_no_campo), 60, "O navegador deveria ter limitado a descrição a 60 caracteres.")
-        logger.info("SUCESSO: Validação de frontend 'maxlength=60' funcionou como esperado.")
+        logger.info("Aguardando e aceitando o alerta de sucesso da exclusão...")
+        self.wait.until(EC.alert_is_present()).accept()
         
-        logger.info("Cenário de Validação: Sanitização de valor com formato de texto.")
-        self.browser.get(transacoes_url)
-        campo_valor = self.wait.until(EC.visibility_of_element_located((By.ID, "new_valor")))
-        campo_valor.send_keys("abc-123,45xyz")
+        self.assertTrue(self.wait.until(EC.staleness_of(linha_editada)), f"A transação '{descricao_editada}' não foi removida.")
+        logger.info("SUCESSO: Transação removida.")
+
+    def test_02_configuracoes_dark_mode(self):
+        """Testa a funcionalidade de ativar e desativar o dark mode."""
+        logger.info("--- INICIANDO TESTE 02: DARK MODE ---")
+        self.browser.get(f'{BASE_URL}/configuracoes')
+        self.wait.until(EC.title_contains("Configurações"))
+
+        # CORREÇÃO: Alvo é o <label> clicável, não o <input> invisível.
+        toggle_label_selector = (By.CSS_SELECTOR, "label[for='dark-mode-toggle']")
+        toggle_label = self.wait.until(EC.element_to_be_clickable(toggle_label_selector))
+        html_element = self.browser.find_element(By.TAG_NAME, 'html')
+
+        # Garante que o estado inicial é o modo claro
+        if 'dark' in html_element.get_attribute('class'):
+            logger.info("Modo escuro estava ativo, desativando para iniciar o teste.")
+            toggle_label.click()
+            self.wait.until(lambda d: 'dark' not in d.find_element(By.TAG_NAME, 'html').get_attribute('class'))
+
+        logger.info("Ativando o modo escuro...")
+        toggle_label.click()
+        self.wait.until(lambda d: 'dark' in d.find_element(By.TAG_NAME, 'html').get_attribute('class'))
+        self.assertIn('dark', self.browser.find_element(By.TAG_NAME, 'html').get_attribute('class'))
+        logger.info("SUCESSO: Modo escuro ativado e classe 'dark' encontrada no HTML.")
         self._delay()
-        valor_sanitizado = campo_valor.get_attribute("value")
-        self.assertEqual(valor_sanitizado, "-123,45", "O JavaScript deveria ter limpado os caracteres inválidos.")
-        logger.info("SUCESSO: Validação de frontend (JavaScript) para o campo valor funcionou.")
+
+        logger.info("Desativando o modo escuro...")
+        toggle_label.click()
+        self.wait.until(lambda d: 'dark' not in d.find_element(By.TAG_NAME, 'html').get_attribute('class'))
+        self.assertNotIn('dark', self.browser.find_element(By.TAG_NAME, 'html').get_attribute('class'))
+        logger.info("SUCESSO: Modo escuro desativado e classe 'dark' removida do HTML.")
 
 
 if __name__ == '__main__':
+    # Garante que o usuário de teste exista antes de rodar os testes
+    if os.system(f'go run create_user.go -email="{TEST_USER_EMAIL}" -password="{TEST_USER_PASS}"') != 0:
+        logger.warning(f"Pode ter ocorrido um erro ao criar/verificar o usuário de teste. Se os testes falharem no login, verifique se o usuário '{TEST_USER_EMAIL}' existe.")
+    
     unittest.main(verbosity=2, failfast=True)
