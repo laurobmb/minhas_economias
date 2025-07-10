@@ -1,0 +1,132 @@
+{{define "content"}}
+<div class="space-y-12">
+
+    <!-- Seção de Ações Nacionais -->
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+            Ações (Nacional)
+        </h2>
+        {{ if .Acoes }}
+        <div class="table-container">
+            <table class="rounded-lg overflow-hidden">
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th class="text-right">Qtde.</th>
+                        <th class="text-right">Cotação (R$)</th>
+                        <th class="text-right">Valor Total (R$)</th>
+                        <th class="text-right">P/VP</th>
+                        <th class="text-right">Div.Yield</th>
+                        <th class="text-right">Valor Graham (R$)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Acoes }}
+                    <tr class="table-row-item">
+                        <td class="font-semibold">{{ .Ticker }}</td>
+                        <td class="text-right">{{ .Quantidade }}</td>
+                        <td class="text-right">{{ printf "%.2f" .Cotacao }}</td>
+                        <td class="text-right font-bold">{{ printf "%.2f" .ValorTotal }}</td>
+                        <td class="text-right">{{ printf "%.2f" .PVP }}</td>
+                        <td class="text-right">{{ printf "%.2f%%" .DivYieldPercent }}</td>
+                        <td class="text-right font-bold {{ if .IsGrahamAdvantageous }}text-green-500 dark:text-green-400{{else}}text-red-500{{end}}">
+                            {{ printf "%.2f" .ValorGraham }}
+                        </td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+        {{ else }}
+        <p class="no-data dark:text-gray-400">Nenhuma ação nacional encontrada.</p>
+        {{ end }}
+    </div>
+
+    <!-- Seção de Fundos Imobiliários (FIIs) -->
+    <div>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+            Fundos Imobiliários (FIIs)
+        </h2>
+        {{ if .FIIs }}
+        <div class="table-container">
+            <table class="rounded-lg overflow-hidden">
+                <thead style="background-color: #6d28d9;"> <!-- Cor roxa como na imagem de exemplo -->
+                    <tr>
+                        <th>Ticker</th>
+                        <th class="text-right">Qtde.</th>
+                        <th class="text-right">Cotação (R$)</th>
+                        <th class="text-right">Valor Total (R$)</th>
+                        <th>Segmento</th>
+                        <th class="text-right">P/VP</th>
+                        <th class="text-right">Div.Yield</th>
+                        <th class="text-right">Vacância</th>
+                        <th class="text-right">Nº Imóveis</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .FIIs }}
+                    <tr class="table-row-item">
+                        <td class="font-semibold">{{ .Ticker }}</td>
+                        <td class="text-right">{{ .Quantidade }}</td>
+                        <td class="text-right">{{ printf "%.2f" .Cotacao }}</td>
+                        <td class="text-right font-bold">{{ printf "%.2f" .ValorTotal }}</td>
+                        <td>{{ .Segmento }}</td>
+                        <td class="text-right">{{ printf "%.2f" .PVP }}</td>
+                        <td class="text-right">{{ printf "%.2f%%" .DivYieldPercent }}</td>
+                        <td class="text-right">{{ printf "%.2f%%" .Vacancia }}</td> <!-- Assumindo que a Vacancia já vem como porcentagem (ex: 3.39 para 3.39%) -->
+                        <td class="text-right">{{ .NumImoveis }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+        {{ else }}
+        <p class="no-data dark:text-gray-400">Nenhum Fundo Imobiliário encontrado.</p>
+        {{ end }}
+    </div>
+
+    <!-- Seção de Investimentos Internacionais -->
+    <div>
+        <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                Carteira Internacional
+            </h2>
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                Cotação utilizada: <strong>1 USD = {{ printf "%.4f" .CotacaoDolar }} BRL</strong>
+            </div>
+        </div>
+
+        {{ if .Internacionais }}
+        <div class="table-container">
+            <table class="rounded-lg overflow-hidden">
+                <thead style="background-color: #008080;">
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Descrição</th>
+                        <th class="text-right">Quantidade</th>
+                        <th class="text-right">Preço Unitário ($)</th>
+                        <th class="text-right">Valor Total ($)</th>
+                        <th class="text-right">Valor Total (R$)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{ range .Internacionais }}
+                    <tr class="table-row-item">
+                        <td class="font-semibold">{{ .Ticker }}</td>
+                        <td>{{ .Descricao }}</td>
+                        <td class="text-right">{{ printf "%.4f" .Quantidade }}</td>
+                        <td class="text-right">{{ printf "%.2f" .PrecoUnitarioUSD }}</td>
+                        <td class="text-right font-bold">{{ printf "%.2f" .ValorTotalUSD }}</td>
+                        <td class="text-right font-bold text-blue-600 dark:text-blue-400">{{ printf "%.2f" .ValorTotalBRL }}</td>
+                    </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+        {{ else }}
+        <p class="no-data dark:text-gray-400">Nenhum investimento internacional encontrado.</p>
+        {{ end }}
+    </div>
+
+</div>
+{{end}}

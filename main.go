@@ -5,6 +5,8 @@ import (
 	"minhas_economias/auth"
 	"minhas_economias/database"
 	"minhas_economias/handlers"
+	"minhas_economias/investimentos" // <-- ADICIONE ESTA LINHA
+
 	"os"
 	"path/filepath"
 
@@ -16,24 +18,34 @@ import (
 
 func createMyRender() multitemplate.Renderer {
 	r := multitemplate.NewRenderer()
-	standalonePages := map[string]bool{"login.html": true, "register.html": true}
-	layouts, err := filepath.Glob("templates/_layout.html")
-	if err != nil { panic(err.Error()) }
+
+	// Busca todos os arquivos .html dentro da pasta templates
 	pages, err := filepath.Glob("templates/*.html")
-	if err != nil { panic(err.Error()) }
+	if err != nil {
+		panic(err.Error())
+	}
+
+	layout := "templates/_layout.html"
 
 	for _, page := range pages {
 		pageName := filepath.Base(page)
-		if _, ok := standalonePages[pageName]; ok {
-			r.AddFromFiles(pageName, page)
+
+		// Pula o próprio arquivo de layout e as páginas que NÃO usam o layout
+		if pageName == "_layout.html" || pageName == "login.html" || pageName == "register.html" {
 			continue
 		}
-		if pageName != "_layout.html" {
-			r.AddFromFiles(pageName, append(layouts, page)...)
-		}
+
+		// Associa cada página que sobrou (index, transacoes, investimentos, etc.) com o arquivo de layout
+		r.AddFromFiles(pageName, layout, page)
 	}
+
+	// Adiciona as páginas que funcionam sozinhas (standalone), SEM o layout
+	r.AddFromFiles("login.html", "templates/login.html")
+	r.AddFromFiles("register.html", "templates/register.html")
+
 	return r
 }
+
 
 func main() {
 	if os.Getenv("SESSION_KEY") == "" {
@@ -60,6 +72,7 @@ func main() {
 		authorized.GET("/relatorio", handlers.GetRelatorio)
 		authorized.GET("/sobre", handlers.GetSobrePage)
 		authorized.GET("/configuracoes", handlers.GetConfiguracoesPage)
+		authorized.GET("/investimentos", investimentos.GetInvestimentosPage)
 		authorized.POST("/logout", auth.PostLogout)
 
 		// API

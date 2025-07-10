@@ -17,24 +17,14 @@ func CreateUser(email, password string) error {
 		return fmt.Errorf("erro ao gerar hash da senha: %w", err)
 	}
 
-	var query string
-	// Para PostgreSQL, usamos a sequência para obter o próximo ID >= 2.
-	// Para SQLite, o autoincremento cuidará disso.
-	if database.DriverName == "postgres" {
-		query = "INSERT INTO users (id, email, password_hash, is_admin) VALUES (nextval('users_id_seq'), $1, $2, FALSE)"
-	} else {
-		query = "INSERT INTO users (email, password_hash, is_admin) VALUES (?, ?, 0)"
-	}
-	
+	// A query agora é a mesma para ambos os bancos de dados, pois não especificamos o ID.
+	// O banco de dados irá gerar o ID automaticamente, graças ao BIGSERIAL (Postgres) ou AUTOINCREMENT (SQLite).
+	query := "INSERT INTO users (email, password_hash, is_admin) VALUES (?, ?, ?)"
 	reboundQuery := database.Rebind(query)
 
-	// O Rebind não funciona bem com a query do postgres com nextval, então tratamos separadamente
-	if database.DriverName == "postgres" {
-		_, err = database.GetDB().Exec(query, email, string(hash))
-	} else {
-		_, err = database.GetDB().Exec(reboundQuery, email, string(hash))
-	}
-	
+	// Executa a query com os parâmetros corretos.
+	_, err = database.GetDB().Exec(reboundQuery, email, string(hash), false)
+
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") || strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
 			return fmt.Errorf("o e-mail '%s' já está em uso", email)

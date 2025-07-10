@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"log"
 	"minhas_economias/database"
-	"strings" // <-- LINHA ADICIONADA
+	"strings"
 
+	"github.com/lib/pq" // Importação direta para checagem de erro
 	"golang.org/x/crypto/bcrypt"
-	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -72,31 +72,42 @@ func upsertUserWithID(db *sql.DB, id int64, email, hash string, isAdmin bool) {
 
 // createNewUser cria um novo usuário com ID gerado automaticamente.
 func createNewUser(db *sql.DB, email, hash string, isAdmin bool) {
-	var query string
 	var err error
+	var newID int64
 
 	if database.DriverName == "postgres" {
-		query = "INSERT INTO users (id, email, password_hash, is_admin) VALUES (nextval('users_id_seq'), $1, $2, $3) RETURNING id"
-		var newID int64
+		query := "INSERT INTO users (email, password_hash, is_admin) VALUES ($1, $2, $3) RETURNING id"
 		err = db.QueryRow(query, email, hash, isAdmin).Scan(&newID)
-		if err == nil {
-			fmt.Printf("✔ Novo usuário criado com sucesso para o e-mail: %s (ID: %d, Admin: %t)\n", email, newID, isAdmin)
-		}
 	} else { // sqlite3
-		query = "INSERT INTO users (email, password_hash, is_admin) VALUES (?, ?, ?)"
-		reboundQuery := database.Rebind(query)
-		result, execErr := db.Exec(reboundQuery, email, hash, isAdmin)
+		query := "INSERT INTO users (email, password_hash, is_admin) VALUES (?, ?, ?)"
+		result, execErr := db.Exec(query, email, hash, isAdmin)
 		err = execErr
 		if err == nil {
-			newID, _ := result.LastInsertId()
-			fmt.Printf("✔ Novo usuário criado com sucesso para o e-mail: %s (ID: %d, Admin: %t)\n", email, newID, isAdmin)
+			newID, _ = result.LastInsertId()
 		}
 	}
 
 	if err != nil {
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") || strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+		// **MELHORIA**: Checagem de erro mais específica para PostgreSQL
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code.Name() == "unique_violation" {
+				// Verifica se a violação foi na chave primária (ID) ou no e-mail
+				if pqErr.Constraint == "users_pkey" {
+					log.Fatalf("ERRO: Conflito de ID no banco de dados. A sequência de IDs pode estar dessincronizada.\nSUGESTÃO: Rode o comando SQL -> SELECT setval(pg_get_serial_sequence('users', 'id'), (SELECT MAX(id) FROM users));")
+				}
+				// Se não for a chave primária, assume que é o e-mail
+				log.Fatalf("ERRO: O e-mail '%s' já está em uso.", email)
+			}
+		}
+
+		// Checagem genérica para SQLite
+		if strings.Contains(err.Error(), "UNIQUE constraint failed: users.email") {
 			log.Fatalf("ERRO: O e-mail '%s' já está em uso.", email)
 		}
+
+		// Se for outro tipo de erro, exibe a mensagem genérica
 		log.Fatalf("Erro ao criar novo usuário: %v", err)
 	}
+
+	fmt.Printf("✔ Novo usuário criado com sucesso para o e-mail: %s (ID: %d, Admin: %t)\n", email, newID, isAdmin)
 }
