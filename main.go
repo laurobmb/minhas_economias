@@ -5,6 +5,8 @@ import (
 	"minhas_economias/auth"
 	"minhas_economias/database"
 	"minhas_economias/handlers"
+	"minhas_economias/investimentos"
+
 	"os"
 	"path/filepath"
 
@@ -16,22 +18,20 @@ import (
 
 func createMyRender() multitemplate.Renderer {
 	r := multitemplate.NewRenderer()
-	standalonePages := map[string]bool{"login.html": true, "register.html": true}
-	layouts, err := filepath.Glob("templates/_layout.html")
-	if err != nil { panic(err.Error()) }
 	pages, err := filepath.Glob("templates/*.html")
-	if err != nil { panic(err.Error()) }
-
+	if err != nil {
+		panic(err.Error())
+	}
+	layout := "templates/_layout.html"
 	for _, page := range pages {
 		pageName := filepath.Base(page)
-		if _, ok := standalonePages[pageName]; ok {
-			r.AddFromFiles(pageName, page)
+		if pageName == "_layout.html" || pageName == "login.html" || pageName == "register.html" {
 			continue
 		}
-		if pageName != "_layout.html" {
-			r.AddFromFiles(pageName, append(layouts, page)...)
-		}
+		r.AddFromFiles(pageName, layout, page)
 	}
+	r.AddFromFiles("login.html", "templates/login.html")
+	r.AddFromFiles("register.html", "templates/register.html")
 	return r
 }
 
@@ -40,7 +40,9 @@ func main() {
 		log.Fatal("A variável de ambiente SESSION_KEY não foi definida.")
 	}
 	_, err := database.InitDB()
-	if err != nil { log.Fatalf("Erro ao inicializar o banco de dados: %v", err) }
+	if err != nil {
+		log.Fatalf("Erro ao inicializar o banco de dados: %v", err)
+	}
 	defer database.CloseDB()
 
 	r := gin.Default()
@@ -60,13 +62,14 @@ func main() {
 		authorized.GET("/relatorio", handlers.GetRelatorio)
 		authorized.GET("/sobre", handlers.GetSobrePage)
 		authorized.GET("/configuracoes", handlers.GetConfiguracoesPage)
+		authorized.GET("/investimentos", investimentos.GetInvestimentosPage) // Carrega a página base
 		authorized.POST("/logout", auth.PostLogout)
 
 		// API
 		authorized.GET("/api/movimentacoes", handlers.GetTransacoesPage)
 		authorized.POST("/api/user/settings", handlers.UpdateUserSettings)
 		authorized.POST("/api/user/profile", handlers.UpdateUserProfile)
-		authorized.POST("/api/user/password", handlers.ChangePassword) // <-- NOVA ROTA
+		authorized.POST("/api/user/password", handlers.ChangePassword)
 
 		// Movimentações
 		authorized.POST("/movimentacoes", handlers.AddMovimentacao)
@@ -75,6 +78,17 @@ func main() {
 		authorized.GET("/relatorio/transactions", handlers.GetTransactionsByCategory)
 		authorized.POST("/relatorio/pdf", handlers.DownloadRelatorioPDF)
 		authorized.GET("/export/csv", handlers.ExportTransactionsCSV)
+
+		// Investimentos
+		authorized.POST("/investimentos/nacional", investimentos.AddAtivoNacional)
+		authorized.POST("/investimentos/nacional/:ticker", investimentos.UpdateAtivoNacional)
+		authorized.DELETE("/investimentos/nacional/:ticker", investimentos.DeleteAtivoNacional)
+		authorized.POST("/investimentos/internacional", investimentos.AddAtivoInternacional)
+		authorized.POST("/investimentos/internacional/:ticker", investimentos.UpdateAtivoInternacional)
+		authorized.DELETE("/investimentos/internacional/:ticker", investimentos.DeleteAtivoInternacional)
+
+		// --- NOVA ROTA DE API PARA CARREGAMENTO ASSÍNCRONO ---
+		authorized.GET("/api/investimentos/precos", investimentos.GetPrecosInvestimentosAPI)
 	}
 
 	log.Println("Servidor Gin iniciado na porta :8080")

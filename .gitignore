@@ -100,3 +100,6 @@ node_modules/
 /playwright/.cache/
 
 tests/venv/
+
+csv/investimentos_nacionais.csv
+csv/investimentos_internacionais.csv

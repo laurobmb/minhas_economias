@@ -9,40 +9,57 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        .auth-container { max-width: 420px; margin: 50px auto; }
+        /* Estilos compartilhados com a página de login para consistência */
         .auth-form { display: flex; flex-direction: column; gap: 20px; }
-        .auth-input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
-        .auth-button { padding: 12px; background-color: #22c55e; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background-color 0.2s;}
+        .auth-input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; transition: border-color 0.2s, box-shadow 0.2s; }
+        .auth-input:focus { outline: none; border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2); }
+        .auth-button { padding: 12px; background-color: #22c55e; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
         .auth-button:hover { background-color: #16a34a; }
-        .flash-error { padding: 12px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 8px; text-align: center; }
+        .flash-error { margin-bottom: 1.5rem; padding: 12px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 8px; text-align: center; }
     </style>
 </head>
-<body>
-<div class="container auth-container rounded-xl">
-    <div class="flex flex-col items-center mb-6">
-        <img src="/static/minhaseconomias.png" alt="Logo" class="header-logo mb-2">
-        <h1 class="header-title text-gray-900" style="font-size: 2rem;">Criar Conta</h1>
+<body class="bg-slate-100">
+
+<div class="flex items-center justify-center min-h-screen">
+    <div class="relative flex flex-col md:flex-row w-full max-w-4xl m-6 bg-white shadow-2xl rounded-2xl overflow-hidden">
+        
+        <!-- Coluna da Imagem (Esquerda) -->
+        <div class="relative hidden md:flex w-1/2 items-center justify-center bg-green-50">
+            <!-- Assumindo que a imagem registro.png existe em static/images/ -->
+            <img src="/static/images/registro.png" alt="Ilustração de Registro" class="w-full h-full object-cover">
+        </div>
+
+        <!-- Coluna do Formulário (Direita) -->
+        <div class="w-full md:w-1/2 p-8 md:p-12">
+            <div class="text-center mb-8">
+                <img src="/static/minhaseconomias.png" alt="Logo" class="mx-auto h-16 mb-4">
+                <h1 class="text-3xl font-bold text-gray-800">Criar Conta</h1>
+            </div>
+
+            {{ if .Error }}
+            <div class="flash-error">{{ .Error }}</div>
+            {{ end }}
+
+            <form action="/register" method="POST" class="auth-form">
+                <div>
+                    <label for="email" class="label">E-mail</label>
+                    <input type="email" name="email" id="email" class="auth-input w-full" required>
+                </div>
+                <div>
+                    <label for="password" class="label">Senha (mínimo 6 caracteres)</label>
+                    <input type="password" name="password" id="password" class="auth-input w-full" required minlength="6">
+                </div>
+                <button type="submit" class="auth-button">Registrar</button>
+            </form>
+            
+            <p class="text-center mt-6 text-sm text-slate-600">
+                Já tem uma conta? <a href="/login" class="font-semibold text-blue-600 hover:underline">Faça o login</a>
+            </p>
+        </div>
+
     </div>
-
-    {{ if .Error }}
-    <div class="flash-error mb-4">{{ .Error }}</div>
-    {{ end }}
-
-    <form action="/register" method="POST" class="auth-form">
-        <div>
-            <label for="email" class="label">E-mail</label>
-            <input type="email" name="email" id="email" class="auth-input w-full" required>
-        </div>
-        <div>
-            <label for="password" class="label">Senha (mínimo 6 caracteres)</label>
-            <input type="password" name="password" id="password" class="auth-input w-full" required minlength="6">
-        </div>
-        <button type="submit" class="auth-button">Registrar</button>
-    </form>
-    <p class="text-center mt-6 text-sm text-slate-600">
-        Já tem uma conta? <a href="/login" class="font-semibold text-blue-600 hover:underline">Faça o login</a>
-    </p>
 </div>
+
 </body>
 </html>
 {{end}}

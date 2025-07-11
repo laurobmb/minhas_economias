@@ -363,6 +363,89 @@ class MinhasEconomiasTest(unittest.TestCase):
             unexpected_content_list=[desc_salario]
         )
 
+    def test_05_fluxo_crud_investimentos(self):
+        """Testa a adição, edição e exclusão de ativos nacionais e internacionais."""
+        logger.info("--- INICIANDO TESTE 05: FLUXO CRUD INVESTIMENTOS ---")
+        self.browser.get(f'{BASE_URL}/investimentos')
+        self.wait.until(EC.title_contains("Investimentos"))
+
+        # Espera o carregamento assíncrono dos preços
+        logger.info("Aguardando carregamento assíncrono dos preços...")
+        self.wait.until(
+            EC.none_of(EC.presence_of_all_elements_located((By.CLASS_NAME, "spinner")))
+        )
+        logger.info("SUCESSO: Preços carregados.")
+        self._delay()
+
+        # --- Teste de Ativo Nacional (Ação) ---
+        ticker_nacional = "CIEL3"
+        logger.info(f"Adicionando ativo nacional: {ticker_nacional}")
+        self.browser.find_element(By.ID, "add-nacional-ticker").send_keys(ticker_nacional)
+        self.browser.find_element(By.ID, "add-nacional-quantidade").send_keys("300")
+        self.browser.find_element(By.CSS_SELECTOR, "#add-nacional-form button").click()
+        self.wait.until(EC.alert_is_present()).accept()
+        self.browser.refresh()
+
+        logger.info("Verificando se o ativo nacional foi adicionado...")
+        linha_nacional = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, f'tr[data-ticker="{ticker_nacional}"]')))
+        self.assertIn(ticker_nacional, linha_nacional.text)
+        logger.info("SUCESSO: Ativo nacional adicionado.")
+        self._delay()
+
+        logger.info(f"Editando ativo nacional: {ticker_nacional}")
+        linha_nacional.find_element(By.CSS_SELECTOR, ".edit-button").click()
+        edit_form = self.wait.until(EC.visibility_of_element_located((By.ID, "edit-investment-section")))
+        self.assertTrue(edit_form.is_displayed())
+        
+        edit_quantity_input = edit_form.find_element(By.ID, "edit-quantity")
+        edit_quantity_input.clear()
+        edit_quantity_input.send_keys("350")
+        edit_form.find_element(By.ID, "submit-edit-button").click()
+        self.wait.until(EC.alert_is_present()).accept()
+        self.browser.refresh()
+
+        logger.info("Verificando se a quantidade foi atualizada...")
+        linha_nacional_editada = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, f'tr[data-ticker="{ticker_nacional}"]')))
+        self.assertIn("350", linha_nacional_editada.text)
+        logger.info("SUCESSO: Ativo nacional editado.")
+        self._delay()
+
+        logger.info(f"Excluindo ativo nacional: {ticker_nacional}")
+        linha_nacional_editada.find_element(By.CSS_SELECTOR, ".delete-button").click()
+        self.wait.until(EC.alert_is_present()).accept() # Confirmação
+        self.wait.until(EC.alert_is_present()).accept() # Sucesso
+        self.browser.refresh()
+
+        logger.info("Verificando se o ativo foi removido...")
+        self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, f'tr[data-ticker="{ticker_nacional}"]')))
+        logger.info("SUCESSO: Ativo nacional excluído.")
+
+        # --- Teste de Ativo Internacional ---
+        ticker_internacional = "DIS"
+        logger.info(f"Adicionando ativo internacional: {ticker_internacional}")
+        self.browser.find_element(By.ID, "add-internacional-ticker").send_keys(ticker_internacional)
+        self.browser.find_element(By.ID, "add-internacional-descricao").send_keys("Ações da Disney")
+        self.browser.find_element(By.ID, "add-internacional-quantidade").send_keys("25.5")
+        self.browser.find_element(By.CSS_SELECTOR, "#add-internacional-form button").click()
+        self.wait.until(EC.alert_is_present()).accept()
+        self.browser.refresh()
+
+        logger.info("Verificando se o ativo internacional foi adicionado...")
+        linha_internacional = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, f'tr[data-ticker="{ticker_internacional}"]')))
+        self.assertIn(ticker_internacional, linha_internacional.text)
+        logger.info("SUCESSO: Ativo internacional adicionado.")
+        self._delay()
+
+        logger.info(f"Excluindo ativo internacional: {ticker_internacional}")
+        linha_internacional.find_element(By.CSS_SELECTOR, ".delete-button").click()
+        self.wait.until(EC.alert_is_present()).accept() # Confirmação
+        self.wait.until(EC.alert_is_present()).accept() # Sucesso
+        self.browser.refresh()
+
+        logger.info("Verificando se o ativo foi removido...")
+        self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, f'tr[data-ticker="{ticker_internacional}"]')))
+        logger.info("SUCESSO: Ativo internacional excluído.")
+
 
 
 if __name__ == '__main__':

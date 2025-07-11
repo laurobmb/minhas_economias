@@ -16,6 +16,9 @@
     # Variável específica para o teste de CSV (Task 7)
     test_descricao_csv: "Transação CSV via Ansible"
 
+    ticker_nacional_teste: "WEGE3"
+    ticker_internacional_teste: "MSFT"
+
   tasks:
     - name: 1. Verificar se a aplicação está no ar (página de login)
       ansible.builtin.uri:
@@ -191,16 +194,16 @@
           register: unauth_response
           failed_when: unauth_response.status != 302 or '/login' not in unauth_response.location
           changed_when: false
-          
+
         - name: 7.4 Verificar a exportação CSV (sem filtros)
           ansible.builtin.uri:
             url: "{{ base_url }}/export/csv"
             method: GET
             headers:
               Cookie: "{{ session_cookie }}"
-            return_content: yes
+            return_content: true
           register: csv_response
-          
+
         - name: 7.5 Validar a resposta da exportação sem filtros
           ansible.builtin.assert:
             that:
@@ -222,3 +225,62 @@
           when: csv_test_item_id is defined
       tags:
         - test_export
+
+    - name: 8. Testar o ciclo de vida de um investimento (CRUD autenticado)
+      block:
+        - name: 8.1 CRIAR - Adicionar um ativo nacional
+          ansible.builtin.uri:
+            url: "{{ base_url }}/investimentos/nacional"
+            method: POST
+            headers: { Cookie: "{{ session_cookie }}" }
+            body_format: json
+            body: { ticker: "{{ ticker_nacional_teste }}", tipo: "ACAO", quantidade: 100 }
+            status_code: 200
+
+        - name: 8.2 ATUALIZAR - Modificar o ativo nacional criado
+          ansible.builtin.uri:
+            url: "{{ base_url }}/investimentos/nacional/{{ ticker_nacional_teste }}"
+            method: POST
+            headers: { Cookie: "{{ session_cookie }}" }
+            body_format: json
+            body: { quantidade: 150 }
+            status_code: 200
+
+        - name: 8.3 CRIAR - Adicionar um ativo internacional
+          ansible.builtin.uri:
+            url: "{{ base_url }}/investimentos/internacional"
+            method: POST
+            headers: { Cookie: "{{ session_cookie }}" }
+            body_format: json
+            body: { ticker: "{{ ticker_internacional_teste }}", descricao: "Ações da Microsoft", quantidade: 25.5 }
+            status_code: 200
+
+      always:
+        - name: 8.4 LIMPEZA - Excluir o ativo nacional de teste
+          ansible.builtin.uri:
+            url: "{{ base_url }}/investimentos/nacional/{{ ticker_nacional_teste }}"
+            method: DELETE
+            headers: { Cookie: "{{ session_cookie }}" }
+
+        - name: 8.5 LIMPEZA - Excluir o ativo internacional de teste
+          ansible.builtin.uri:
+            url: "{{ base_url }}/investimentos/internacional/{{ ticker_internacional_teste }}"
+            method: DELETE
+            headers: { Cookie: "{{ session_cookie }}" }
+
+    - name: 9. Testar o Endpoint de Preços Assíncronos
+      ansible.builtin.uri:
+        url: "{{ base_url }}/api/investimentos/precos"
+        method: GET
+        headers:
+          Cookie: "{{ session_cookie }}"
+      register: r_precos
+    - name: Assert - API de Preços respondeu corretamente
+      ansible.builtin.assert:
+        that:
+          - r_precos.status == 200
+          - "'acoes' in r_precos.json"
+          - "'fiis' in r_precos.json"
+          - "'internacionais' in r_precos.json"
+          - "'cotacaoDolar' in r_precos.json"
+        msg: "A resposta da API de preços assíncronos está incompleta ou incorreta."
