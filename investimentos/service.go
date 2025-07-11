@@ -18,7 +18,7 @@ type CacheItem struct {
 var (
 	cache      = make(map[string]CacheItem)
 	cacheMutex = &sync.RWMutex{}
-	cacheTTL   = 15 * time.Minute // Cache de 15 minutos para dados de mercado
+	cacheTTL   = 15 * time.Minute
 )
 
 func getFromCache(key string) (interface{}, bool) {
@@ -40,17 +40,34 @@ func setToCache(key string, data interface{}) {
 	}
 }
 
-// --- Funções de Serviço Otimizadas com Concorrência e LOGS ---
+// --- NOVAS FUNÇÕES DE GERENCIAMENTO DE CACHE ---
 
-// GetAcoesNacionais busca as AÇÕES e as enriquece com dados de mercado de forma concorrente.
+// ClearNacionalCache remove os dados de Ações e FIIs do cache.
+func ClearNacionalCache() {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+	delete(cache, "market_data_acoes")
+	delete(cache, "market_data_fiis")
+	log.Println("[Cache] Cache de ativos nacionais (Ações e FIIs) limpo.")
+}
+
+// ClearInternacionalCache remove os dados de ativos internacionais do cache.
+func ClearInternacionalCache() {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+	delete(cache, "mapa_precos_internacionais")
+	log.Println("[Cache] Cache de ativos internacionais limpo.")
+}
+
+
+// --- Funções de Serviço (sem alterações na lógica principal) ---
+
 func GetAcoesNacionais(userID int64) ([]AcaoNacional, error) {
 	log.Println("[InvestimentosService] Iniciando busca de Ações Nacionais...")
 	dadosMercado, err := getDadosMercadoAcoes()
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[InvestimentosService] Dados de mercado para AÇÕES raspados. Total de tickers encontrados: %d", len(dadosMercado))
-
 	db := database.GetDB()
 	query := database.Rebind("SELECT ticker, tipo, quantidade FROM investimentos_nacionais WHERE user_id = ? AND (tipo = 'ACAO' OR tipo = 'Acao') ORDER BY ticker")
 	rows, err := db.Query(query, userID)
@@ -58,7 +75,6 @@ func GetAcoesNacionais(userID int64) ([]AcaoNacional, error) {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var acoes []AcaoNacional
 	for rows.Next() {
 		var acao AcaoNacional
@@ -66,32 +82,26 @@ func GetAcoesNacionais(userID int64) ([]AcaoNacional, error) {
 			log.Printf("AVISO: Falha ao escanear linha de ação do banco: %v", err)
 			continue
 		}
-
 		tickerLimpo := strings.TrimSpace(acao.Ticker)
 		if dados, ok := dadosMercado[tickerLimpo]; ok {
-			// ATUALIZADO: Chamando a função com letra maiúscula
 			acao.Cotacao = ParsePtBrFloat(dados[1])
 			acao.PVP = ParsePtBrFloat(dados[3])
 			acao.DivYield = ParsePtBrFloat(dados[5]) / 100.0
 			acao.DivYieldPercent = acao.DivYield * 100.0
 			acao.ValorTotal = acao.Cotacao * float64(acao.Quantidade)
 		} else {
-			log.Printf("AVISO (Ações): Ticker '%s' da sua carteira não foi encontrado nos dados de mercado da Fundamentus.", tickerLimpo)
+			log.Printf("AVISO (Ações): Ticker '%s' da sua carteira não foi encontrado.", tickerLimpo)
 		}
 		acoes = append(acoes, acao)
 	}
-	log.Printf("[InvestimentosService] Total de Ações lidas do banco de dados: %d", len(acoes))
-
 	var wg sync.WaitGroup
 	for i := range acoes {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
 			ticker := acoes[index].Ticker
-			// ATUALIZADO: Chamando a função com letra maiúscula
 			lpa, vpa, err := BuscarLPAeVPA(ticker)
 			if err == nil {
-				// ATUALIZADO: Chamando a função com letra maiúscula
 				acoes[index].ValorGraham = CalcularValorGraham(lpa, vpa)
 				if acoes[index].ValorGraham > 0 && acoes[index].Cotacao > 0 && acoes[index].ValorGraham > acoes[index].Cotacao {
 					acoes[index].IsGrahamAdvantageous = true
@@ -102,20 +112,15 @@ func GetAcoesNacionais(userID int64) ([]AcaoNacional, error) {
 		}(i)
 	}
 	wg.Wait()
-
-	log.Println("[InvestimentosService] Finalizada a busca e enriquecimento de Ações Nacionais.")
 	return acoes, nil
 }
 
-// GetFIIsNacionais busca os FIIs e os enriquece com dados de mercado.
 func GetFIIsNacionais(userID int64) ([]FundoImobiliario, error) {
 	log.Println("[InvestimentosService] Iniciando busca de FIIs...")
 	dadosMercado, err := getDadosMercadoFIIs()
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[InvestimentosService] Dados de mercado para FIIs raspados. Total de tickers encontrados: %d", len(dadosMercado))
-
 	db := database.GetDB()
 	query := database.Rebind("SELECT ticker, tipo, quantidade FROM investimentos_nacionais WHERE user_id = ? AND tipo = 'FII' ORDER BY ticker")
 	rows, err := db.Query(query, userID)
@@ -123,7 +128,6 @@ func GetFIIsNacionais(userID int64) ([]FundoImobiliario, error) {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var fiis []FundoImobiliario
 	for rows.Next() {
 		var fii FundoImobiliario
@@ -134,7 +138,6 @@ func GetFIIsNacionais(userID int64) ([]FundoImobiliario, error) {
 		tickerLimpo := strings.TrimSpace(fii.Ticker)
 		if dados, ok := dadosMercado[tickerLimpo]; ok {
 			fii.Segmento = dados[1]
-			// ATUALIZADO: Chamando a função com letra maiúscula
 			fii.Cotacao = ParsePtBrFloat(dados[2])
 			fii.DivYield = ParsePtBrFloat(dados[4]) / 100.0
 			fii.DivYieldPercent = fii.DivYield * 100.0
@@ -143,16 +146,13 @@ func GetFIIsNacionais(userID int64) ([]FundoImobiliario, error) {
 			fii.NumImoveis, _ = strconv.Atoi(dados[8])
 			fii.ValorTotal = fii.Cotacao * float64(fii.Quantidade)
 		} else {
-			log.Printf("AVISO (FIIs): Ticker '%s' da sua carteira não foi encontrado nos dados de mercado da Fundamentus.", tickerLimpo)
+			log.Printf("AVISO (FIIs): Ticker '%s' da sua carteira não foi encontrado.", tickerLimpo)
 		}
 		fiis = append(fiis, fii)
 	}
-	log.Printf("[InvestimentosService] Total de FIIs lidos do banco de dados: %d", len(fiis))
-	log.Println("[InvestimentosService] Finalizada a busca e enriquecimento de FIIs.")
 	return fiis, nil
 }
 
-// GetAtivosInternacionais orquestra a busca de dados para ativos no exterior.
 func GetAtivosInternacionais(userID int64) ([]AtivoInternacional, float64, error) {
 	log.Println("[InvestimentosService] Iniciando busca de Ativos Internacionais...")
 	cotacaoDolar, err := getCotacaoDolar()
@@ -160,8 +160,6 @@ func GetAtivosInternacionais(userID int64) ([]AtivoInternacional, float64, error
 		log.Printf("AVISO: Falha ao buscar cotação do dólar. Usando valor 0. Erro: %v", err)
 		cotacaoDolar = 0
 	}
-	log.Printf("[InvestimentosService] Cotação do Dólar obtida: %.4f", cotacaoDolar)
-
 	db := database.GetDB()
 	query := database.Rebind("SELECT ticker, descricao, quantidade, moeda FROM investimentos_internacionais WHERE user_id = ? ORDER BY ticker")
 	rows, err := db.Query(query, userID)
@@ -169,10 +167,8 @@ func GetAtivosInternacionais(userID int64) ([]AtivoInternacional, float64, error
 		return nil, 0, err
 	}
 	defer rows.Close()
-
 	var ativos []AtivoInternacional
 	carteiraParaBusca := make(map[string]string)
-
 	for rows.Next() {
 		var ativo AtivoInternacional
 		if err := rows.Scan(&ativo.Ticker, &ativo.Descricao, &ativo.Quantidade, &ativo.Moeda); err != nil {
@@ -182,19 +178,13 @@ func GetAtivosInternacionais(userID int64) ([]AtivoInternacional, float64, error
 		ativos = append(ativos, ativo)
 		carteiraParaBusca[ativo.Ticker] = ativo.Moeda
 	}
-	log.Printf("[InvestimentosService] Total de Ativos Internacionais lidos do banco: %d", len(ativos))
-
 	if len(carteiraParaBusca) == 0 {
-		log.Println("[InvestimentosService] Nenhum ativo internacional na carteira para buscar preços.")
 		return ativos, cotacaoDolar, nil
 	}
-
 	mapaDePrecos, err := getMapaDePrecosInternacionais(carteiraParaBusca)
 	if err != nil {
 		log.Printf("ERRO ao buscar mapa de preços internacionais: %v. Os preços não serão preenchidos.", err)
 	}
-	log.Printf("[InvestimentosService] Preços internacionais raspados. Total de tickers encontrados: %d", len(mapaDePrecos))
-
 	for i := range ativos {
 		tickerLimpo := strings.TrimSpace(ativos[i].Ticker)
 		if precoUSD, ok := mapaDePrecos[tickerLimpo]; ok {
@@ -205,21 +195,15 @@ func GetAtivosInternacionais(userID int64) ([]AtivoInternacional, float64, error
 			log.Printf("AVISO (Internacional): Ticker '%s' da sua carteira não foi encontrado nos dados de mercado do Yahoo Finance.", tickerLimpo)
 		}
 	}
-
-	log.Println("[InvestimentosService] Finalizada a busca e enriquecimento de Ativos Internacionais.")
 	return ativos, cotacaoDolar, nil
 }
 
-
-// --- Funções Helper com Cache ---
 func getDadosMercadoAcoes() (map[string][]string, error) {
 	const cacheKey = "market_data_acoes"
 	if data, found := getFromCache(cacheKey); found {
 		log.Println("[Cache] Usando dados de AÇÕES do cache.")
 		return data.(map[string][]string), nil
 	}
-	log.Println("[Cache] Cache de AÇÕES expirado ou não encontrado. Buscando novos dados...")
-	// ATUALIZADO: Chamando a função com letra maiúscula
 	data, err := RasparDadosFundamentus("https://www.fundamentus.com.br/resultado.php", "acoes")
 	if err != nil {
 		return nil, err
@@ -234,8 +218,6 @@ func getDadosMercadoFIIs() (map[string][]string, error) {
 		log.Println("[Cache] Usando dados de FIIs do cache.")
 		return data.(map[string][]string), nil
 	}
-	log.Println("[Cache] Cache de FIIs expirado ou não encontrado. Buscando novos dados...")
-	// ATUALIZADO: Chamando a função com letra maiúscula
 	data, err := RasparDadosFundamentus("https://www.fundamentus.com.br/fii_resultado.php", "fii")
 	if err != nil {
 		return nil, err
@@ -250,8 +232,6 @@ func getCotacaoDolar() (float64, error) {
 		log.Println("[Cache] Usando cotação do dólar do cache.")
 		return data.(float64), nil
 	}
-	log.Println("[Cache] Cache do Dólar expirado ou não encontrado. Buscando nova cotação...")
-	// ATUALIZADO: Chamando a função com letra maiúscula
 	data, err := BuscarCotacaoDolarBRL()
 	if err != nil {
 		return 0, err
@@ -266,8 +246,6 @@ func getMapaDePrecosInternacionais(carteira map[string]string) (map[string]float
 		log.Println("[Cache] Usando mapa de preços internacionais do cache.")
 		return data.(map[string]float64), nil
 	}
-
-	log.Println("[Cache] Cache de preços internacionais expirado ou não encontrado. Buscando novos dados...")
 	data, err := BuscarMuitosPrecosInternacionais(carteira)
 	if err != nil {
 		return nil, err

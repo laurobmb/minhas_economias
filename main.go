@@ -5,7 +5,7 @@ import (
 	"minhas_economias/auth"
 	"minhas_economias/database"
 	"minhas_economias/handlers"
-	"minhas_economias/investimentos" // <-- ADICIONE ESTA LINHA
+	"minhas_economias/investimentos"
 
 	"os"
 	"path/filepath"
@@ -18,41 +18,31 @@ import (
 
 func createMyRender() multitemplate.Renderer {
 	r := multitemplate.NewRenderer()
-
-	// Busca todos os arquivos .html dentro da pasta templates
 	pages, err := filepath.Glob("templates/*.html")
 	if err != nil {
 		panic(err.Error())
 	}
-
 	layout := "templates/_layout.html"
-
 	for _, page := range pages {
 		pageName := filepath.Base(page)
-
-		// Pula o próprio arquivo de layout e as páginas que NÃO usam o layout
 		if pageName == "_layout.html" || pageName == "login.html" || pageName == "register.html" {
 			continue
 		}
-
-		// Associa cada página que sobrou (index, transacoes, investimentos, etc.) com o arquivo de layout
 		r.AddFromFiles(pageName, layout, page)
 	}
-
-	// Adiciona as páginas que funcionam sozinhas (standalone), SEM o layout
 	r.AddFromFiles("login.html", "templates/login.html")
 	r.AddFromFiles("register.html", "templates/register.html")
-
 	return r
 }
-
 
 func main() {
 	if os.Getenv("SESSION_KEY") == "" {
 		log.Fatal("A variável de ambiente SESSION_KEY não foi definida.")
 	}
 	_, err := database.InitDB()
-	if err != nil { log.Fatalf("Erro ao inicializar o banco de dados: %v", err) }
+	if err != nil {
+		log.Fatalf("Erro ao inicializar o banco de dados: %v", err)
+	}
 	defer database.CloseDB()
 
 	r := gin.Default()
@@ -79,7 +69,7 @@ func main() {
 		authorized.GET("/api/movimentacoes", handlers.GetTransacoesPage)
 		authorized.POST("/api/user/settings", handlers.UpdateUserSettings)
 		authorized.POST("/api/user/profile", handlers.UpdateUserProfile)
-		authorized.POST("/api/user/password", handlers.ChangePassword) // <-- NOVA ROTA
+		authorized.POST("/api/user/password", handlers.ChangePassword)
 
 		// Movimentações
 		authorized.POST("/movimentacoes", handlers.AddMovimentacao)
@@ -88,6 +78,14 @@ func main() {
 		authorized.GET("/relatorio/transactions", handlers.GetTransactionsByCategory)
 		authorized.POST("/relatorio/pdf", handlers.DownloadRelatorioPDF)
 		authorized.GET("/export/csv", handlers.ExportTransactionsCSV)
+
+		// --- ROTAS DE INVESTIMENTOS (ATUALIZADAS) ---
+		authorized.POST("/investimentos/nacional", investimentos.AddAtivoNacional) // NOVA ROTA
+		authorized.POST("/investimentos/nacional/:ticker", investimentos.UpdateAtivoNacional)
+		authorized.DELETE("/investimentos/nacional/:ticker", investimentos.DeleteAtivoNacional)
+		authorized.POST("/investimentos/internacional", investimentos.AddAtivoInternacional) // NOVA ROTA
+		authorized.POST("/investimentos/internacional/:ticker", investimentos.UpdateAtivoInternacional)
+		authorized.DELETE("/investimentos/internacional/:ticker", investimentos.DeleteAtivoInternacional)
 	}
 
 	log.Println("Servidor Gin iniciado na porta :8080")
