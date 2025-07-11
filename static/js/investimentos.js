@@ -1,4 +1,76 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+    // --- LÓGICA DE CARREGAMENTO ASSÍNCRONO DE PREÇOS ---
+    async function fetchInvestmentPrices() {
+        try {
+            const response = await fetch('/api/investimentos/precos');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            updateTables(data);
+        } catch (error) {
+            console.error("Falha ao buscar preços dos investimentos:", error);
+            // Opcional: mostrar uma mensagem de erro na UI
+        }
+    }
+
+    function updateTables(data) {
+        // Atualiza cotação do dólar
+        const dolarDisplay = document.getElementById('dolar-quote-display');
+        if (dolarDisplay && data.cotacaoDolar) {
+            dolarDisplay.innerHTML = `Cotação utilizada: <strong>1 USD = ${data.cotacaoDolar.toFixed(4)} BRL</strong>`;
+        }
+
+        // Atualiza tabela de Ações Nacionais
+        if (data.acoes) {
+            data.acoes.forEach(acao => {
+                const row = document.querySelector(`#acoes-table-body tr[data-ticker="${acao.ticker}"]`);
+                if (row) {
+                    row.querySelector('[data-field="cotacao"]').textContent = acao.cotacao.toFixed(2);
+                    row.querySelector('[data-field="valorTotal"]').textContent = acao.valor_total.toFixed(2);
+                    row.querySelector('[data-field="pvp"]').textContent = acao.pvp.toFixed(2);
+                    row.querySelector('[data-field="divYield"]').textContent = `${acao.div_yield_percent.toFixed(2)}%`;
+                    const grahamCell = row.querySelector('[data-field="valorGraham"]');
+                    grahamCell.textContent = acao.valor_graham.toFixed(2);
+                    grahamCell.className = `text-right font-bold ${acao.is_graham_advantageous ? 'text-green-500 dark:text-green-400' : 'text-red-500'}`;
+                }
+            });
+        }
+
+        // Atualiza tabela de FIIs
+        if (data.fiis) {
+            data.fiis.forEach(fii => {
+                const row = document.querySelector(`#fiis-table-body tr[data-ticker="${fii.ticker}"]`);
+                if (row) {
+                    row.querySelector('[data-field="cotacao"]').textContent = fii.cotacao.toFixed(2);
+                    row.querySelector('[data-field="valorTotal"]').textContent = fii.valor_total.toFixed(2);
+                    row.querySelector('[data-field="segmento"]').textContent = fii.segmento;
+                    row.querySelector('[data-field="pvp"]').textContent = fii.pvp.toFixed(2);
+                    row.querySelector('[data-field="divYield"]').textContent = `${fii.div_yield_percent.toFixed(2)}%`;
+                    row.querySelector('[data-field="vacancia"]').textContent = `${fii.vacancia.toFixed(2)}%`;
+                    row.querySelector('[data-field="numImoveis"]').textContent = fii.num_imoveis;
+                }
+            });
+        }
+
+        // Atualiza tabela de Internacionais
+        if (data.internacionais) {
+            data.internacionais.forEach(ativo => {
+                const row = document.querySelector(`#internacional-table-body tr[data-ticker="${ativo.ticker}"]`);
+                if (row) {
+                    row.querySelector('[data-field="precoUnitarioUSD"]').textContent = ativo.preco_unitario_usd.toFixed(2);
+                    row.querySelector('[data-field="valorTotalUSD"]').textContent = ativo.valor_total_usd.toFixed(2);
+                    row.querySelector('[data-field="valorTotalBRL"]').textContent = ativo.valor_total_brl.toFixed(2);
+                }
+            });
+        }
+    }
+
+    // Chama a função principal ao carregar a página
+    fetchInvestmentPrices();
+
+    
     // --- SEÇÃO DE EDIÇÃO DE ATIVOS (EXISTENTE) ---
     const editSection = document.getElementById('edit-investment-section');
     const editForm = document.getElementById('edit-investment-form');

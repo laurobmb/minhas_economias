@@ -6,25 +6,14 @@
     <form class="add-movement-form" id="edit-investment-form">
         <input type="hidden" id="edit-ticker-original">
         <input type="hidden" id="edit-asset-type">
-
         <div class="form-row">
-            <div class="form-group">
-                <label for="edit-ticker-display" class="label">Ticker:</label>
-                <input type="text" id="edit-ticker-display" class="text-input rounded-md" disabled>
-            </div>
-            <div class="form-group">
-                <label for="edit-quantity" class="label">Nova Quantidade:</label>
-                <input type="text" name="quantidade" id="edit-quantity" class="text-input rounded-md" inputmode="decimal" required>
-            </div>
+            <div class="form-group"><label for="edit-ticker-display" class="label">Ticker:</label><input type="text" id="edit-ticker-display" class="text-input rounded-md" disabled></div>
+            <div class="form-group"><label for="edit-quantity" class="label">Nova Quantidade:</label><input type="text" name="quantidade" id="edit-quantity" class="text-input rounded-md" inputmode="decimal" required></div>
         </div>
-        <div class="form-actions">
-            <button type="submit" class="add-button rounded-md" id="submit-edit-button">Salvar Alterações</button>
-            <button type="button" class="cancel-button rounded-md" id="cancel-edit-button">Cancelar</button>
-        </div>
+        <div class="form-actions"><button type="submit" class="add-button rounded-md" id="submit-edit-button">Salvar Alterações</button><button type="button" class="cancel-button rounded-md" id="cancel-edit-button">Cancelar</button></div>
     </form>
 </div>
 <!-- FIM DO FORMULÁRIO DE EDIÇÃO -->
-
 
 <div class="space-y-12">
 
@@ -33,198 +22,110 @@
         <h2 class="dark:text-gray-200">Adicionar Ativo Nacional (Ação/FII)</h2>
         <form class="add-movement-form" id="add-nacional-form">
             <div class="form-row">
-                <div class="form-group">
-                    <label for="add-nacional-ticker" class="label">Ticker:</label>
-                    <input type="text" id="add-nacional-ticker" class="text-input rounded-md" placeholder="Ex: PETR4, MXRF11" required>
-                </div>
-                <div class="form-group">
-                    <label for="add-nacional-tipo" class="label">Tipo:</label>
-                    <select id="add-nacional-tipo" class="select-input rounded-md">
-                        <option value="ACAO">Ação</option>
-                        <option value="FII">FII</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="add-nacional-quantidade" class="label">Quantidade:</label>
-                    <input type="number" id="add-nacional-quantidade" class="text-input rounded-md" required min="1" step="1">
-                </div>
+                <div class="form-group"><label for="add-nacional-ticker" class="label">Ticker:</label><input type="text" id="add-nacional-ticker" class="text-input rounded-md" placeholder="Ex: PETR4, MXRF11" required></div>
+                <div class="form-group"><label for="add-nacional-tipo" class="label">Tipo:</label><select id="add-nacional-tipo" class="select-input rounded-md"><option value="ACAO">Ação</option><option value="FII">FII</option></select></div>
+                <div class="form-group"><label for="add-nacional-quantidade" class="label">Quantidade:</label><input type="number" id="add-nacional-quantidade" class="text-input rounded-md" required min="1" step="1"></div>
             </div>
-            <div class="form-actions">
-                <button type="submit" class="add-button rounded-md">Adicionar Ativo Nacional</button>
-            </div>
+            <div class="form-actions"><button type="submit" class="add-button rounded-md">Adicionar Ativo Nacional</button></div>
         </form>
     </div>
     <!-- FIM DO FORMULÁRIO DE ADIÇÃO NACIONAL -->
 
-
-    <!-- Seção de Ações Nacionais -->
+    <!-- Seção de Ações Nacionais (com placeholders) -->
     <div>
-        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
-            Ações (Nacional)
-        </h2>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">Ações (Nacional)</h2>
         {{ if .Acoes }}
         <div class="table-container">
             <table class="rounded-lg overflow-hidden">
-                <thead>
-                    <tr>
-                        <th>Ticker</th>
-                        <th class="text-right">Qtde.</th>
-                        <th class="text-right">Cotação (R$)</th>
-                        <th class="text-right">Valor Total (R$)</th>
-                        <th class="text-right">P/VP</th>
-                        <th class="text-right">Div.Yield</th>
-                        <th class="text-right">Valor Graham (R$)</th>
-                        <th class="text-center">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
+                <thead><tr><th>Ticker</th><th class="text-right">Qtde.</th><th class="text-right">Cotação (R$)</th><th class="text-right">Valor Total (R$)</th><th class="text-right">P/VP</th><th class="text-right">Div.Yield</th><th class="text-right">Valor Graham (R$)</th><th class="text-center">Ações</th></tr></thead>
+                <tbody id="acoes-table-body">
                     {{ range .Acoes }}
-                    <tr class="table-row-item">
+                    <tr class="table-row-item" data-ticker="{{ .Ticker }}">
                         <td class="font-semibold">{{ .Ticker }}</td>
-                        <td class="text-right">{{ .Quantidade }}</td>
-                        <td class="text-right">{{ printf "%.2f" .Cotacao }}</td>
-                        <td class="text-right font-bold">{{ printf "%.2f" .ValorTotal }}</td>
-                        <td class="text-right">{{ printf "%.2f" .PVP }}</td>
-                        <td class="text-right">{{ printf "%.2f%%" .DivYieldPercent }}</td>
-                        <td class="text-right font-bold {{ if .IsGrahamAdvantageous }}text-green-500 dark:text-green-400{{else}}text-red-500{{end}}">
-                            {{ printf "%.2f" .ValorGraham }}
-                        </td>
-                        <td class="action-buttons-cell">
-                            <button class="edit-button rounded-md" data-ticker="{{ .Ticker }}" data-quantity="{{ .Quantidade }}" data-type="nacional">Editar</button>
-                            <button class="delete-button rounded-md" data-ticker="{{ .Ticker }}" data-type="nacional">Excluir</button>
-                        </td>
+                        <td class="text-right" data-field="quantidade">{{ .Quantidade }}</td>
+                        <td class="text-right" data-field="cotacao"><div class="spinner"></div></td>
+                        <td class="text-right font-bold" data-field="valorTotal"><div class="spinner"></div></td>
+                        <td class="text-right" data-field="pvp"><div class="spinner"></div></td>
+                        <td class="text-right" data-field="divYield"><div class="spinner"></div></td>
+                        <td class="text-right font-bold" data-field="valorGraham"><div class="spinner"></div></td>
+                        <td class="action-buttons-cell"><button class="edit-button rounded-md" data-ticker="{{ .Ticker }}" data-quantity="{{ .Quantidade }}" data-type="nacional">Editar</button><button class="delete-button rounded-md" data-ticker="{{ .Ticker }}" data-type="nacional">Excluir</button></td>
                     </tr>
                     {{ end }}
                 </tbody>
             </table>
         </div>
-        {{ else }}
-        <p class="no-data dark:text-gray-400">Nenhuma ação nacional encontrada.</p>
-        {{ end }}
+        {{ else }}<p class="no-data dark:text-gray-400">Nenhuma ação nacional encontrada.</p>{{ end }}
     </div>
 
-    <!-- Seção de Fundos Imobiliários (FIIs) -->
+    <!-- Seção de Fundos Imobiliários (FIIs) (com placeholders) -->
     <div>
-        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
-            Fundos Imobiliários (FIIs)
-        </h2>
+        <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">Fundos Imobiliários (FIIs)</h2>
         {{ if .FIIs }}
         <div class="table-container">
             <table class="rounded-lg overflow-hidden">
-                <thead style="background-color: #6d28d9;">
-                    <tr>
-                        <th>Ticker</th>
-                        <th class="text-right">Qtde.</th>
-                        <th class="text-right">Cotação (R$)</th>
-                        <th class="text-right">Valor Total (R$)</th>
-                        <th>Segmento</th>
-                        <th class="text-right">P/VP</th>
-                        <th class="text-right">Div.Yield</th>
-                        <th class="text-right">Vacância</th>
-                        <th class="text-right">Nº Imóveis</th>
-                        <th class="text-center">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
+                <thead style="background-color: #6d28d9;"><tr><th>Ticker</th><th class="text-right">Qtde.</th><th class="text-right">Cotação (R$)</th><th class="text-right">Valor Total (R$)</th><th>Segmento</th><th class="text-right">P/VP</th><th class="text-right">Div.Yield</th><th class="text-right">Vacância</th><th class="text-right">Nº Imóveis</th><th class="text-center">Ações</th></tr></thead>
+                <tbody id="fiis-table-body">
                     {{ range .FIIs }}
-                    <tr class="table-row-item">
+                    <tr class="table-row-item" data-ticker="{{ .Ticker }}">
                         <td class="font-semibold">{{ .Ticker }}</td>
-                        <td class="text-right">{{ .Quantidade }}</td>
-                        <td class="text-right">{{ printf "%.2f" .Cotacao }}</td>
-                        <td class="text-right font-bold">{{ printf "%.2f" .ValorTotal }}</td>
-                        <td>{{ .Segmento }}</td>
-                        <td class="text-right">{{ printf "%.2f" .PVP }}</td>
-                        <td class="text-right">{{ printf "%.2f%%" .DivYieldPercent }}</td>
-                        <td class="text-right">{{ printf "%.2f%%" .Vacancia }}</td>
-                        <td class="text-right">{{ .NumImoveis }}</td>
-                        <td class="action-buttons-cell">
-                            <button class="edit-button rounded-md" data-ticker="{{ .Ticker }}" data-quantity="{{ .Quantidade }}" data-type="nacional">Editar</button>
-                            <button class="delete-button rounded-md" data-ticker="{{ .Ticker }}" data-type="nacional">Excluir</button>
-                        </td>
+                        <td class="text-right" data-field="quantidade">{{ .Quantidade }}</td>
+                        <td class="text-right" data-field="cotacao"><div class="spinner"></div></td>
+                        <td class="text-right font-bold" data-field="valorTotal"><div class="spinner"></div></td>
+                        <td data-field="segmento"><div class="spinner"></div></td>
+                        <td class="text-right" data-field="pvp"><div class="spinner"></div></td>
+                        <td class="text-right" data-field="divYield"><div class="spinner"></div></td>
+                        <td class="text-right" data-field="vacancia"><div class="spinner"></div></td>
+                        <td class="text-right" data-field="numImoveis"><div class="spinner"></div></td>
+                        <td class="action-buttons-cell"><button class="edit-button rounded-md" data-ticker="{{ .Ticker }}" data-quantity="{{ .Quantidade }}" data-type="nacional">Editar</button><button class="delete-button rounded-md" data-ticker="{{ .Ticker }}" data-type="nacional">Excluir</button></td>
                     </tr>
                     {{ end }}
                 </tbody>
             </table>
         </div>
-        {{ else }}
-        <p class="no-data dark:text-gray-400">Nenhum Fundo Imobiliário encontrado.</p>
-        {{ end }}
+        {{ else }}<p class="no-data dark:text-gray-400">Nenhum Fundo Imobiliário encontrado.</p>{{ end }}
     </div>
-
+    
     <!-- INÍCIO DO FORMULÁRIO DE ADIÇÃO INTERNACIONAL -->
     <div id="add-internacional-section" class="add-movement-section rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 mb-8">
         <h2 class="dark:text-gray-200">Adicionar Ativo Internacional</h2>
         <form class="add-movement-form" id="add-internacional-form">
             <div class="form-row">
-                <div class="form-group">
-                    <label for="add-internacional-ticker" class="label">Ticker:</label>
-                    <input type="text" id="add-internacional-ticker" class="text-input rounded-md" placeholder="Ex: VOO, BTC-USD" required>
-                </div>
-                 <div class="form-group">
-                    <label for="add-internacional-descricao" class="label">Descrição:</label>
-                    <input type="text" id="add-internacional-descricao" class="text-input rounded-md" placeholder="ETF na conta da NOMAD" required>
-                </div>
-                <div class="form-group">
-                    <label for="add-internacional-quantidade" class="label">Quantidade:</label>
-                    <input type="text" id="add-internacional-quantidade" class="text-input rounded-md" inputmode="decimal" required>
-                </div>
+                <div class="form-group"><label for="add-internacional-ticker" class="label">Ticker:</label><input type="text" id="add-internacional-ticker" class="text-input rounded-md" placeholder="Ex: VOO, BTC-USD" required></div>
+                 <div class="form-group"><label for="add-internacional-descricao" class="label">Descrição:</label><input type="text" id="add-internacional-descricao" class="text-input rounded-md" placeholder="ETF na conta da NOMAD" required></div>
+                <div class="form-group"><label for="add-internacional-quantidade" class="label">Quantidade:</label><input type="text" id="add-internacional-quantidade" class="text-input rounded-md" inputmode="decimal" required></div>
             </div>
-            <div class="form-actions">
-                <button type="submit" class="add-button rounded-md">Adicionar Ativo Internacional</button>
-            </div>
+            <div class="form-actions"><button type="submit" class="add-button rounded-md">Adicionar Ativo Internacional</button></div>
         </form>
     </div>
     <!-- FIM DO FORMULÁRIO DE ADIÇÃO INTERNACIONAL -->
 
-
-    <!-- Seção de Investimentos Internacionais -->
+    <!-- Seção de Investimentos Internacionais (com placeholders) -->
     <div>
         <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
-            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                Carteira Internacional
-            </h2>
-            <div class="text-sm text-gray-500 dark:text-gray-400">
-                Cotação utilizada: <strong>1 USD = {{ printf "%.4f" .CotacaoDolar }} BRL</strong>
-            </div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200">Carteira Internacional</h2>
+            <div id="dolar-quote-display" class="text-sm text-gray-500 dark:text-gray-400"><div class="spinner-inline"></div></div>
         </div>
-
         {{ if .Internacionais }}
         <div class="table-container">
             <table class="rounded-lg overflow-hidden">
-                <thead style="background-color: #008080;">
-                    <tr>
-                        <th>Ticker</th>
-                        <th>Descrição</th>
-                        <th class="text-right">Quantidade</th>
-                        <th class="text-right">Preço Unitário ($)</th>
-                        <th class="text-right">Valor Total ($)</th>
-                        <th class="text-right">Valor Total (R$)</th>
-                        <th class="text-center">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
+                <thead style="background-color: #008080;"><tr><th>Ticker</th><th>Descrição</th><th class="text-right">Quantidade</th><th class="text-right">Preço Unitário ($)</th><th class="text-right">Valor Total ($)</th><th class="text-right">Valor Total (R$)</th><th class="text-center">Ações</th></tr></thead>
+                <tbody id="internacional-table-body">
                     {{ range .Internacionais }}
-                    <tr class="table-row-item">
+                    <tr class="table-row-item" data-ticker="{{ .Ticker }}">
                         <td class="font-semibold">{{ .Ticker }}</td>
                         <td>{{ .Descricao }}</td>
                         <td class="text-right">{{ printf "%.4f" .Quantidade }}</td>
-                        <td class="text-right">{{ printf "%.2f" .PrecoUnitarioUSD }}</td>
-                        <td class="text-right font-bold">{{ printf "%.2f" .ValorTotalUSD }}</td>
-                        <td class="text-right font-bold text-blue-600 dark:text-blue-400">{{ printf "%.2f" .ValorTotalBRL }}</td>
-                        <td class="action-buttons-cell">
-                            <button class="edit-button rounded-md" data-ticker="{{ .Ticker }}" data-quantity="{{ .Quantidade }}" data-type="internacional">Editar</button>
-                            <button class="delete-button rounded-md" data-ticker="{{ .Ticker }}" data-type="internacional">Excluir</button>
-                        </td>
+                        <td class="text-right" data-field="precoUnitarioUSD"><div class="spinner"></div></td>
+                        <td class="text-right font-bold" data-field="valorTotalUSD"><div class="spinner"></div></td>
+                        <td class="text-right font-bold text-blue-600 dark:text-blue-400" data-field="valorTotalBRL"><div class="spinner"></div></td>
+                        <td class="action-buttons-cell"><button class="edit-button rounded-md" data-ticker="{{ .Ticker }}" data-quantity="{{ .Quantidade }}" data-type="internacional">Editar</button><button class="delete-button rounded-md" data-ticker="{{ .Ticker }}" data-type="internacional">Excluir</button></td>
                     </tr>
                     {{ end }}
                 </tbody>
             </table>
         </div>
-        {{ else }}
-        <p class="no-data dark:text-gray-400">Nenhum investimento internacional encontrado.</p>
-        {{ end }}
+        {{ else }}<p class="no-data dark:text-gray-400">Nenhum investimento internacional encontrado.</p>{{ end }}
     </div>
-
 </div>
 {{end}}
 
