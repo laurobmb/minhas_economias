@@ -8,11 +8,11 @@
     base_url: "http://localhost:8080"
     test_user_email: "lauro@localnet.com"
     test_user_pass: "1q2w3e"
-    
+
     # Variáveis para o teste de CRUD (Task 5)
     test_descricao_crud: "Transação CRUD via Ansible"
     test_descricao_crud_atualizada: "Transação CRUD Ansible ATUALIZADA"
-    
+
     # Variável específica para o teste de CSV (Task 7)
     test_descricao_csv: "Transação CSV via Ansible"
 
@@ -139,7 +139,7 @@
             body_format: form-urlencoded
             body: { data_ocorrencia: "2025-07-09", descricao: "{{ test_descricao_crud_atualizada }}", valor: "-543.21", categoria: "Teste CRUD Editado", conta: "Conta Teste CRUD" }
             status_code: 302
-        
+
       always:
         - name: 5.4 LIMPEZA - Excluir a transação do teste de CRUD
           ansible.builtin.uri:
@@ -168,6 +168,8 @@
           - "'application/pdf' in r_pdf.content_type"
 
     - name: 7. Testar o Endpoint de Exportação CSV
+      tags:
+        - test_export
       block:
         # ETAPA 1: CRIAR DADOS PARA ESTE TESTE ESPECÍFICO
         - name: 7.1 CRIAR - Adicionar uma movimentação para o teste de CSV
@@ -190,7 +192,7 @@
           ansible.builtin.uri:
             url: "{{ base_url }}/export/csv"
             method: GET
-            follow_redirects: no
+            follow_redirects: false
           register: unauth_response
           failed_when: unauth_response.status != 302 or '/login' not in unauth_response.location
           changed_when: false
@@ -223,8 +225,6 @@
             headers:
               Cookie: "{{ session_cookie }}"
           when: csv_test_item_id is defined
-      tags:
-        - test_export
 
     - name: 8. Testar o ciclo de vida de um investimento (CRUD autenticado)
       block:
