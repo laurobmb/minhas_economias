@@ -2,6 +2,11 @@
 
 Este documento apresenta as principais telas e funcionalidades da aplicação "Minhas Economias".
 
+## Login
+![Painel de Saldos](minhas_economias_12.png)
+## Registro
+![Painel de Saldos](minhas_economias_13.png)
+
 ## Painel de Saldos
 #### Tema Claro
 ![Painel de Saldos](minhas_economias_1.png)
