@@ -49,6 +49,8 @@ func PostLogin(c *gin.Context) {
 	session.Options.MaxAge = maxAgeSeconds    // Define o tempo de expiração do cookie
 	session.Options.HttpOnly = true           // Medida de segurança
 	session.Options.SameSite = http.SameSiteLaxMode
+	
+	session.Options.Secure = false
 
 	err = session.Save(c.Request, c.Writer)
 	if err != nil {
