@@ -62,7 +62,7 @@ func main() {
 		authorized.GET("/relatorio", handlers.GetRelatorio)
 		authorized.GET("/sobre", handlers.GetSobrePage)
 		authorized.GET("/configuracoes", handlers.GetConfiguracoesPage)
-		authorized.GET("/investimentos", investimentos.GetInvestimentosPage) // Carrega a página base
+		authorized.GET("/investimentos", investimentos.GetInvestimentosPage)
 		authorized.POST("/logout", auth.PostLogout)
 
 		// API
@@ -70,6 +70,8 @@ func main() {
 		authorized.POST("/api/user/settings", handlers.UpdateUserSettings)
 		authorized.POST("/api/user/profile", handlers.UpdateUserProfile)
 		authorized.POST("/api/user/password", handlers.ChangePassword)
+		authorized.GET("/api/investimentos/precos", investimentos.GetPrecosInvestimentosAPI)
+		authorized.GET("/api/saldos", handlers.GetSaldosAPI) // <-- NOVA ROTA
 
 		// Movimentações
 		authorized.POST("/movimentacoes", handlers.AddMovimentacao)
@@ -86,9 +88,6 @@ func main() {
 		authorized.POST("/investimentos/internacional", investimentos.AddAtivoInternacional)
 		authorized.POST("/investimentos/internacional/:ticker", investimentos.UpdateAtivoInternacional)
 		authorized.DELETE("/investimentos/internacional/:ticker", investimentos.DeleteAtivoInternacional)
-
-		// --- NOVA ROTA DE API PARA CARREGAMENTO ASSÍNCRONO ---
-		authorized.GET("/api/investimentos/precos", investimentos.GetPrecosInvestimentosAPI)
 	}
 
 	log.Println("Servidor Gin iniciado na porta :8080")

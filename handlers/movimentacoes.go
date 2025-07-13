@@ -21,6 +21,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func GetSaldosAPI(c *gin.Context) {
+	userID := c.MustGet("userID").(int64)
+
+	saldosContas, err := calculateAccountBalances(userID)
+	if err != nil {
+		renderErrorPage(c, http.StatusInternalServerError, "Não foi possível carregar os saldos das contas.", err)
+		return
+	}
+
+	var saldoGeral float64
+	for _, saldo := range saldosContas {
+		saldoGeral += saldo.SaldoAtual
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"saldoGeral":   saldoGeral,
+		"saldosContas": saldosContas,
+	})
+}
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
