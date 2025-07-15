@@ -75,6 +75,7 @@ func main() {
 
 		// Movimentações
 		authorized.POST("/movimentacoes", handlers.AddMovimentacao)
+		authorized.POST("/movimentacoes/transferencia", handlers.AddTransferencia) // <-- NOVA ROTA
 		authorized.DELETE("/movimentacoes/:id", handlers.DeleteMovimentacao)
 		authorized.POST("/movimentacoes/update/:id", handlers.UpdateMovimentacao)
 		authorized.GET("/relatorio/transactions", handlers.GetTransactionsByCategory)

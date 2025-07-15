@@ -10,11 +10,11 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"path/filepath" // NOVO IMPORT
+	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/gin-contrib/multitemplate" // NOVO IMPORT
+	"github.com/gin-contrib/multitemplate"
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -56,43 +56,43 @@ func setupTestDB(t *testing.T) {
 
 	createUsersSQL := `
 	CREATE TABLE users (
-		id BIGINT PRIMARY KEY,
-		email TEXT UNIQUE NOT NULL,
-		password_hash TEXT NOT NULL,
-		is_admin BOOLEAN DEFAULT FALSE,
-		dark_mode_enabled BOOLEAN DEFAULT FALSE
+			id BIGINT PRIMARY KEY,
+			email TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			is_admin BOOLEAN DEFAULT FALSE,
+			dark_mode_enabled BOOLEAN DEFAULT FALSE
 	);`
 	createMovimentacoesSQL_sqlite := fmt.Sprintf(`
 	CREATE TABLE %s (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id BIGINT NOT NULL,
-		data_ocorrencia DATE NOT NULL,
-		descricao TEXT,
-		valor NUMERIC(10, 2),
-		categoria TEXT,
-		conta TEXT,
-		consolidado BOOLEAN DEFAULT FALSE,
-		FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id BIGINT NOT NULL,
+			data_ocorrencia DATE NOT NULL,
+			descricao TEXT,
+			valor NUMERIC(10, 2),
+			categoria TEXT,
+			conta TEXT,
+			consolidado BOOLEAN DEFAULT FALSE,
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 	);`, database.TableName)
 	createMovimentacoesSQL_postgres := fmt.Sprintf(`
 	CREATE TABLE %s (
-		id SERIAL PRIMARY KEY,
-		user_id BIGINT NOT NULL,
-		data_ocorrencia DATE NOT NULL,
-		descricao TEXT,
-		valor NUMERIC(10, 2),
-		categoria TEXT,
-		conta TEXT,
-		consolidado BOOLEAN DEFAULT FALSE,
-		FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+			id SERIAL PRIMARY KEY,
+			user_id BIGINT NOT NULL,
+			data_ocorrencia DATE NOT NULL,
+			descricao TEXT,
+			valor NUMERIC(10, 2),
+			categoria TEXT,
+			conta TEXT,
+			consolidado BOOLEAN DEFAULT FALSE,
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 	);`, database.TableName)
 	createContasSQL := `
 	CREATE TABLE contas (
-		user_id BIGINT NOT NULL,
-		nome TEXT NOT NULL,
-		saldo_inicial NUMERIC(10, 2) NOT NULL DEFAULT 0,
-		PRIMARY KEY (user_id, nome),
-		FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+			user_id BIGINT NOT NULL,
+			nome TEXT NOT NULL,
+			saldo_inicial NUMERIC(10, 2) NOT NULL DEFAULT 0,
+			PRIMARY KEY (user_id, nome),
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 	);`
 
 	if _, err := db.Exec(createUsersSQL); err != nil {
@@ -121,8 +121,8 @@ func setupTestDB(t *testing.T) {
 	}
 
 	insertMovimentacoesSQL := database.Rebind(fmt.Sprintf(`
-    INSERT INTO %s (id, user_id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?);`, database.TableName))
+INSERT INTO %s (id, user_id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES
+(?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?);`, database.TableName))
 
 	if database.DriverName == "postgres" {
 		db.Exec(fmt.Sprintf("SELECT setval('%s_id_seq', 2, true);", database.TableName))
@@ -146,7 +146,6 @@ func createTestRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.Default()
 
-	// --- CORREÇÃO: Configura o renderizador multitemplate para lidar com o layout base ---
 	renderer := multitemplate.NewRenderer()
 	layouts, err := filepath.Glob("../templates/_layout.html")
 	if err != nil || len(layouts) == 0 {
@@ -160,15 +159,12 @@ func createTestRouter() *gin.Engine {
 
 	for _, page := range pages {
 		pageName := filepath.Base(page)
-		// Ignora o próprio layout e as páginas standalone que não usam layout (login/register)
 		if pageName != "_layout.html" && pageName != "login.html" && pageName != "register.html" {
 			renderer.AddFromFiles(pageName, append(layouts, page)...)
 		}
 	}
 	r.HTMLRender = renderer
-	// --- FIM DA CORREÇÃO ---
 
-	// Grupo de rotas protegidas com o nosso middleware FALSO
 	authorized := r.Group("/")
 	authorized.Use(mockAuthMiddleware())
 	{
@@ -180,6 +176,7 @@ func createTestRouter() *gin.Engine {
 		authorized.POST("/movimentacoes/update/:id", UpdateMovimentacao)
 		authorized.DELETE("/movimentacoes/:id", DeleteMovimentacao)
 		authorized.POST("/api/user/settings", UpdateUserSettings)
+		authorized.POST("/movimentacoes/transferencia", AddTransferencia) // <-- ROTA ADICIONADA
 	}
 
 	return r
@@ -220,7 +217,135 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// --- Funções de Teste Atualizadas ---
+// =============================================================================
+// >> NOVOS TESTES PARA TRANSFERÊNCIA <<
+// =============================================================================
+
+func TestAddTransferencia_Success(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB()
+	router := createTestRouter()
+
+	formData := url.Values{}
+	formData.Set("data_ocorrencia", "2025-07-01")
+	formData.Set("descricao", "Pagamento do Cartão")
+	formData.Set("valor", "250,75") // Usa vírgula como no formulário
+	formData.Set("conta_origem", "Banco A")
+	formData.Set("conta_destino", "Corretora B")
+
+	w := performRequest(router, "POST", "/movimentacoes/transferencia", formData, nil)
+
+	if w.Code != http.StatusFound {
+		t.Errorf("Esperado status 302 (redirecionamento), mas obteve %d.", w.Code)
+	}
+
+	// Verificação no banco de dados
+	db := database.GetDB()
+	var count int
+	query := database.Rebind("SELECT COUNT(*) FROM movimentacoes WHERE categoria = ? AND user_id = ?")
+	err := db.QueryRow(query, "Transferência", testUserID).Scan(&count)
+	if err != nil {
+		t.Fatalf("Erro ao verificar a inserção no banco de dados: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Esperado encontrar 2 movimentações de transferência, mas encontrou %d", count)
+	}
+
+	// Verifica débito da origem
+	var debitValue float64
+	// CORREÇÃO: A query agora é específica para a transação de transferência.
+	debitQuery := database.Rebind("SELECT valor FROM movimentacoes WHERE conta = ? AND user_id = ? AND categoria = ? AND valor = ?")
+	err = db.QueryRow(debitQuery, "Banco A", testUserID, "Transferência", -250.75).Scan(&debitValue)
+	if err != nil {
+		t.Fatalf("Erro ao buscar a movimentação de débito da transferência: %v", err)
+	}
+	if debitValue != -250.75 {
+		t.Errorf("Esperado valor de débito -250.75, mas obteve %.2f", debitValue)
+	}
+
+	// Verifica crédito no destino
+	var creditValue float64
+	// CORREÇÃO: A query agora é específica para a transação de transferência.
+	creditQuery := database.Rebind("SELECT valor FROM movimentacoes WHERE conta = ? AND user_id = ? AND categoria = ? AND valor = ?")
+	err = db.QueryRow(creditQuery, "Corretora B", testUserID, "Transferência", 250.75).Scan(&creditValue)
+	if err != nil {
+		t.Fatalf("Erro ao buscar a movimentação de crédito da transferência: %v", err)
+	}
+	if creditValue != 250.75 {
+		t.Errorf("Esperado valor de crédito 250.75, mas obteve %.2f", creditValue)
+	}
+}
+
+func TestAddTransferencia_Validation(t *testing.T) {
+	setupTestDB(t)
+	defer teardownTestDB()
+	router := createTestRouter()
+
+	testCases := []struct {
+		name          string
+		formData      url.Values
+		expectedError string
+	}{
+		{
+			name: "Contas Iguais",
+			formData: url.Values{
+				"data_ocorrencia": {"2025-07-02"},
+				"descricao":       {"Teste Contas Iguais"},
+				"valor":           {"100.00"},
+				"conta_origem":    {"Banco A"},
+				"conta_destino":   {"Banco A"},
+			},
+			expectedError: "A conta de origem e destino não podem ser a mesma.",
+		},
+		{
+			name: "Valor Zero",
+			formData: url.Values{
+				"data_ocorrencia": {"2025-07-02"},
+				"descricao":       {"Teste Valor Zero"},
+				"valor":           {"0"},
+				"conta_origem":    {"Banco A"},
+				"conta_destino":   {"Banco B"},
+			},
+			expectedError: "O valor da transferência deve ser um número positivo.",
+		},
+		{
+			name: "Valor Negativo",
+			formData: url.Values{
+				"data_ocorrencia": {"2025-07-02"},
+				"descricao":       {"Teste Valor Negativo"},
+				"valor":           {"-50.00"},
+				"conta_origem":    {"Banco A"},
+				"conta_destino":   {"Banco B"},
+			},
+			expectedError: "O valor da transferência deve ser um número positivo.",
+		},
+		{
+			name: "Falta Conta de Origem",
+			formData: url.Values{
+				"data_ocorrencia": {"2025-07-02"},
+				"descricao":       {"Teste Falta Origem"},
+				"valor":           {"50.00"},
+				"conta_destino":   {"Banco B"},
+			},
+			expectedError: "Todos os campos da transferência são obrigatórios.",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := performRequest(router, "POST", "/movimentacoes/transferencia", tc.formData, nil)
+
+			if w.Code != http.StatusBadRequest {
+				t.Errorf("Esperado status 400 Bad Request, mas obteve %d.", w.Code)
+			}
+			if !strings.Contains(w.Body.String(), tc.expectedError) {
+				t.Errorf("Esperava a mensagem de erro '%s', mas obteve: '%s'", tc.expectedError, w.Body.String())
+			}
+		})
+	}
+}
+
+// --- Funções de Teste Existentes (sem alterações) ---
 
 func TestGetIndexPage_Success(t *testing.T) {
 	setupTestDB(t)
