@@ -60,7 +60,7 @@ class MinhasEconomiasTest(unittest.TestCase):
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--window-size=1920,1080')
-        
+            
         try:
             cls.browser = webdriver.Chrome(options=options)
             cls.wait = WebDriverWait(cls.browser, DEFAULT_TIMEOUT)
@@ -101,7 +101,9 @@ class MinhasEconomiasTest(unittest.TestCase):
                 "DELETE FROM movimentacoes WHERE conta = 'Conta Teste Grafico';",
                 "DELETE FROM movimentacoes WHERE conta = 'Conta Teste CRUD';",
                 "DELETE FROM movimentacoes WHERE conta = 'Conta Validação';",
-                f"DELETE FROM user_profiles WHERE user_id = (SELECT id FROM users WHERE email = '{TEST_USER_EMAIL}');" # Limpa o perfil
+                f"DELETE FROM user_profiles WHERE user_id = (SELECT id FROM users WHERE email = '{TEST_USER_EMAIL}');", # Limpa o perfil
+                "DELETE FROM movimentacoes WHERE conta LIKE 'Conta Origem %';", # Limpeza do novo teste
+                "DELETE FROM movimentacoes WHERE conta LIKE 'Conta Destino %';", # Limpeza do novo teste
             ]
             
             total_deleted = 0
@@ -253,7 +255,6 @@ class MinhasEconomiasTest(unittest.TestCase):
         """Testa a funcionalidade de exportação para CSV, com e sem filtros."""
         logger.info("--- INICIANDO TESTE 04: EXPORTAÇÃO CSV ---")
 
-        # (A seção que insere os dados de teste permanece a mesma)
         user_id_query = f"SELECT id FROM users WHERE email = '{TEST_USER_EMAIL}'"
         desc_aluguel = f"Aluguel Teste Selenium {int(time.time())}"
         desc_salario = f"Salario Teste Selenium {int(time.time())}"
@@ -280,11 +281,10 @@ class MinhasEconomiasTest(unittest.TestCase):
         finally:
             if conn:
                 conn.close()
-        
+            
         self.browser.get(f'{BASE_URL}/transacoes')
         self.wait.until(EC.title_contains("Transações"))
 
-        # (O helper _verify_download permanece o mesmo)
         def _verify_download(filename_part, expected_content_list, unexpected_content_list=None):
             logger.info(f"Verificando download que deve conter: {expected_content_list}...")
             downloaded_file_path = None
@@ -344,15 +344,11 @@ class MinhasEconomiasTest(unittest.TestCase):
         
         export_button = self.browser.find_element(*export_button_locator)
         
-        # ========================== CORREÇÃO FINAL ==========================
-        # Agora verificamos a versão CODIFICADA da descrição dentro do link
-        # "Aluguel Teste Selenium..." se torna "Aluguel+Teste+Selenium..."
         desc_aluguel_encoded = quote_plus(desc_aluguel)
         self.wait.until(
             lambda driver: desc_aluguel_encoded in driver.find_element(*export_button_locator).get_attribute('href'),
             f"O link do botão de exportação não foi atualizado com o filtro codificado ('{desc_aluguel_encoded}')."
         )
-        # ===================================================================
         
         logger.info(f"Link com filtro: {export_button.get_attribute('href')}")
         export_button.click()
@@ -369,7 +365,6 @@ class MinhasEconomiasTest(unittest.TestCase):
         self.browser.get(f'{BASE_URL}/investimentos')
         self.wait.until(EC.title_contains("Investimentos"))
 
-        # Espera o carregamento assíncrono dos preços
         logger.info("Aguardando carregamento assíncrono dos preços...")
         self.wait.until(
             EC.none_of(EC.presence_of_all_elements_located((By.CLASS_NAME, "spinner")))
@@ -446,6 +441,92 @@ class MinhasEconomiasTest(unittest.TestCase):
         self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, f'tr[data-ticker="{ticker_internacional}"]')))
         logger.info("SUCESSO: Ativo internacional excluído.")
 
+    def test_06_fluxo_transferencia(self):
+        """Testa o fluxo completo de criação de uma transferência entre contas."""
+        logger.info("--- INICIANDO TESTE 06: FLUXO DE TRANSFERÊNCIA ---")
+        self.browser.get(f'{BASE_URL}/transacoes')
+        self.wait.until(EC.title_contains("Transações"))
+        
+        # Gerar dados únicos para o teste
+        timestamp = int(time.time())
+        descricao_base = f"Transf Viagem {timestamp}"
+        conta_origem = f"Conta Origem {timestamp}"
+        conta_destino = f"Conta Destino {timestamp}"
+        valor_transferencia = "98,55"
+        valor_assert = "98.55"
+        
+        logger.info("Selecionando o tipo 'Transferência' no formulário.")
+        
+        # Localiza e clica no seletor de tipo para abrir as opções
+        tipo_display = self.wait.until(EC.element_to_be_clickable((By.ID, "tipo-movimentacao-display")))
+        tipo_display.click()
+        
+        # Clica na opção "Transferência"
+        transferencia_label = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//label[contains(., 'Transferência')]")))
+        transferencia_label.click()
+        
+        logger.info("Verificando se o formulário foi alterado para o modo de transferência.")
+        
+        # Campos que devem aparecer
+        conta_origem_input = self.wait.until(EC.visibility_of_element_located((By.ID, "new_conta_origem")))
+        conta_destino_input = self.browser.find_element(By.ID, "new_conta_destino")
+        self.assertTrue(conta_origem_input.is_displayed(), "O campo 'Conta de Origem' não ficou visível.")
+        self.assertTrue(conta_destino_input.is_displayed(), "O campo 'Conta de Destino' não ficou visível.")
+
+        # Campos que devem desaparecer
+        self.wait.until(EC.invisibility_of_element_located((By.ID, "group-categoria")))
+        self.wait.until(EC.invisibility_of_element_located((By.ID, "group-conta")))
+        logger.info("SUCESSO: Formulário alterado corretamente.")
+        self._delay()
+        
+        logger.info(f"Preenchendo o formulário para transferir {valor_transferencia} de '{conta_origem}' para '{conta_destino}'.")
+        self.browser.find_element(By.ID, "new_descricao").send_keys(descricao_base)
+        self.browser.find_element(By.ID, "new_valor").send_keys(valor_transferencia) 
+        conta_origem_input.send_keys(conta_origem)
+        conta_destino_input.send_keys(conta_destino)
+        
+        self.browser.find_element(By.ID, "submit-movement-button").click()
+        
+        logger.info("Verificando se as duas movimentações da transferência foram criadas.")
+        
+        valor_formatado_debito = f"-{float(valor_assert):.2f}"
+        valor_formatado_credito = f"{float(valor_assert):.2f}"
+
+        xpath_debito = f"//tr[contains(., '{conta_origem}') and (contains(., '{valor_formatado_debito.replace('.', ',')}') or contains(., '{valor_formatado_debito}')) and contains(., 'Transferência') and contains(., '{descricao_base}')]"
+        linha_debito = self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_debito)))
+        self.assertIsNotNone(linha_debito, "A movimentação de débito da transferência não foi encontrada.")
+        logger.info("SUCESSO: Movimentação de débito encontrada.")
+        
+        xpath_credito = f"//tr[contains(., '{conta_destino}') and (contains(., '{valor_formatado_credito.replace('.', ',')}') or contains(., '{valor_formatado_credito}')) and contains(., 'Transferência') and contains(., '{descricao_base}')]"
+        linha_credito = self.wait.until(EC.visibility_of_element_located((By.XPATH, xpath_credito)))
+        self.assertIsNotNone(linha_credito, "A movimentação de crédito da transferência não foi encontrada.")
+        logger.info("SUCESSO: Movimentação de crédito encontrada.")
+        self._delay()
+        
+        logger.info("Iniciando limpeza das movimentações de transferência criadas.")
+        
+        # Pega os IDs para uma exclusão mais segura
+        id_debito = linha_debito.get_attribute("data-id")
+        id_credito = linha_credito.get_attribute("data-id")
+
+        # Exclui a linha de débito
+        delete_button_debito = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, f"tr[data-id='{id_debito}'] .delete-button")))
+        delete_button_debito.click()
+        self.wait.until(EC.alert_is_present()).accept()
+        self.wait.until(EC.alert_is_present()).accept()
+        logger.info(f"Linha de débito (ID: {id_debito}) excluída.")
+        
+        self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, f"tr[data-id='{id_debito}']")))
+        
+        # Exclui a linha de crédito
+        delete_button_credito = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, f"tr[data-id='{id_credito}'] .delete-button")))
+        delete_button_credito.click()
+        self.wait.until(EC.alert_is_present()).accept()
+        self.wait.until(EC.alert_is_present()).accept()
+        logger.info(f"Linha de crédito (ID: {id_credito}) excluída.")
+
+        self.wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, f"tr[data-id='{id_credito}']")))
+        logger.info("SUCESSO: Limpeza concluída.")
 
 
 if __name__ == '__main__':

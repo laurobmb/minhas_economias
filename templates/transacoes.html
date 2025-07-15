@@ -4,6 +4,7 @@
     <h2 id="add-edit-form-title" class="dark:text-gray-200">Adicionar Nova Movimentação</h2>
     <form action="/movimentacoes" method="POST" class="add-movement-form" id="add-edit-form">
         <input type="hidden" name="id" id="movement-id-input">
+
         <div class="form-row">
             <div class="form-group">
                 <label for="new_data_ocorrencia" class="label">Data Ocorrência:</label>
@@ -11,13 +12,14 @@
             </div>
             <div class="form-group">
                 <label for="new_descricao" class="label">Descrição:</label>
-                <input type="text" name="descricao" id="new_descricao" class="text-input rounded-md" required maxlength="60">
+                <input type="text" name="descricao" id="new_descricao" class="text-input rounded-md" required maxlength="60" placeholder="Ex: Salário, Aluguel...">
             </div>
             <div class="form-group">
                 <label for="new_valor" class="label">Valor:</label>
-                <input type="text" name="valor" id="new_valor" class="text-input rounded-md" inputmode="decimal" placeholder="Ex: 123,45" maxlength="13">
+                <input type="text" name="valor" id="new_valor" class="text-input rounded-md" inputmode="decimal" placeholder="Ex: 123,45" maxlength="13" required>
             </div>
         </div>
+
         <div class="form-row">
             <div class="form-group">
                 <label class="label">Tipo:</label>
@@ -26,30 +28,44 @@
                     <div class="select-items select-hide" id="tipo-movimentacao-options">
                         <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="radio" name="tipo_movimentacao" value="receita" id="tipo_receita" class="hidden-radio-input"> Receita</label>
                         <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="radio" name="tipo_movimentacao" value="despesa" id="tipo_despesa" class="hidden-radio-input" checked> Despesa</label>
+                        <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="radio" name="tipo_movimentacao" value="transferencia" id="tipo_transferencia" class="hidden-radio-input"> Transferência</label>
                     </div>
                 </div>
             </div>
-            <div class="form-group">
+
+            <div class="form-group" id="group-categoria">
                 <label for="new_categoria" class="label">Categoria:</label>
                 <input type="text" name="categoria" id="new_categoria" class="text-input rounded-md" placeholder="Ex: Alimentação" list="category-suggestions">
                 <datalist id="category-suggestions"></datalist>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="group-conta">
                 <label for="new_conta" class="label">Conta:</label>
                 <input type="text" name="conta" id="new_conta" class="text-input rounded-md" placeholder="Ex: Banco X" required list="account-suggestions">
                 <datalist id="account-suggestions"></datalist>
             </div>
-            <div class="form-group checkbox-group">
+
+            <div class="form-group select-hide" id="group-conta-origem">
+                <label for="new_conta_origem" class="label">Conta de Origem:</label>
+                <input type="text" name="conta_origem" id="new_conta_origem" class="text-input rounded-md" placeholder="De qual conta saiu" list="account-suggestions">
+            </div>
+            <div class="form-group select-hide" id="group-conta-destino">
+                <label for="new_conta_destino" class="label">Conta de Destino:</label>
+                <input type="text" name="conta_destino" id="new_conta_destino" class="text-input rounded-md" placeholder="Para qual conta foi" list="account-suggestions">
+            </div>
+
+            <div class="form-group checkbox-group" id="group-consolidado">
                 <label for="new_consolidado" class="label-checkbox dark:text-slate-300">Consolidado:</label>
                 <input type="checkbox" name="consolidado" id="new_consolidado" class="checkbox-input rounded-md">
             </div>
         </div>
+
         <div class="form-actions">
             <button type="submit" class="add-button rounded-md" id="submit-movement-button">Adicionar Movimentação</button>
             <button type="button" class="cancel-button rounded-md select-hide" id="cancel-edit-button">Cancelar Edição</button>
         </div>
     </form>
 </div>
+
 
 <form action="/transacoes" method="GET" class="filter-form bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700" id="filterForm">
     <div class="form-group">
