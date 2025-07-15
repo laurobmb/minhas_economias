@@ -103,3 +103,7 @@ tests/venv/
 
 csv/investimentos_nacionais.csv
 csv/investimentos_internacionais.csv
+
+
+MinhasEconomias.bin
+MinhasEconomias.exe
