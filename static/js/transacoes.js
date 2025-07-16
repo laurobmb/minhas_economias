@@ -11,6 +11,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const addEditForm = document.getElementById('add-edit-form');
     const addEditFormTitle = document.getElementById('add-edit-form-title');
     const movementIdInput = document.getElementById('movement-id-input');
+
+
+    // =====================================================================
+    // >> INÍCIO DA CORREÇÃO <<
+    // Adicione este bloco para garantir a action correta no momento do envio.
+    // =====================================================================
+    if (addEditForm) {
+        addEditForm.addEventListener('submit', function(event) {
+            const movementId = movementIdInput.value;
+
+            // Verifica se estamos no "modo de edição" (se o campo de ID tem um valor)
+            if (movementId && movementId !== "") {
+                const newAction = `/movimentacoes/update/${movementId}`;
+                
+                // Adiciona um log para depuração no console do navegador (F12)
+                console.log(`EVENTO SUBMIT: Modo de edição detectado. Forçando action para: ${newAction}`);
+                
+                // Define a action uma última vez para garantir que está correta.
+                addEditForm.action = newAction;
+            } else {
+                // Log para os outros casos (Adicionar / Transferir)
+                console.log(`EVENTO SUBMIT: Modo de Adicionar/Transferir. Action é: ${addEditForm.action}`);
+            }
+        });
+    }
+    // =====================================================================
+    // >> FIM DA CORREÇÃO <<
+    // =====================================================================
+
+
+
     const submitMovementButton = document.getElementById('submit-movement-button');
     const cancelEditButton = document.getElementById('cancel-edit-button');
 

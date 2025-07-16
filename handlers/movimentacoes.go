@@ -378,21 +378,38 @@ func GetRelatorio(c *gin.Context) {
 // Form & API Handlers
 // =============================================================================
 
+// handlers/movimentacoes.go
+
 func AddMovimentacao(c *gin.Context) {
+	log.Println("--- EXECUTANDO AddMovimentacao ---")
 	userID := c.MustGet("userID").(int64)
 	mov, err := validateMovimentacao(c)
 	if err != nil {
 		renderErrorPage(c, http.StatusBadRequest, err.Error(), err)
 		return
 	}
-	query := fmt.Sprintf(`INSERT INTO %s (user_id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`, database.TableName)
-	reboundQuery := database.Rebind(query)
+
 	db := database.GetDB()
-	err = db.QueryRow(reboundQuery, userID, mov.DataOcorrencia, mov.Descricao, mov.Valor, mov.Categoria, mov.Conta, mov.Consolidado).Scan(&mov.ID)
+
+	// Lógica de inserção que funciona para PostgreSQL e SQLite
+	if database.DriverName == "postgres" {
+		query := fmt.Sprintf(`INSERT INTO %s (user_id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`, database.TableName)
+		err = db.QueryRow(query, userID, mov.DataOcorrencia, mov.Descricao, mov.Valor, mov.Categoria, mov.Conta, mov.Consolidado).Scan(&mov.ID)
+	} else { // Padrão para SQLite
+		query := fmt.Sprintf(`INSERT INTO %s (user_id, data_ocorrencia, descricao, valor, categoria, conta, consolidado) VALUES (?, ?, ?, ?, ?, ?, ?)`, database.TableName)
+		result, execErr := db.Exec(database.Rebind(query), userID, mov.DataOcorrencia, mov.Descricao, mov.Valor, mov.Categoria, mov.Conta, mov.Consolidado)
+		if execErr == nil {
+			lastID, _ := result.LastInsertId()
+			mov.ID = int(lastID)
+		}
+		err = execErr
+	}
+
 	if err != nil {
 		renderErrorPage(c, http.StatusInternalServerError, "Erro ao inserir os dados no banco de dados.", err)
 		return
 	}
+
 	if strings.Contains(c.GetHeader("Accept"), "application/json") {
 		c.JSON(http.StatusCreated, mov)
 	} else {
@@ -401,6 +418,7 @@ func AddMovimentacao(c *gin.Context) {
 }
 
 func UpdateMovimentacao(c *gin.Context) {
+    log.Println("--- EXECUTANDO UpdateMovimentacao ---") // <-- ADICIONE ESTA LINHA
 	userID := c.MustGet("userID").(int64)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
