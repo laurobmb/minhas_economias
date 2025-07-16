@@ -239,13 +239,20 @@ func GetTransacoesPage(c *gin.Context) {
 	selectedAccounts := c.QueryArray("account")
 	selectedValueFilter := c.Query("value_filter")
 
-	if selectedStartDate == "" && selectedEndDate == "" {
+	// --- INÍCIO DA CORREÇÃO ---
+	// Verifica se a requisição é para a API ou para a página web
+	isApiRequest := strings.Contains(c.GetHeader("Accept"), "application/json") || c.Request.URL.Path == "/api/movimentacoes"
+
+	// Aplica o filtro de data padrão SOMENTE se não for uma chamada de API
+	// e se nenhuma data tiver sido fornecida pelo usuário.
+	if !isApiRequest && selectedStartDate == "" && selectedEndDate == "" {
 		now := time.Now()
 		firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 		selectedStartDate = firstOfMonth.Format("2006-01-02")
 		lastOfMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location())
 		selectedEndDate = lastOfMonth.Format("2006-01-02")
 	}
+	// --- FIM DA CORREÇÃO ---
 
 	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s WHERE user_id = ?", database.TableName)
 	var args []interface{}
