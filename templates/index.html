@@ -1,7 +1,14 @@
 {{define "content"}}
     {{ if .SaldosContas }}
     <div class="p-2">
-        <h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200 text-center">Painel de Saldos</h2>
+        
+        <div class="mb-10 text-center p-6 rounded-xl bg-slate-50 dark:bg-slate-800/50 shadow-lg border-t-4 {{ if lt .SaldoGeral 0.0 }}border-red-500{{ else }}border-green-500{{ end }}">
+            <h2 class="text-xl font-semibold text-slate-600 dark:text-slate-400">Saldo Geral Atual</h2>
+            <p class="text-5xl font-extrabold mt-2 {{ if lt .SaldoGeral 0.0 }}text-red-600 dark:text-red-500{{ else }}text-gray-800 dark:text-gray-100{{ end }}">
+                R$ {{ printf "%.2f" .SaldoGeral }}
+            </p>
+        </div>
+        <h2 class="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200 text-center">Saldos por Conta</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {{ range .SaldosContas }}
             <div class="flex flex-col justify-between rounded-xl shadow-lg p-5 bg-slate-50 border-l-4 {{ if lt .SaldoAtual 0.0 }}border-red-500{{ else }}border-green-500{{ end }} transition-transform transform hover:-translate-y-1 dark:bg-slate-800/50">

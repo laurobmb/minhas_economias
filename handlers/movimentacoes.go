@@ -212,10 +212,17 @@ func GetIndexPage(c *gin.Context) {
 		renderErrorPage(c, http.StatusInternalServerError, "Não foi possível carregar os saldos das contas.", err)
 		return
 	}
+
+	var saldoGeral float64
+	for _, saldo := range saldosContas {
+		saldoGeral += saldo.SaldoAtual
+	}
+
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"Titulo":       "Minhas Economias - Saldos",
 		"SaldosContas": saldosContas,
-		"User":         user, // <-- NOVO: Passa o usuário para o template
+		"User":         user,
+		"SaldoGeral":   saldoGeral,
 	})
 }
 
