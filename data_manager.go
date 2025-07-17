@@ -126,15 +126,17 @@ func main() {
 	if *importMovimentacoes {
 		operacaoRealizada = true
 		log.Printf("Modo: Importação de movimentações para o Usuário ID: %d.\n", *userIdParam)
-		csvFiles := []string{
-			"csv/Extrato_20130101_20131231.csv", "csv/Extrato_20140101_20141231.csv",
-			"csv/Extrato_20150101_20151231.csv", "csv/Extrato_20160101_20161231.csv",
-			"csv/Extrato_20170101_20171231.csv", "csv/Extrato_20180101_20181231.csv",
-			"csv/Extrato_20190101_20191231.csv", "csv/Extrato_20200101_20201231.csv",
-			"csv/Extrato_20210101_20211231.csv", "csv/Extrato_20220101_20221231.csv",
-			"csv/Extrato_20230101_20231231.csv", "csv/Extrato_20240101_20241231.csv",
-			"csv/Extrato_20250101_20251231.csv",
-		}
+		// csvFiles := []string{
+		// 	"csv/Extrato_20130101_20131231.csv", "csv/Extrato_20140101_20141231.csv",
+		// 	"csv/Extrato_20150101_20151231.csv", "csv/Extrato_20160101_20161231.csv",
+		// 	"csv/Extrato_20170101_20171231.csv", "csv/Extrato_20180101_20181231.csv",
+		// 	"csv/Extrato_20190101_20191231.csv", "csv/Extrato_20200101_20201231.csv",
+		// 	"csv/Extrato_20210101_20211231.csv", "csv/Extrato_20220101_20221231.csv",
+		// 	"csv/Extrato_20230101_20231231.csv", "csv/Extrato_20240101_20241231.csv",
+		// 	"csv/Extrato_20250101_20251231.csv",
+		// }
+		
+		csvFiles := []string{ "csv/example.csv", }
 
 		for _, filename := range csvFiles {
 			log.Printf("\nProcessando arquivo: %s\n", filename)
