@@ -1,0 +1,72 @@
+#chat-box {
+    height: 60vh;
+    overflow-y: auto;
+}
+.chat-message {
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    max-width: 80%;
+    line-height: 1.6;
+    color: #333; /* Texto escuro padrão */
+}
+.user-message {
+    background-color: #3b82f6; /* Azul */
+    color: white; /* Texto branco para contraste */
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+}
+.ai-message {
+    background-color: #f1f5f9; /* Fundo claro para AI */
+    border: 1px solid #e2e8f0; /* Borda sutil */
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+    color: #333; /* Cor do texto para o modo claro */
+}
+
+/* === AJUSTES PARA DARK MODE === */
+.ai-message.dark {
+    background-color: #334155; /* Um cinza-azulado mais escuro para o fundo da AI no dark mode */
+    border-color: #475569; /* Borda um pouco mais clara */
+    color: #e2e8f0; /* Texto quase branco para alto contraste */
+}
+.ai-message.dark h1, .ai-message.dark h2, .ai-message.dark strong { 
+    color: #f8fafc; /* Títulos e negritos mais claros no dark mode */
+}
+.ai-message h1, .ai-message h2 { 
+    font-size: 1.25rem; 
+    font-weight: bold; 
+    margin-top: 1rem; 
+    margin-bottom: 0.5rem; 
+    color: #1a202c; /* Cor padrão para títulos no modo claro */
+}
+.ai-message ul { 
+    list-style-type: disc; 
+    margin-left: 20px; 
+}
+.ai-message strong { 
+    font-weight: bold; 
+    color: #1a202c; /* Cor padrão para negrito no modo claro */
+}
+
+/* Estilo para o prompt inicial "Analisando seus dados..." */
+#loading-indicator {
+    color: #6b7280; /* Um cinza médio para o modo claro */
+}
+/* Estilo para o prompt inicial "Analisando seus dados..." no dark mode */
+.dark #loading-indicator {
+    color: #94a3b8; /* Um cinza mais claro para o dark mode */
+}
+
+/* Garante que o texto dentro de elementos Markdown tenha a cor correta */
+.ai-message p, .ai-message li {
+    color: inherit; /* Herda a cor do .ai-message */
+}
+/* Pequeno ajuste para links se houver no markdown */
+.ai-message a {
+    color: #3b82f6; /* Cor de link azul, ajustável conforme seu tema */
+    text-decoration: underline;
+}
+.ai-message.dark a {
+    color: #93c5fd; /* Azul mais claro para dark mode */
+}

@@ -6,6 +6,7 @@ import (
 	"minhas_economias/database"
 	"minhas_economias/handlers"
 	"minhas_economias/investimentos"
+	"minhas_economias/gemini"
 
 	"os"
 	"path/filepath"
@@ -45,6 +46,10 @@ func main() {
 	}
 	defer database.CloseDB()
 
+	if err := gemini.InitClient(); err != nil {
+        log.Printf("AVISO: Não foi possível inicializar o cliente do Gemini AI. A funcionalidade de análise estará indisponível. Erro: %v", err)
+    }
+
 	r := gin.Default()
 	r.HTMLRender = createMyRender()
 	r.Static("/static", "./static")
@@ -64,6 +69,9 @@ func main() {
 		authorized.GET("/configuracoes", handlers.GetConfiguracoesPage)
 		authorized.GET("/investimentos", investimentos.GetInvestimentosPage)
 		authorized.POST("/logout", auth.PostLogout)
+
+		authorized.GET("/analise", handlers.GetAnalisePage)
+		authorized.POST("/api/analise/chat", handlers.PostAnaliseChat)
 
 		// API
 		authorized.GET("/api/movimentacoes", handlers.GetTransacoesPage)

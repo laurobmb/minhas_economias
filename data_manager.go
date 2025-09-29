@@ -61,7 +61,7 @@ func main() {
 	log.Println("Conectado ao banco de dados com sucesso.")
 
 	// --- 3. Definição das Queries de Criação de Tabelas ---
-	var createUsersTableSQL, createMovimentacoesTableSQL, createContasTableSQL, createUserProfilesTableSQL, createInvestNacionaisSQL, createInvestInternacionaisSQL string
+	var createUsersTableSQL, createMovimentacoesTableSQL, createContasTableSQL, createUserProfilesTableSQL, createInvestNacionaisSQL, createInvestInternacionaisSQL, createChatHistoryTableSQL string
 
 	if database.DriverName == "postgres" {
 		// CORREÇÃO: Trocado "id BIGINT PRIMARY KEY" por "id BIGSERIAL PRIMARY KEY"
@@ -72,6 +72,15 @@ func main() {
 		createUserProfilesTableSQL = `CREATE TABLE IF NOT EXISTS user_profiles (user_id BIGINT PRIMARY KEY, date_of_birth DATE, gender TEXT, marital_status TEXT, children_count INTEGER, country TEXT, state TEXT, city TEXT, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`
 		createInvestNacionaisSQL = `CREATE TABLE IF NOT EXISTS investimentos_nacionais (user_id BIGINT NOT NULL, ticker TEXT NOT NULL, tipo TEXT, quantidade INTEGER NOT NULL, PRIMARY KEY (user_id, ticker), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`
 		createInvestInternacionaisSQL = `CREATE TABLE IF NOT EXISTS investimentos_internacionais (user_id BIGINT NOT NULL, ticker TEXT NOT NULL, descricao TEXT, quantidade REAL NOT NULL, moeda TEXT, PRIMARY KEY (user_id, ticker), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`
+		createChatHistoryTableSQL = `CREATE TABLE IF NOT EXISTS chat_history (
+			id BIGSERIAL PRIMARY KEY,
+			user_id BIGINT NOT NULL,
+			role TEXT NOT NULL, -- 'user' ou 'ai'
+			content TEXT NOT NULL,
+			created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+		);`
+
 	} else { // Padrão para sqlite3
 		createUsersTableSQL = `CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, is_admin BOOLEAN DEFAULT FALSE, dark_mode_enabled BOOLEAN DEFAULT 0);`
 		createMovimentacoesTableSQL = fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, data_ocorrencia TEXT NOT NULL, descricao TEXT, valor REAL, categoria TEXT, conta TEXT, consolidado BOOLEAN DEFAULT FALSE, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`, tableName)
@@ -79,6 +88,14 @@ func main() {
 		createUserProfilesTableSQL = `CREATE TABLE IF NOT EXISTS user_profiles (user_id INTEGER PRIMARY KEY, date_of_birth TEXT, gender TEXT, marital_status TEXT, children_count INTEGER, country TEXT, state TEXT, city TEXT, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`
 		createInvestNacionaisSQL = `CREATE TABLE IF NOT EXISTS investimentos_nacionais (user_id INTEGER NOT NULL, ticker TEXT NOT NULL, tipo TEXT, quantidade INTEGER NOT NULL, PRIMARY KEY (user_id, ticker), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`
 		createInvestInternacionaisSQL = `CREATE TABLE IF NOT EXISTS investimentos_internacionais (user_id INTEGER NOT NULL, ticker TEXT NOT NULL, descricao TEXT, quantidade REAL NOT NULL, moeda TEXT, PRIMARY KEY (user_id, ticker), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);`
+		createChatHistoryTableSQL = `CREATE TABLE IF NOT EXISTS chat_history (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER NOT NULL,
+			role TEXT NOT NULL, -- 'user' ou 'ai'
+			content TEXT NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+		);`
 	}
 
 	// --- 4. Execução da Criação de Tabelas na Ordem Correta ---
@@ -100,6 +117,9 @@ func main() {
 	if _, err = db.Exec(createInvestInternacionaisSQL); err != nil {
 		log.Fatalf("Erro ao criar a tabela 'investimentos_internacionais': %v", err)
 	}
+	if _, err = db.Exec(createChatHistoryTableSQL); err != nil {
+		log.Fatalf("Erro ao criar a tabela 'chat_history': %v", err)
+	}	   
 	log.Println("Verificação/criação de todas as tabelas concluída.")
 
 	// --- 5. Lógica de Execução com Base nas Flags ---
@@ -126,17 +146,17 @@ func main() {
 	if *importMovimentacoes {
 		operacaoRealizada = true
 		log.Printf("Modo: Importação de movimentações para o Usuário ID: %d.\n", *userIdParam)
-		// csvFiles := []string{
-		// 	"csv/Extrato_20130101_20131231.csv", "csv/Extrato_20140101_20141231.csv",
-		// 	"csv/Extrato_20150101_20151231.csv", "csv/Extrato_20160101_20161231.csv",
-		// 	"csv/Extrato_20170101_20171231.csv", "csv/Extrato_20180101_20181231.csv",
-		// 	"csv/Extrato_20190101_20191231.csv", "csv/Extrato_20200101_20201231.csv",
-		// 	"csv/Extrato_20210101_20211231.csv", "csv/Extrato_20220101_20221231.csv",
-		// 	"csv/Extrato_20230101_20231231.csv", "csv/Extrato_20240101_20241231.csv",
-		// 	"csv/Extrato_20250101_20251231.csv",
-		// }
+		csvFiles := []string{
+			"csv/Extrato_20130101_20131231.csv", "csv/Extrato_20140101_20141231.csv",
+			"csv/Extrato_20150101_20151231.csv", "csv/Extrato_20160101_20161231.csv",
+			"csv/Extrato_20170101_20171231.csv", "csv/Extrato_20180101_20181231.csv",
+			"csv/Extrato_20190101_20191231.csv", "csv/Extrato_20200101_20201231.csv",
+			"csv/Extrato_20210101_20211231.csv", "csv/Extrato_20220101_20221231.csv",
+			"csv/Extrato_20230101_20231231.csv", "csv/Extrato_20240101_20241231.csv",
+			"csv/Extrato_20250101_20251231.csv",
+		}
 		
-		csvFiles := []string{ "csv/example.csv", }
+		// csvFiles := []string{ "csv/example.csv", }
 
 		for _, filename := range csvFiles {
 			log.Printf("\nProcessando arquivo: %s\n", filename)

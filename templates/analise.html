@@ -1,0 +1,33 @@
+{{define "head"}}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<link rel="stylesheet" href="/static/css/analise.css">
+
+{{end}}
+
+{{define "content"}}
+<div class="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-xl shadow-md">
+    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+        Análise Financeira com IA
+    </h2>
+
+    <div id="chat-box" class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg mb-4 custom-scrollbar">
+        {{ range .ChatHistory }}
+            <div class="chat-message {{ .Role }}-message {{ if and (eq .Role "ai") $.User.DarkModeEnabled }}dark{{ end }}" data-role="{{ .Role }}">
+                <div class="hidden-content" style="display:none;">{{ .Content }}</div>
+            </div>
+        {{ end }}
+    </div>
+
+    <form id="chat-form" class="flex items-center gap-4">
+        <input type="text" id="chat-input" class="text-input rounded-md w-full" placeholder="Faça uma pergunta sobre seus dados ou peça um resumo..." required>
+        <button type="submit" id="send-button" class="add-button rounded-md flex-shrink-0">
+            Enviar
+        </button>
+    </form>
+</div>
+{{end}}
+
+{{define "scripts"}}
+<script src="/static/js/analise.js" defer></script>
+{{end}}
