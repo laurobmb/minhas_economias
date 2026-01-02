@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/joho/godotenv"      // Importar o carregador de .env
 	_ "github.com/lib/pq"           // Driver PostgreSQL
 	_ "github.com/mattn/go-sqlite3" // Driver SQLite
 )
@@ -32,6 +33,15 @@ func getEnv(key, fallback string) string {
 // InitDB inicializa a conexão com o banco de dados com base na variável de ambiente DB_TYPE.
 func InitDB() (*sql.DB, error) {
 	// AJUSTE: Removemos o valor padrão. A variável DB_TYPE agora é obrigatória.
+
+	errEnv := godotenv.Load()
+	if errEnv != nil {
+		// Logamos apenas como aviso, pois em produção (Docker/K8s) o arquivo pode não existir.
+		log.Println("Aviso: Arquivo .env não encontrado, usando variáveis de ambiente do sistema.")
+	} else {
+		log.Println("Arquivo .env carregado com sucesso.")
+	}
+
 	DriverName = os.Getenv("DB_TYPE")
 	if DriverName == "" {
 		// Se a variável não for definida, o programa para com uma mensagem de erro clara.

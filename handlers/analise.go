@@ -4,12 +4,14 @@ import (
 	// "database/sql" // <-- REMOVIDO DAQUI
 	"fmt"
 	"log"
-	"minhas_economias/database"
-	"minhas_economias/gemini"
-	"minhas_economias/models"
 	"net/http"
 	"strings"
 	"time"
+
+	"minhas_economias/database"
+	"minhas_economias/gemini"
+	"minhas_economias/models"
+	"minhas_economias/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -33,6 +35,8 @@ func GetAnalisePage(c *gin.Context) {
 func PostAnaliseChat(c *gin.Context) {
 	userID := c.MustGet("userID").(int64)
 
+	middleware.AiConsultationsTotal.Inc()
+	
 	var requestBody struct {
 		Question string `json:"question"`
 	}

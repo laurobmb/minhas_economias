@@ -1,15 +1,12 @@
 package handlers
 
 import (
-	"bytes" // NOVO
+	"bytes"
 	"database/sql"
-	"encoding/csv" // NOVO
+	"encoding/csv"
 	"fmt"
 	"log"
 	"math"
-	"minhas_economias/database"
-	"minhas_economias/models"
-	"minhas_economias/pdfgenerator"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -17,6 +14,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"minhas_economias/database"
+	"minhas_economias/models"
+	"minhas_economias/pdfgenerator"
+	"minhas_economias/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -403,6 +405,8 @@ func AddMovimentacao(c *gin.Context) {
 		return
 	}
 
+	middleware.TransactionsCreated.Inc()
+
 	db := database.GetDB()
 
 	// Lógica de inserção que funciona para PostgreSQL e SQLite
@@ -592,6 +596,8 @@ func DownloadRelatorioPDF(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao gerar PDF: " + err.Error()})
 		return
 	}
+	middleware.ReportsGenerated.WithLabelValues("pdf").Inc()
+	
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", `attachment; filename="relatorio_financeiro.pdf"`)
 	if err := pdf.Output(c.Writer); err != nil {
@@ -764,6 +770,8 @@ func fetchAllTransactions(userID int64, startDate, endDate string, categories, a
 func ExportTransactionsCSV(c *gin.Context) {
 	log.Println("--- EXECUTANDO HANDLER: ExportTransactionsCSV ---")
 	userID := c.MustGet("userID").(int64)
+
+	middleware.ReportsGenerated.WithLabelValues("csv").Inc()
 
 	// 1. Reutiliza a lógica de filtragem da GetTransacoesPage
 	searchDescricao := c.Query("search_descricao")

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"      // Importar o carregador de .env
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -24,6 +25,14 @@ type DateExtractionResponse struct {
 
 // InitClient inicializa o cliente da API do Gemini de forma robusta.
 func InitClient() error {
+	errEnv := godotenv.Load()
+	if errEnv != nil {
+		// Logamos apenas como aviso, pois em produção (Docker/K8s) o arquivo pode não existir.
+		log.Println("Aviso: Arquivo .env não encontrado, usando variáveis de ambiente do sistema.")
+	} else {
+		log.Println("Arquivo .env carregado com sucesso.")
+	}
+
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		return fmt.Errorf("a variável de ambiente GEMINI_API_KEY não foi definida")

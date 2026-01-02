@@ -15,6 +15,23 @@ var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
 
 const maxAgeSeconds = 3600 * 24 * 7 // 7 dias
 
+// NOVO: Função para inicializar a store DEPOIS que o .env for carregado
+func InitSessionStore() {
+	key := os.Getenv("SESSION_KEY")
+	if key == "" {
+		log.Fatal("ERRO CRÍTICO: SESSION_KEY não foi definida no ambiente ou .env")
+	}
+	store = sessions.NewCookieStore([]byte(key))
+    
+    // Configurações opcionais de segurança do cookie
+    store.Options = &sessions.Options{
+        Path:     "/",
+        MaxAge:   maxAgeSeconds,
+        HttpOnly: true,
+        // Secure: true, // Descomente em produção com HTTPS
+    }
+}
+
 // GetLoginPage renderiza a página de login.
 func GetLoginPage(c *gin.Context) {
 	// Pega mensagens "flash" (de sucesso ou erro) da sessão, se houver
