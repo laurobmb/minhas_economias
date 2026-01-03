@@ -67,6 +67,7 @@ func main() {
 
 	r := gin.Default()
 	r.Use(middleware.PrometheusMiddleware())
+	r.Use(middleware.AuditLogger())
 	r.HTMLRender = createMyRender()
 	r.Static("/static", "./static")
 

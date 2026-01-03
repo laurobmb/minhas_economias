@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: minhaseconomias-api
+    image: quay.io/lagomes/minhaseconomias-api:${TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      - ./csv:/app/csv:Z  # Mapeia seus dados pessoais apenas em tempo de execução
+      - ./xls:/app/xls:Z    
+    environment:
+      - GIN_MODE=release
+      - PORT=8080
+      - TZ=America/Sao_Paulo
+      # Conexão com o Banco de Dados
+      - DB_TYPE=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=me
+      - DB_PASS=1q2w3e
+      - DB_NAME=minhas_economias
+      # Segurança e IA
+      - SESSION_KEY=${SESSION_KEY:-7GzBL5wGuFk2kAItSUpUAI5IQq7RV4URFRGAJC3CVBU=}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy # Aguarda o banco estar pronto para conexões
+
+  db:
+    image: postgres:15-alpine
+    container_name: minhaseconomias-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=me
+      - POSTGRES_PASSWORD=1q2w3e
+      - POSTGRES_DB=minhas_economias
+      - TZ=America/Sao_Paulo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U me -d minhas_economias"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: minhaseconomias-prometheus
+    restart: unless-stopped
+    user: root
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:Z
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: minhaseconomias-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:Z
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:Z
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  caddy:
+    image: caddy:alpine
+    container_name: minhaseconomias-caddy
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:Z
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+  caddy_data:
+  caddy_config:

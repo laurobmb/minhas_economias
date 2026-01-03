@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"database/sql"
 	"strconv"
 	"time"
 
@@ -9,64 +10,91 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-// --- Métricas de Negócio (Exportadas para usar nos Handlers) ---
+var (
+	// --- Métricas de Negócio ---
 
-// Contador de Movimentações (Receitas/Despesas) criadas
-var TransactionsCreated = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "minhas_economias_transactions_created_total",
-	Help: "Total de movimentações financeiras cadastradas",
-})
+	TransactionsCreated = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "minhas_economias_transactions_created_total",
+		Help: "Total de movimentações financeiras cadastradas",
+	})
 
-// Contador de Investimentos criados (com label de tipo: nacional/internacional)
-var InvestmentsCreated = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: "minhas_economias_investments_created_total",
-	Help: "Total de ativos de investimento cadastrados",
-}, []string{"scope"}) // scope = "nacional" ou "internacional"
+	InvestmentsCreated = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "minhas_economias_investments_created_total",
+		Help: "Total de ativos de investimento cadastrados",
+	}, []string{"scope"})
 
-// Contador de Relatórios Gerados
-var ReportsGenerated = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: "minhas_economias_reports_generated_total",
-	Help: "Total de relatórios gerados/baixados",
-}, []string{"type"}) // type = "pdf" ou "csv"
+	ReportsGenerated = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "minhas_economias_reports_generated_total",
+		Help: "Total de relatórios gerados/baixados",
+	}, []string{"type"})
 
-// Contador de Consultas à IA (Gemini)
-var AiConsultationsTotal = promauto.NewCounter(prometheus.CounterOpts{
-	Name: "minhas_economias_ai_consultations_total",
-	Help: "Total de perguntas enviadas para a análise de IA",
-})
+	AiConsultationsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "minhas_economias_ai_consultations_total",
+		Help: "Total de perguntas enviadas para a análise de IA",
+	})
 
-// --- Métricas HTTP Padrão (Internas do Middleware) ---
+	// --- Métricas de Resiliência e Segurança (Novas) ---
 
-var httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-	Name:    "http_request_duration_seconds",
-	Help:    "Duração das requisições HTTP em segundos",
-	Buckets: prometheus.DefBuckets,
-}, []string{"path", "method", "status"})
+	AuthFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "minhas_economias_auth_failures_total",
+		Help: "Total de falhas de login (possível brute force)",
+	})
 
-var httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
-	Name: "http_requests_total",
-	Help: "Total de requisições HTTP recebidas",
-}, []string{"path", "method", "status"})
+	ScrapingErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "minhas_economias_scraping_errors_total",
+		Help: "Total de erros ao buscar cotações externas",
+	}, []string{"provider"}) // "yahoo", "fundamentus"
 
-// PrometheusMiddleware intercepta todas as requisições para gerar métricas de latência e contagem
+	AiResponseDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "minhas_economias_ai_duration_seconds",
+		Help:    "Tempo de resposta da API do Gemini",
+		Buckets: []float64{0.5, 1, 2, 5, 10, 20},
+	})
+
+	DbOpenConnections = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "minhas_economias_db_connections_active",
+		Help: "Número de conexões abertas no pool do Postgres",
+	})
+
+	// --- Métricas HTTP Internas ---
+
+	httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "http_request_duration_seconds",
+		Help:    "Duração das requisições HTTP em segundos",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"path", "method", "status"})
+
+	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "http_requests_total",
+		Help: "Total de requisições HTTP recebidas",
+	}, []string{"path", "method", "status"})
+)
+
+// RecordDbStats deve ser chamado via goroutine no main.go para atualizar o Gauge do DB
+func RecordDbStats(db *sql.DB) {
+	go func() {
+		for {
+			stats := db.Stats()
+			DbOpenConnections.Set(float64(stats.InUse))
+			time.Sleep(10 * time.Second)
+		}
+	}()
+}
+
 func PrometheusMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
-
-		// Executa a requisição
 		c.Next()
 
-		// Coleta dados após a execução
 		path := c.FullPath()
 		if path == "" {
-			path = "not_found" // Evita alta cardinalidade em 404s aleatórios
+			path = "not_found"
 		}
 
 		status := strconv.Itoa(c.Writer.Status())
 		method := c.Request.Method
 		duration := time.Since(start).Seconds()
 
-		// Registra nos coletores do Prometheus
 		httpRequestsTotal.WithLabelValues(path, method, status).Inc()
 		httpDuration.WithLabelValues(path, method, status).Observe(duration)
 	}

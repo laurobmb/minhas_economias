@@ -19,7 +19,7 @@ endif
 # 💻 DESENVOLVIMENTO LOCAL
 # ==========================================
 
-.PHONY: all build build-cli build-converter run test clean help
+.PHONY: all build build-cli build-converter run test clean help up down clean-data logs setup-prod
 
 all: clean build build-cli build-converter
 
@@ -36,7 +36,6 @@ build-cli:
 # 3. Compila o Conversor XLS -> CSV
 build-converter:
 	@echo "🔨 Compilando Conversor XLS..."
-	# CGO pode ser 0 aqui se não usar sqlite no conversor, mas deixamos 1 por segurança
 	CGO_ENABLED=1 go build -o $(CONVERTER_NAME)$(EXT) ./cmd/converter
 
 # Roda a API localmente
@@ -83,28 +82,19 @@ build-windows:
 # 🛠️ COMANDOS DE UTILIDADE (ADMINISTRADOR)
 # ==========================================
 
-# Converte XLS para CSV
-# Uso: make cli-convert
 cli-convert: build-converter
 	@echo "📊 Convertendo arquivos XLS em 'xls/' para CSV em 'csv/'..."
 	./$(CONVERTER_NAME)$(EXT) -input xls -output csv
 
-# Inicializa Tabelas
 cli-init: build-cli
 	./$(CLI_NAME)$(EXT) -init-db
 
-# Cria Admin
 cli-create-admin: build-cli
 	./$(CLI_NAME)$(EXT) -create-user -email "admin@localnet.com" -password "1q2w3e" -admin=true -user-id 1
 
-# Cria Usuário Comum
 cli-create-user: build-cli
 	./$(CLI_NAME)$(EXT) -create-user -email "lauro@localnet.com" -password "1q2w3e" -admin=false -user-id 2
-	./$(CLI_NAME)$(EXT) -create-user -email "liz@localnet.com" -password "1q2w3e" -admin=false -user-id 3
-	./$(CLI_NAME)$(EXT) -create-user -email "camila@localnet.com" -password "1q2w3e" -admin=false -user-id 4
-	./$(CLI_NAME)$(EXT) -create-user -email "pguel@localnet.com" -password "1q2w3e" -admin=false -user-id 5
 
-# Importa Dados (Após conversão)
 cli-import: build-cli
 	@if [ -z "$(USER_ID)" ]; then \
 		echo "❌ Erro: Defina o ID. Ex: make cli-import USER_ID=2"; \
@@ -112,8 +102,82 @@ cli-import: build-cli
 		./$(CLI_NAME)$(EXT) -import -import-nacionais -import-internacionais -user-id $(USER_ID); \
 	fi
 
-# Setup completo de desenvolvimento (Converte -> Cria Banco -> Cria Users -> Importa)
 dev-setup: cli-convert cli-init cli-create-admin cli-create-user
 	@echo "⚡ Setup inicial..."
 	$(MAKE) cli-import USER_ID=2
 	@echo "✅ Ambiente pronto!"
+
+# ==========================================
+# 🐙 PODMAN / DOCKER & PRODUÇÃO
+# ==========================================
+
+up:
+	@echo "🐙 Subindo stack com $(CONTAINER_TOOL) compose..."
+	$(CONTAINER_TOOL) compose up -d --build
+	@echo "✅ Stack rodando! Bancos e métricas ativos."
+
+down:
+	@echo "🛑 Parando containers..."
+	$(CONTAINER_TOOL) compose down
+
+clean-data:
+	@echo "🔥 Apagando tudo (Volumes)..."
+	$(CONTAINER_TOOL) compose down -v
+
+logs:
+	$(CONTAINER_TOOL) compose logs -f app
+
+# ==========================================
+# ⚙️ SETUP AUTOMATIZADO (DENTRO DO CONTAINER)
+# ==========================================
+
+setup-prod:
+	@echo "⏳ Aguardando containers estabilizarem (5s)..."
+	@sleep 5
+	
+	@echo "🛠️  [1/3] Inicializando Schema no Postgres..."
+	$(CONTAINER_TOOL) compose exec app ./admin-cli -init-db
+	
+	@echo "👤 [2/3] Criando Usuário Admin..."
+	$(CONTAINER_TOOL) compose exec app ./admin-cli -create-user -email="admin@localnet.com" -password="1q2w3e" -admin=true -user-id=1
+	
+	@echo "👤 [3/3] Criando Usuário Principal e Importando Dados..."
+	$(CONTAINER_TOOL) compose exec app ./admin-cli -create-user -email="lauro@localnet.com" -password="1q2w3e" -admin=false -user-id=2
+	$(CONTAINER_TOOL) compose exec app ./admin-cli -import -import-nacionais -import-internacionais -user-id=2
+	
+	@echo "✅ Setup em container concluído com sucesso!"
+
+help:
+	@echo "========================================================================"
+	@echo "                   SISTEMA MINHAS ECONOMIAS - MAKEFILE                  "
+	@echo "========================================================================"
+	@echo "Uso: make [comando]"
+	@echo ""
+	@echo "🌐 DESENVOLVIMENTO LOCAL"
+	@echo "  build            - Compila o binário da API"
+	@echo "  build-cli        - Compila a CLI de administração"
+	@echo "  build-converter  - Compila o conversor de arquivos XLS"
+	@echo "  run              - Compila e executa a API localmente"
+	@echo "  test             - Executa a suíte de testes unitários"
+	@echo "  clean            - Remove binários e diretórios de build"
+	@echo ""
+	@echo "📦 RELEASE (CROSS-PLATFORM)"
+	@echo "  build-linux      - Gera release tar.gz para Linux (amd64)"
+	@echo "  build-windows    - Gera release .zip para Windows (amd64)"
+	@echo ""
+	@echo "🛠️  ADMINISTRAÇÃO (CLI LOCAL)"
+	@echo "  cli-convert      - Converte planilhas XLS em 'xls/' para CSV em 'csv/'"
+	@echo "  cli-init         - Inicializa as tabelas do banco de dados (Schema)"
+	@echo "  cli-create-admin - Cria o usuário administrador padrão (ID 1)"
+	@echo "  cli-create-user  - Cria o usuário comum (Lauro - ID 2)"
+	@echo "  cli-import       - Importa CSVs para o DB (Uso: make cli-import USER_ID=X)"
+	@echo "  dev-setup        - Fluxo completo: Converte, Inicia DB, Cria Users e Importa"
+	@echo ""
+	@echo "🐳 OPERAÇÃO VIA CONTAINER ($(CONTAINER_TOOL))"
+	@echo "  up               - Sobe a stack completa (API, DB, Observabilidade) em background"
+	@echo "  down             - Para e remove os containers da stack"
+	@echo "  logs             - Segue os logs do container da aplicação"
+	@echo "  clean-data       - Para a stack e APAGA todos os volumes/dados (CUIDADO)"
+	@echo "  setup-prod       - Executa migrações e popula dados iniciais DENTRO do container"
+	@echo ""
+	@echo "========================================================================"

@@ -1,0 +1,17 @@
+app.minhaseconomias.com.br {
+    # Ajustado para 'app' que é o nome do serviço no seu compose.yml
+    reverse_proxy app:8080
+
+    # Compressão para melhorar performance (ótimo para os assets/estáticos)
+    encode gzip zstd
+
+    # Mantido internal para seu lab/home office
+    tls internal
+
+    log {
+        output file /data/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}

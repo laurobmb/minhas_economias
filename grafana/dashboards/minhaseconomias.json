@@ -1,0 +1,99 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "💰 Negócio & IA",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "id": 1,
+      "title": "Transações Totais",
+      "targets": [{ "expr": "minhas_economias_transactions_created_total" }],
+      "type": "stat",
+      "options": { "colorMode": "value", "textMode": "value" }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "title": "Consultas IA (Gemini)",
+      "targets": [{ "expr": "minhas_economias_ai_consultations_total" }],
+      "type": "stat",
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "purple", "mode": "fixed" } } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 1 },
+      "id": 3,
+      "title": "Latência Média IA (Gemini)",
+      "targets": [{ "expr": "rate(minhas_economias_ai_duration_seconds_sum[5m]) / rate(minhas_economias_ai_duration_seconds_count[5m])" }],
+      "type": "gauge",
+      "fieldConfig": { "defaults": { "unit": "s", "max": 30 } }
+    },
+    {
+      "title": "🛡️ Segurança & Estabilidade",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 7 },
+      "id": 4,
+      "title": "Falhas de Login (Potencial Ataque)",
+      "targets": [{ "expr": "rate(minhas_economias_auth_failures_total[1h])" }],
+      "type": "timeseries",
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.01 }] } } }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 7 },
+      "id": 5,
+      "title": "Erros de Scraping (Yahoo/Fundamentus)",
+      "targets": [{ "expr": "sum by (provider) (rate(minhas_economias_scraping_errors_total[5m]))", "legendFormat": "{{provider}}" }],
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 },
+      "id": 6,
+      "title": "Conexões DB em Uso",
+      "targets": [{ "expr": "minhas_economias_db_connections_active" }],
+      "type": "stat"
+    },
+    {
+      "title": "⚡ Performance API",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 }
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 7,
+      "title": "Tráfego HTTP por Rota",
+      "targets": [{ "expr": "sum by (path) (rate(http_requests_total[5m]))", "legendFormat": "{{path}}" }],
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 8,
+      "title": "Latência P95 (API)",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, path))", "legendFormat": "{{path}}" }],
+      "type": "timeseries",
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "title": "Minhas Economias - SRE & Business Dashboard",
+  "uid": "fin-sre-2025"
+}
