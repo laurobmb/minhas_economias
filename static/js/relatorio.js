@@ -130,7 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     search_descricao: reportFilterForm.search_descricao.value,
                     start_date: reportFilterForm.start_date.value,
                     end_date: reportFilterForm.end_date.value,
-                    categories: Array.from(reportFilterForm.querySelectorAll('input[name="category"]:checked')).map(cb => cb.value),
+
+                    categories: Array.from(reportFilterForm.querySelectorAll('input[name="category"]:checked')).map(cb => cb.value).filter(val => val.trim() !== ""),
+
                     accounts: Array.from(reportFilterForm.querySelectorAll('input[name="account"]:checked')).map(cb => cb.value),
                     consolidated_filter: reportFilterForm.consolidated_filter.value,
                     chartImageBase64: expensesPieChartInstance.toBase64Image()

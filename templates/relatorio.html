@@ -9,8 +9,13 @@
             <div class="custom-select-container">
                 <div class="select-selected rounded-md" id="category-select-display">Todas as Categorias</div>
                 <div class="select-items select-hide" id="category-select-options">
-                    {{- range .Categories -}}
-                    <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="checkbox" name="category" value="{{.}}" class="custom-checkbox" {{- range $.SelectedCategories -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
+                    {{- range $cat := .Categories -}}
+                        <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600">
+                            <input type="checkbox" name="category" value="{{$cat}}" class="custom-checkbox"
+                            {{- range $.SelectedCategories -}}
+                                {{- if eq . $cat -}}checked{{- end -}}
+                            {{- end -}}> {{$cat}}
+                        </label>
                     {{- end -}}
                 </div>
             </div>
@@ -24,8 +29,13 @@
             <div class="custom-select-container">
                 <div class="select-selected rounded-md" id="account-select-display">Todas as Contas</div>
                 <div class="select-items select-hide" id="account-select-options">
-                    {{- range .Accounts -}}
-                    <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600"><input type="checkbox" name="account" value="{{.}}" class="custom-checkbox" {{- range $.SelectedAccounts -}}{{- if eq . $.Value -}}checked{{- end -}}{{- end -}}> {{.}}</label>
+                    {{- range $acc := .Accounts -}}
+                        <label class="select-item-label dark:text-slate-200 dark:hover:bg-slate-600">
+                            <input type="checkbox" name="account" value="{{$acc}}" class="custom-checkbox"
+                            {{- range $.SelectedAccounts -}}
+                                {{- if eq . $acc -}}checked{{- end -}}
+                            {{- end -}}> {{$acc}}
+                        </label>
                     {{- end -}}
                 </div>
             </div>

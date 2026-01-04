@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"minhas_economias/database"
+	"minhas_economias/middleware"
+	"minhas_economias/models"
+	"minhas_economias/pdfgenerator"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -14,11 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"minhas_economias/database"
-	"minhas_economias/models"
-	"minhas_economias/pdfgenerator"
-	"minhas_economias/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -124,13 +123,6 @@ func bindAndQuery(userID int64, query string, args ...interface{}) (*sql.Rows, e
 	return db.Query(reboundQuery, finalArgs...)
 }
 
-func bindAndExec(userID int64, query string, args ...interface{}) (sql.Result, error) {
-	db := database.GetDB()
-	finalArgs := append([]interface{}{userID}, args...)
-	reboundQuery := database.Rebind(query)
-	return db.Exec(reboundQuery, finalArgs...)
-}
-
 func scanDate(rawData interface{}) string {
 	if rawData == nil {
 		return ""
@@ -205,9 +197,8 @@ func validateMovimentacao(c *gin.Context) (models.Movimentacao, error) {
 // =============================================================================
 
 func GetIndexPage(c *gin.Context) {
-	log.Println("--- EXECUTANDO HANDLER: GetIndexPage para a rota / ---")
 	userID := c.MustGet("userID").(int64)
-	user := c.MustGet("user").(*models.User) // <-- NOVO: Pega o usuário do contexto
+	user := c.MustGet("user").(*models.User)
 
 	saldosContas, err := calculateAccountBalances(userID)
 	if err != nil {
@@ -229,7 +220,6 @@ func GetIndexPage(c *gin.Context) {
 }
 
 func GetTransacoesPage(c *gin.Context) {
-	log.Println("--- EXECUTANDO HANDLER: GetTransacoesPage para a rota /transacoes ---") // <-- LOG DE DIAGNÓSTICO
 	userID := c.MustGet("userID").(int64)
 	user := c.MustGet("user").(*models.User)
 
@@ -241,12 +231,8 @@ func GetTransacoesPage(c *gin.Context) {
 	selectedAccounts := c.QueryArray("account")
 	selectedValueFilter := c.Query("value_filter")
 
-	// --- INÍCIO DA CORREÇÃO ---
-	// Verifica se a requisição é para a API ou para a página web
 	isApiRequest := strings.Contains(c.GetHeader("Accept"), "application/json") || c.Request.URL.Path == "/api/movimentacoes"
 
-	// Aplica o filtro de data padrão SOMENTE se não for uma chamada de API
-	// e se nenhuma data tiver sido fornecida pelo usuário.
 	if !isApiRequest && selectedStartDate == "" && selectedEndDate == "" {
 		now := time.Now()
 		firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
@@ -254,11 +240,11 @@ func GetTransacoesPage(c *gin.Context) {
 		lastOfMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location())
 		selectedEndDate = lastOfMonth.Format("2006-01-02")
 	}
-	// --- FIM DA CORREÇÃO ---
 
 	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s WHERE user_id = ?", database.TableName)
 	var args []interface{}
 	var whereClauses []string
+
 	if searchDescricao != "" {
 		clause := "descricao LIKE ?"
 		if database.DriverName == "postgres" {
@@ -267,20 +253,39 @@ func GetTransacoesPage(c *gin.Context) {
 		whereClauses = append(whereClauses, clause)
 		args = append(args, "%"+searchDescricao+"%")
 	}
-	if len(selectedCategories) > 0 && selectedCategories[0] != "" {
-		placeholders := strings.Repeat("?,", len(selectedCategories)-1) + "?"
+
+	// --- CORREÇÃO: Filtragem Robustecida para Categorias ---
+	var validCategories []string
+	for _, cat := range selectedCategories {
+		if strings.TrimSpace(cat) != "" {
+			validCategories = append(validCategories, cat)
+		}
+	}
+	if len(validCategories) > 0 {
+		placeholders := strings.Repeat("?,", len(validCategories)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("categoria IN (%s)", placeholders))
-		for _, v := range selectedCategories {
+		for _, v := range validCategories {
 			args = append(args, v)
 		}
 	}
-	if len(selectedAccounts) > 0 && selectedAccounts[0] != "" {
-		placeholders := strings.Repeat("?,", len(selectedAccounts)-1) + "?"
+	// --------------------------------------------------------
+
+	// --- CORREÇÃO: Filtragem Robustecida para Contas ---
+	var validAccounts []string
+	for _, acc := range selectedAccounts {
+		if strings.TrimSpace(acc) != "" {
+			validAccounts = append(validAccounts, acc)
+		}
+	}
+	if len(validAccounts) > 0 {
+		placeholders := strings.Repeat("?,", len(validAccounts)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", placeholders))
-		for _, v := range selectedAccounts {
+		for _, v := range validAccounts {
 			args = append(args, v)
 		}
 	}
+	// ----------------------------------------------------
+
 	if selectedStartDate != "" {
 		whereClauses = append(whereClauses, "data_ocorrencia >= ?")
 		args = append(args, selectedStartDate)
@@ -354,7 +359,6 @@ func GetTransacoesPage(c *gin.Context) {
 }
 
 func GetRelatorio(c *gin.Context) {
-	log.Println("--- EXECUTANDO HANDLER: GetRelatorio para a rota /relatorio ---") // <-- LOG DE DIAGNÓSTICO
 	userID := c.MustGet("userID").(int64)
 	user := c.MustGet("user").(*models.User)
 
@@ -394,10 +398,7 @@ func GetRelatorio(c *gin.Context) {
 // Form & API Handlers
 // =============================================================================
 
-// handlers/movimentacoes.go
-
 func AddMovimentacao(c *gin.Context) {
-	log.Println("--- EXECUTANDO AddMovimentacao ---")
 	userID := c.MustGet("userID").(int64)
 	mov, err := validateMovimentacao(c)
 	if err != nil {
@@ -436,7 +437,6 @@ func AddMovimentacao(c *gin.Context) {
 }
 
 func UpdateMovimentacao(c *gin.Context) {
-    log.Println("--- EXECUTANDO UpdateMovimentacao ---") // <-- ADICIONE ESTA LINHA
 	userID := c.MustGet("userID").(int64)
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -450,19 +450,13 @@ func UpdateMovimentacao(c *gin.Context) {
 		return
 	}
 
-	// Consulta SQL com placeholders corretos para o driver
 	query := fmt.Sprintf(`UPDATE %s SET data_ocorrencia = ?, descricao = ?, valor = ?, categoria = ?, conta = ?, consolidado = ? WHERE id = ? AND user_id = ?`, database.TableName)
 	reboundQuery := database.Rebind(query)
-
-	// Obtém a conexão com o banco de dados
 	db := database.GetDB()
 
-	// Executa a consulta diretamente com os argumentos NA ORDEM CORRETA
-	// Nota: `id` e `userID` são os últimos, correspondendo a `id = ?` e `user_id = ?`
 	_, err = db.Exec(reboundQuery, mov.DataOcorrencia, mov.Descricao, mov.Valor, mov.Categoria, mov.Conta, mov.Consolidado, id, userID)
 
 	if err != nil {
-		// O log do erro original é muito útil aqui
 		renderErrorPage(c, http.StatusInternalServerError, "Erro ao atualizar os dados.", err)
 		return
 	}
@@ -478,13 +472,10 @@ func DeleteMovimentacao(c *gin.Context) {
 		return
 	}
 
-	// Query com a ordem correta dos placeholders
 	query := fmt.Sprintf("DELETE FROM %s WHERE id = ? AND user_id = ?", database.TableName)
 	reboundQuery := database.Rebind(query)
-
 	db := database.GetDB()
 
-	// Executa diretamente, passando os argumentos na ordem correta: primeiro o `id`, depois o `userID`
 	_, err = db.Exec(reboundQuery, id, userID)
 
 	if err != nil {
@@ -504,6 +495,7 @@ func GetTransactionsByCategory(c *gin.Context) {
 	selectedEndDate := c.Query("end_date")
 	selectedConsolidado := c.Query("consolidated_filter")
 	selectedAccounts := c.QueryArray("account")
+
 	if selectedStartDate == "" && selectedEndDate == "" {
 		now := time.Now()
 		firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
@@ -511,64 +503,21 @@ func GetTransactionsByCategory(c *gin.Context) {
 		lastOfMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location())
 		selectedEndDate = lastOfMonth.Format("2006-01-02")
 	}
-	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s WHERE user_id = ?", database.TableName)
-	var args []interface{}
-	var whereClauses []string
-	whereClauses = append(whereClauses, "categoria = ?")
-	args = append(args, category)
-	whereClauses = append(whereClauses, "valor < 0")
-	if searchDescricao != "" {
-		clause := "descricao LIKE ?"
-		if database.DriverName == "postgres" {
-			clause = "descricao ILIKE ?"
-		}
-		whereClauses = append(whereClauses, clause)
-		args = append(args, "%"+searchDescricao+"%")
+
+	// Wrapper para usar a lógica robusta
+	categories := []string{}
+	if category != "" {
+		categories = append(categories, category)
 	}
-	if len(selectedAccounts) > 0 && selectedAccounts[0] != "" {
-		placeholders := strings.Repeat("?,", len(selectedAccounts)-1) + "?"
-		whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", placeholders))
-		for _, v := range selectedAccounts {
-			args = append(args, v)
-		}
-	}
-	if selectedStartDate != "" {
-		whereClauses = append(whereClauses, "data_ocorrencia >= ?")
-		args = append(args, selectedStartDate)
-	}
-	if selectedEndDate != "" {
-		whereClauses = append(whereClauses, "data_ocorrencia <= ?")
-		args = append(args, selectedEndDate)
-	}
-	if selectedConsolidado != "" {
-		if b, err := strconv.ParseBool(selectedConsolidado); err == nil {
-			whereClauses = append(whereClauses, "consolidado = ?")
-			args = append(args, b)
-		}
-	}
-	if len(whereClauses) > 0 {
-		query += " AND " + strings.Join(whereClauses, " AND ")
-	}
-	query += " ORDER BY data_ocorrencia DESC"
-	rows, err := bindAndQuery(userID, query, args...)
+
+	// OBS: Esta função específica filtra apenas "valor < 0" (despesas) pois é usada no drill-down do gráfico de despesas
+	// Então passamos um filtro de busca específico se necessário, mas o fetchAllTransactions já aceita tudo.
+	// Porém, o fetchAllTransactions padrão tem um "AND valor < 0" hardcoded. Vamos verificar.
+	// Sim, fetchAllTransactions força "valor < 0". Então podemos reutilizá-la.
+
+	transactions, err := fetchAllTransactions(userID, selectedStartDate, selectedEndDate, categories, selectedAccounts, selectedConsolidado, searchDescricao)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar transações: " + err.Error()})
-		return
-	}
-	defer rows.Close()
-	var transactions []models.Movimentacao
-	for rows.Next() {
-		var mov models.Movimentacao
-		var rawData interface{}
-		if err := rows.Scan(&mov.ID, &rawData, &mov.Descricao, &mov.Valor, &mov.Categoria, &mov.Conta, &mov.Consolidado); err != nil {
-			log.Printf("Erro ao escanear transação: %v", err)
-			continue
-		}
-		mov.DataOcorrencia = scanDate(rawData)
-		transactions = append(transactions, mov)
-	}
-	if err = rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro na iteração: " + err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, transactions)
@@ -597,7 +546,7 @@ func DownloadRelatorioPDF(c *gin.Context) {
 		return
 	}
 	middleware.ReportsGenerated.WithLabelValues("pdf").Inc()
-	
+
 	c.Header("Content-Type", "application/pdf")
 	c.Header("Content-Disposition", `attachment; filename="relatorio_financeiro.pdf"`)
 	if err := pdf.Output(c.Writer); err != nil {
@@ -653,20 +602,39 @@ func fetchReportData(userID int64, startDate, endDate string, categories, accoun
 		whereClauses = append(whereClauses, "descricao LIKE ?")
 		args = append(args, "%"+searchDescricao+"%")
 	}
-	if len(categories) > 0 && categories[0] != "" {
-		placeholders := strings.Repeat("?,", len(categories)-1) + "?"
+
+	// --- CORREÇÃO: Filtragem Robustecida para Categorias ---
+	var validCategories []string
+	for _, c := range categories {
+		if strings.TrimSpace(c) != "" {
+			validCategories = append(validCategories, c)
+		}
+	}
+	if len(validCategories) > 0 {
+		placeholders := strings.Repeat("?,", len(validCategories)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("categoria IN (%s)", placeholders))
-		for _, v := range categories {
+		for _, v := range validCategories {
 			args = append(args, v)
 		}
 	}
-	if len(accounts) > 0 && accounts[0] != "" {
-		placeholders := strings.Repeat("?,", len(accounts)-1) + "?"
+	// ----------------------------------------------------
+
+	// --- CORREÇÃO: Filtragem Robustecida para Contas ---
+	var validAccounts []string
+	for _, a := range accounts {
+		if strings.TrimSpace(a) != "" {
+			validAccounts = append(validAccounts, a)
+		}
+	}
+	if len(validAccounts) > 0 {
+		placeholders := strings.Repeat("?,", len(validAccounts)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", placeholders))
-		for _, v := range accounts {
+		for _, v := range validAccounts {
 			args = append(args, v)
 		}
 	}
+	// ----------------------------------------------------
+
 	if startDate != "" {
 		whereClauses = append(whereClauses, "data_ocorrencia >= ?")
 		args = append(args, startDate)
@@ -706,25 +674,45 @@ func fetchAllTransactions(userID int64, startDate, endDate string, categories, a
 	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s WHERE user_id = ?", database.TableName)
 	var args []interface{}
 	var whereClauses []string
-	whereClauses = append(whereClauses, "valor < 0")
+	whereClauses = append(whereClauses, "valor < 0") // Força apenas despesas para o relatório
+
 	if searchDescricao != "" {
 		whereClauses = append(whereClauses, "descricao LIKE ?")
 		args = append(args, "%"+searchDescricao+"%")
 	}
-	if len(categories) > 0 && categories[0] != "" {
-		placeholders := strings.Repeat("?,", len(categories)-1) + "?"
+
+	// --- CORREÇÃO: Filtragem Robustecida para Categorias (Correção para o PDF) ---
+	var validCategories []string
+	for _, c := range categories {
+		if strings.TrimSpace(c) != "" {
+			validCategories = append(validCategories, c)
+		}
+	}
+	if len(validCategories) > 0 {
+		placeholders := strings.Repeat("?,", len(validCategories)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("categoria IN (%s)", placeholders))
-		for _, v := range categories {
+		for _, v := range validCategories {
 			args = append(args, v)
 		}
 	}
-	if len(accounts) > 0 && accounts[0] != "" {
-		placeholders := strings.Repeat("?,", len(accounts)-1) + "?"
+	// --------------------------------------------------------------------------
+
+	// --- CORREÇÃO: Filtragem Robustecida para Contas ---
+	var validAccounts []string
+	for _, a := range accounts {
+		if strings.TrimSpace(a) != "" {
+			validAccounts = append(validAccounts, a)
+		}
+	}
+	if len(validAccounts) > 0 {
+		placeholders := strings.Repeat("?,", len(validAccounts)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", placeholders))
-		for _, v := range accounts {
+		for _, v := range validAccounts {
 			args = append(args, v)
 		}
 	}
+	// ----------------------------------------------------
+
 	if startDate != "" {
 		whereClauses = append(whereClauses, "data_ocorrencia >= ?")
 		args = append(args, startDate)
@@ -762,10 +750,6 @@ func fetchAllTransactions(userID int64, startDate, endDate string, categories, a
 	return transactions, rows.Err()
 }
 
-// =============================================================================
-// NOVO HANDLER PARA EXPORTAÇÃO DE CSV
-// =============================================================================
-
 // ExportTransactionsCSV gera um arquivo CSV com as transações do usuário, aplicando os filtros da requisição.
 func ExportTransactionsCSV(c *gin.Context) {
 	log.Println("--- EXECUTANDO HANDLER: ExportTransactionsCSV ---")
@@ -773,7 +757,7 @@ func ExportTransactionsCSV(c *gin.Context) {
 
 	middleware.ReportsGenerated.WithLabelValues("csv").Inc()
 
-	// 1. Reutiliza a lógica de filtragem da GetTransacoesPage
+	// 1. Coleta os parâmetros de filtro
 	searchDescricao := c.Query("search_descricao")
 	selectedCategories := c.QueryArray("category")
 	selectedStartDate := c.Query("start_date")
@@ -782,6 +766,7 @@ func ExportTransactionsCSV(c *gin.Context) {
 	selectedAccounts := c.QueryArray("account")
 	selectedValueFilter := c.Query("value_filter")
 
+	// 2. Constrói a Query SQL
 	query := fmt.Sprintf("SELECT id, data_ocorrencia, descricao, valor, categoria, conta, consolidado FROM %s WHERE user_id = ?", database.TableName)
 	var args []interface{}
 	var whereClauses []string
@@ -794,20 +779,39 @@ func ExportTransactionsCSV(c *gin.Context) {
 		whereClauses = append(whereClauses, clause)
 		args = append(args, "%"+searchDescricao+"%")
 	}
-	if len(selectedCategories) > 0 && selectedCategories[0] != "" {
-		placeholders := strings.Repeat("?,", len(selectedCategories)-1) + "?"
+
+	// --- CORREÇÃO: Filtragem Robustecida para Categorias (Correção para o CSV) ---
+	var validCategories []string
+	for _, c := range selectedCategories {
+		if strings.TrimSpace(c) != "" {
+			validCategories = append(validCategories, c)
+		}
+	}
+	if len(validCategories) > 0 {
+		placeholders := strings.Repeat("?,", len(validCategories)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("categoria IN (%s)", placeholders))
-		for _, v := range selectedCategories {
+		for _, v := range validCategories {
 			args = append(args, v)
 		}
 	}
-	if len(selectedAccounts) > 0 && selectedAccounts[0] != "" {
-		placeholders := strings.Repeat("?,", len(selectedAccounts)-1) + "?"
+	// --------------------------------------------------------------------------
+
+	// --- CORREÇÃO: Filtragem Robustecida para Contas ---
+	var validAccounts []string
+	for _, a := range selectedAccounts {
+		if strings.TrimSpace(a) != "" {
+			validAccounts = append(validAccounts, a)
+		}
+	}
+	if len(validAccounts) > 0 {
+		placeholders := strings.Repeat("?,", len(validAccounts)-1) + "?"
 		whereClauses = append(whereClauses, fmt.Sprintf("conta IN (%s)", placeholders))
-		for _, v := range selectedAccounts {
+		for _, v := range validAccounts {
 			args = append(args, v)
 		}
 	}
+	// ----------------------------------------------------
+
 	if selectedStartDate != "" {
 		whereClauses = append(whereClauses, "data_ocorrencia >= ?")
 		args = append(args, selectedStartDate)
@@ -833,6 +837,7 @@ func ExportTransactionsCSV(c *gin.Context) {
 	}
 	query += " ORDER BY data_ocorrencia ASC, id ASC"
 
+	// 3. Executa a Query
 	rows, err := bindAndQuery(userID, query, args...)
 	if err != nil {
 		renderErrorPage(c, http.StatusInternalServerError, "Erro ao buscar movimentações para exportação.", err)
@@ -840,19 +845,19 @@ func ExportTransactionsCSV(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	// 2. Cria o CSV em um buffer de memória
+	// 4. Gera o CSV
 	var buffer bytes.Buffer
 	writer := csv.NewWriter(&buffer)
-	writer.Comma = ';' // Usando o mesmo delimitador do seu data_manager
+	writer.Comma = ';' // Usando o mesmo delimitador padrão do projeto
 
-	// Escreve o cabeçalho
+	// Cabeçalho
 	header := []string{"Data Ocorrência", "Descrição", "Valor", "Categoria", "Conta", "Consolidado"}
 	if err := writer.Write(header); err != nil {
 		renderErrorPage(c, http.StatusInternalServerError, "Erro ao escrever o cabeçalho do CSV.", err)
 		return
 	}
 
-	// Escreve as linhas de dados
+	// Linhas
 	for rows.Next() {
 		var mov models.Movimentacao
 		var rawData interface{}
@@ -861,7 +866,6 @@ func ExportTransactionsCSV(c *gin.Context) {
 			continue
 		}
 
-		// Formata a data
 		var formattedDateForCSV string
 		if t, ok := rawData.(time.Time); ok {
 			formattedDateForCSV = t.Format("02/01/2006")
@@ -874,18 +878,8 @@ func ExportTransactionsCSV(c *gin.Context) {
 			}
 		}
 
-		// Formata o valor com vírgula como separador decimal
 		valorFormatado := strings.Replace(strconv.FormatFloat(mov.Valor, 'f', 2, 64), ".", ",", -1)
-
-		record := []string{
-			formattedDateForCSV,
-			mov.Descricao,
-			valorFormatado,
-			mov.Categoria,
-			mov.Conta,
-			strconv.FormatBool(mov.Consolidado),
-		}
-
+		record := []string{formattedDateForCSV, mov.Descricao, valorFormatado, mov.Categoria, mov.Conta, strconv.FormatBool(mov.Consolidado)}
 		if err := writer.Write(record); err != nil {
 			log.Printf("Erro ao escrever registro no CSV: %v", err)
 			continue
@@ -898,7 +892,7 @@ func ExportTransactionsCSV(c *gin.Context) {
 
 	writer.Flush()
 
-	// 3. Envia a resposta como um download de arquivo
+	// 5. Envia o arquivo
 	filename := fmt.Sprintf("backup_minhas_economias_%s.csv", time.Now().Format("2006-01-02"))
 	c.Header("Content-Disposition", "attachment; filename="+filename)
 	c.Header("Content-Type", "text/csv")
