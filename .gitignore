@@ -66,6 +66,7 @@ csv/Extrato_20230101_20231231.csv
 csv/Extrato_20240101_20241231.csv
 csv/Extrato_20250101_20250630.csv
 csv/Extrato_20250101_20251231.csv
+csv/Extrato_20260101_20261231.csv
 csv/cartao_de_credito
 extratos.db
 go.mod
@@ -85,6 +86,7 @@ xls/Extrato_20230101_20231231.xls
 xls/Extrato_20240101_20241231.xls
 xls/Extrato_20250101_20250630.xls
 xls/Extrato_20250101_20251231.xls
+xls/Extrato_20260101_20261231.xls
 .~lock.*
 popular_saldos.sh
 .ansible/

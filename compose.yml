@@ -7,7 +7,7 @@ services:
     image: quay.io/lagomes/minhaseconomias-api:${TAG:-latest}
     restart: unless-stopped
     volumes:
-      - ./csv:/app/csv:Z  # Mapeia seus dados pessoais apenas em tempo de execução
+      - ./csv:/app/csv:Z
       - ./xls:/app/xls:Z    
     environment:
       - GIN_MODE=release

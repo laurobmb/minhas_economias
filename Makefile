@@ -106,6 +106,7 @@ dev-setup: cli-convert cli-init cli-create-admin cli-create-user
 	@echo "⚡ Setup inicial..."
 	$(MAKE) cli-import USER_ID=2
 	@echo "✅ Ambiente pronto!"
+	@echo "✅ https://app.minhaseconomias.com.br:8443"
 
 # ==========================================
 # 🐙 PODMAN / DOCKER & PRODUÇÃO
@@ -115,6 +116,7 @@ up:
 	@echo "🐙 Subindo stack com $(CONTAINER_TOOL) compose..."
 	$(CONTAINER_TOOL) compose up -d --build
 	@echo "✅ Stack rodando! Bancos e métricas ativos."
+	@echo "✅ https://app.minhaseconomias.com.br:8443"
 
 down:
 	@echo "🛑 Parando containers..."
@@ -143,9 +145,15 @@ setup-prod:
 	
 	@echo "👤 [3/3] Criando Usuário Principal e Importando Dados..."
 	$(CONTAINER_TOOL) compose exec app ./admin-cli -create-user -email="lauro@localnet.com" -password="1q2w3e" -admin=false -user-id=2
+
+	@echo "👤 [3/3] Exportando dados dos XLS para CSV..."
+	$(CONTAINER_TOOL) compose exec app ./xls-converter
+
+	@echo "👤 [3/3] Importando Dados do usuario lauro..."
 	$(CONTAINER_TOOL) compose exec app ./admin-cli -import -import-nacionais -import-internacionais -user-id=2
 	
 	@echo "✅ Setup em container concluído com sucesso!"
+	@echo "✅ https://app.minhaseconomias.com.br:8443"
 
 help:
 	@echo "========================================================================"

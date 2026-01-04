@@ -26,7 +26,8 @@ func runImportMovimentacoes(db *sql.DB, userID int64) {
 		"csv/Extrato_20190101_20191231.csv", "csv/Extrato_20200101_20201231.csv",
 		"csv/Extrato_20210101_20211231.csv", "csv/Extrato_20220101_20221231.csv",
 		"csv/Extrato_20230101_20231231.csv", "csv/Extrato_20240101_20241231.csv",
-		"csv/Extrato_20250101_20251231.csv", "csv/example.csv",
+		"csv/Extrato_20250101_20251231.csv", "csv/Extrato_20260101_20261231.csv",
+		"csv/example.csv",
 	}
 
 	for _, filename := range csvFiles {
